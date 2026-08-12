@@ -13,8 +13,13 @@ let config = {
   sidebarWidth: 240,
   sidebarVisible: true,
   recentFiles: [],
-  treeSort: 'az'
+  treeSort: 'az',
+  terminalHeight: 260
 };
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 const titlebarTitle = document.getElementById('titlebar-title');
 const sidebar = document.getElementById('sidebar');
@@ -84,6 +89,7 @@ const ICON_CHEVRON = ['m9 18 6-6-6-6'];
 const ICON_FOLDER = ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'];
 const ICON_FILE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M15 2v5h5'];
 const ICON_X = ['M18 6 6 18', 'm6 6 12 12'];
+const ICON_SPARKLES = ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'];
 
 function vditorOptions(pane) {
   return {
@@ -113,9 +119,50 @@ function vditorOptions(pane) {
   };
 }
 
+// Ordem de uso dos panes (mais recente primeiro): decide quem fica aberto
+// quando não cabe todo mundo confortável na janela.
+let paneMru = [];
+
+function touchMru(id) {
+  paneMru = [id, ...paneMru.filter((x) => x !== id)];
+}
+
+// Sliding panes de verdade: o pane ativo (e os que couberem confortáveis)
+// ganham a largura flexível; os excedentes viram lombada estreita com o
+// título na vertical. Recalculado ao ativar, abrir, fechar e no resize.
+const SPINE_W = 40;
+const PANE_COMFORT = 480; // largura mínima confortável de um pane aberto
+
+function relayoutPanes() {
+  if (panes.length === 0) return;
+  const total = panesEl.clientWidth || window.innerWidth || 800;
+  // Quantos panes abertos cabem: nOpen*COMFORT + (resto)*SPINE <= total.
+  let nOpen = Math.floor((total - panes.length * SPINE_W) / (PANE_COMFORT - SPINE_W));
+  nOpen = Math.max(1, Math.min(panes.length, nOpen));
+  const openSet = new Set();
+  for (const id of paneMru) {
+    if (openSet.size >= nOpen) break;
+    if (panes.some((p) => p.id === id)) openSet.add(id);
+  }
+  for (const p of panes) {
+    if (openSet.size >= nOpen) break;
+    openSet.add(p.id);
+  }
+  for (const p of panes) p.el.classList.toggle('collapsed', !openSet.has(p.id));
+}
+
 function updatePanesLayout() {
   panesEl.classList.toggle('single', panes.length === 1);
+  relayoutPanes();
 }
+
+// Resize da janela (maximizar, restaurar, arrastar borda) recalcula o layout
+// na hora; o Vditor reflui sozinho porque as larguras são flexíveis.
+let panesResizeTimer = null;
+new ResizeObserver(() => {
+  clearTimeout(panesResizeTimer);
+  panesResizeTimer = setTimeout(relayoutPanes, 50);
+}).observe(panesEl);
 
 function paneTitleText(pane) {
   return pane.path ? baseName(pane.path) : 'sem título';
@@ -125,6 +172,10 @@ function updatePaneHeader(pane) {
   pane.titleEl.textContent = (pane.dirty ? '● ' : '') + paneTitleText(pane);
   pane.titleEl.title = pane.path || '';
   pane.titleEl.classList.toggle('dirty', pane.dirty);
+  // A lombada mostra o mesmo título (na vertical) e a bolinha âmbar de sujo.
+  pane.spineTitleEl.textContent = paneTitleText(pane);
+  pane.spineTitleEl.title = pane.path || '';
+  pane.spineDotEl.classList.toggle('on', pane.dirty);
 }
 
 function createPane() {
@@ -137,41 +188,82 @@ function createPane() {
   header.className = 'pane-header';
   const titleEl = document.createElement('span');
   titleEl.className = 'pane-title';
+  // Ponte claude por nota: o sparkles no cabeçalho age nesta nota.
+  const claudeBtn = document.createElement('button');
+  claudeBtn.className = 'pane-claude';
+  claudeBtn.title = 'Mandar esta nota pro claude';
+  claudeBtn.setAttribute('aria-label', 'Mandar esta nota pro claude');
+  claudeBtn.appendChild(svgIcon(13, ICON_SPARKLES));
   const closeBtn = document.createElement('button');
   closeBtn.className = 'pane-close';
   closeBtn.title = 'Fechar painel';
   closeBtn.setAttribute('aria-label', 'Fechar painel');
   closeBtn.appendChild(svgIcon(12, ICON_X));
   header.appendChild(titleEl);
+  header.appendChild(claudeBtn);
   header.appendChild(closeBtn);
+
+  // Lombada do pane encolhido: X no topo, bolinha de sujo e título vertical.
+  const spine = document.createElement('div');
+  spine.className = 'pane-spine';
+  spine.title = 'Expandir este painel';
+  const spineClose = document.createElement('button');
+  spineClose.className = 'pane-close spine-close';
+  spineClose.title = 'Fechar painel';
+  spineClose.setAttribute('aria-label', 'Fechar painel');
+  spineClose.appendChild(svgIcon(12, ICON_X));
+  const spineDotEl = document.createElement('span');
+  spineDotEl.className = 'spine-dot';
+  const spineTitleEl = document.createElement('span');
+  spineTitleEl.className = 'spine-title';
+  spine.appendChild(spineClose);
+  spine.appendChild(spineDotEl);
+  spine.appendChild(spineTitleEl);
 
   const edEl = document.createElement('div');
   edEl.className = 'pane-editor';
   edEl.id = 'pane-ed-' + id;
 
+  el.appendChild(spine);
   el.appendChild(header);
   el.appendChild(edEl);
   panesEl.appendChild(el);
 
-  const pane = { id, el, titleEl, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
+  const pane = { id, el, titleEl, spineTitleEl, spineDotEl, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
   pane.vditor = new Vditor(edEl.id, vditorOptions(pane));
 
   el.addEventListener('mousedown', () => setActivePane(pane));
+  spine.addEventListener('click', () => setActivePane(pane));
+  claudeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sendPaneToClaude(pane);
+  });
   closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePane(pane);
+  });
+  spineClose.addEventListener('click', (e) => {
     e.stopPropagation();
     closePane(pane);
   });
 
   panes.push(pane);
+  touchMru(id);
   updatePanesLayout();
   updatePaneHeader(pane);
   return pane;
 }
 
 function setActivePane(pane) {
-  if (!pane || activePaneId === pane.id) return;
+  if (!pane) return;
+  touchMru(pane.id);
+  if (activePaneId === pane.id) {
+    relayoutPanes();
+    return;
+  }
   activePaneId = pane.id;
   for (const p of panes) p.el.classList.toggle('active', p.id === pane.id);
+  relayoutPanes();
   updateChrome();
   refreshSidebar();
 }
@@ -185,6 +277,7 @@ function closePane(pane) {
   } catch {}
   pane.el.remove();
   panes.splice(idx, 1);
+  paneMru = paneMru.filter((x) => x !== pane.id);
   if (panes.length === 0) {
     const novo = createPane();
     activePaneId = novo.id;
@@ -1183,6 +1276,7 @@ function toggleTerminal(forceOpen) {
   const open = forceOpen === undefined ? isHidden : forceOpen;
   if (open) {
     terminalPanel.classList.remove('hidden');
+    applyTerminalHeight();
     ensureXterm();
     requestAnimationFrame(() => {
       fitAddon.fit();
@@ -1196,6 +1290,43 @@ function toggleTerminal(forceOpen) {
 }
 
 document.getElementById('btn-term-close').addEventListener('click', () => toggleTerminal(false));
+
+// --- terminal redimensionável: arrastar a borda superior muda a altura,
+// com clamp (120px a 70% da janela) e persistência no config. O fit do xterm
+// acontece durante o arraste pelo ResizeObserver do host. ---
+
+const terminalResizer = document.getElementById('terminal-resizer');
+
+function clampTermHeight(h) {
+  return Math.max(120, Math.min(Math.round(window.innerHeight * 0.7), Math.round(h)));
+}
+
+function setTerminalHeight(h) {
+  const v = clampTermHeight(h);
+  config.terminalHeight = v;
+  terminalPanel.style.height = v + 'px';
+}
+
+function applyTerminalHeight() {
+  terminalPanel.style.height = clampTermHeight(Number(config.terminalHeight) || 260) + 'px';
+}
+
+let termResizing = false;
+terminalResizer.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  termResizing = true;
+  document.body.classList.add('resizing-terminal');
+});
+window.addEventListener('mousemove', (e) => {
+  if (!termResizing) return;
+  setTerminalHeight(terminalPanel.getBoundingClientRect().bottom - e.clientY);
+});
+window.addEventListener('mouseup', () => {
+  if (!termResizing) return;
+  termResizing = false;
+  document.body.classList.remove('resizing-terminal');
+  saveConfig();
+});
 
 // Digita uma linha de comando no shell aberto (pty ou pipe), com Enter.
 function termType(cmd) {
@@ -1227,41 +1358,89 @@ document.getElementById('btn-claude').addEventListener('click', () => {
 });
 
 // ---------------------------------------------------------------------------
-// ponte claude: manda o arquivo (path) ou a seleção como contexto pro claude,
-// digitando o comando no terminal embutido, na pasta da nota. Sem API.
+// ponte claude por nota: abre o terminal, sobe uma sessão do claude, faz /cd
+// pra pasta da nota e digita o path entre aspas SEM Enter final, deixando o
+// cursor ali pro dono completar o prompt sem gastar token à toa. Sem API.
 // ---------------------------------------------------------------------------
 
-// Literal de string do PowerShell entre aspas simples (aspa simples dobrada).
-function psQuote(s) {
-  return "'" + String(s).replace(/'/g, "''") + "'";
+// Buffer visível do xterm como texto (pra detectar o prompt do claude subir).
+function getTermBuffer() {
+  if (!xterm) return '';
+  const out = [];
+  const b = xterm.buffer.active;
+  for (let i = 0; i < b.length; i++) {
+    const l = b.getLine(i);
+    if (l) out.push(l.translateToString(true));
+  }
+  return out.join('\n');
 }
 
-// Abre o terminal, espera o shell subir, faz cd pra pasta da nota e digita o comando.
-function runInNoteTerminal(cmd) {
-  toggleTerminal(true);
-  const dir = currentPath ? dirName(currentPath) : null;
-  const started = Date.now();
-  const tick = () => {
-    if (!termRunning) {
-      if (Date.now() - started < 8000) setTimeout(tick, 200);
-      return;
-    }
-    if (dir) {
-      termType('cd "' + dir + '"');
-      terminalCwd.textContent = dir;
-    }
-    setTimeout(() => termType(cmd), 200);
-  };
-  setTimeout(tick, 300);
+// Digita texto no shell SEM Enter (o cursor fica no fim, esperando o dono).
+function termTypeRaw(text) {
+  if (!termRunning) return;
+  if (termKind === 'pty') {
+    window.wired.termInput(text);
+  } else {
+    xterm.write(text);
+    pipeLine += text;
+  }
 }
 
-function sendFileToClaude() {
-  if (!currentPath) {
+// Espera a sessão do claude subir: o buffer cresce com a TUI e estabiliza
+// (mínimo de 2s, teto de 15s; polling, porque o tempo varia por máquina).
+async function waitClaudeReady() {
+  const start = Date.now();
+  let last = getTermBuffer();
+  let stableSince = Date.now();
+  while (Date.now() - start < 15000) {
+    await sleep(300);
+    const buf = getTermBuffer();
+    if (buf !== last) {
+      last = buf;
+      stableSince = Date.now();
+    }
+    if (Date.now() - start >= 2000 && Date.now() - stableSince >= 900 && buf !== '') return;
+  }
+}
+
+let claudeBridgeBusy = false;
+
+// Fluxo da ponte: terminal aberto, sessão do claude de pé, /cd na pasta da
+// nota e o path digitado entre aspas, sem Enter. Com seleção, ela vai citada
+// depois do path (também sem Enter).
+async function claudeBridge(notePath, selection) {
+  if (!notePath) {
     alert('Nenhum arquivo aberto para mandar pro claude.');
     return;
   }
-  const prompt = 'leia o arquivo "' + currentPath + '" como contexto e me ajude com ele';
-  runInNoteTerminal('claude ' + psQuote(prompt));
+  if (claudeBridgeBusy) return;
+  claudeBridgeBusy = true;
+  try {
+    toggleTerminal(true);
+    const t0 = Date.now();
+    while (!termRunning && Date.now() - t0 < 8000) await sleep(200);
+    if (!termRunning) return;
+    await sleep(400);
+    termType('claude');
+    await waitClaudeReady();
+    termType('/cd ' + dirName(notePath));
+    await sleep(600);
+    let text = '"' + notePath + '" ';
+    if (selection) text += 'sobre este trecho: "' + selection + '" ';
+    termTypeRaw(text);
+    if (xterm) xterm.focus();
+  } finally {
+    claudeBridgeBusy = false;
+  }
+}
+
+function sendPaneToClaude(pane) {
+  setActivePane(pane);
+  claudeBridge(pane ? pane.path : null, '');
+}
+
+function sendFileToClaude() {
+  claudeBridge(currentPath, '');
 }
 
 // Seleção capturada quando a palette abre (o foco no input pode derrubar a seleção do editor).
@@ -1279,8 +1458,7 @@ function sendSelectionToClaude() {
     return;
   }
   const compact = text.replace(/\s+/g, ' ').slice(0, 2000);
-  const prompt = 'sobre este trecho da minha nota: "' + compact + '"';
-  runInNoteTerminal('claude ' + psQuote(prompt));
+  claudeBridge(currentPath, compact);
 }
 
 // ---------------------------------------------------------------------------
@@ -1495,8 +1673,6 @@ window.addEventListener('mouseup', () => {
 
 document.getElementById('btn-toggle-sidebar').addEventListener('click', toggleSidebar);
 document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
-document.getElementById('btn-claude-file').addEventListener('click', () => sendFileToClaude());
-document.getElementById('btn-claude-sel').addEventListener('click', () => sendSelectionToClaude());
 document.getElementById('btn-config').addEventListener('click', () => openSettings());
 
 const winMaxBtn = document.getElementById('win-max');
@@ -1546,6 +1722,20 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     openPalette('commands');
   }
+  // Zoom da fonte do documento: Ctrl+= (ou Ctrl+Shift+=, que chega como +),
+  // Ctrl+- diminui e Ctrl+0 volta ao padrão.
+  if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
+    e.preventDefault();
+    adjustFontZoom(1);
+  }
+  if (e.ctrlKey && (e.key === '-' || e.key === '_')) {
+    e.preventDefault();
+    adjustFontZoom(-1);
+  }
+  if (e.ctrlKey && e.key === '0') {
+    e.preventDefault();
+    setFontZoom(15);
+  }
   // Ctrl+` abre e fecha o terminal (em teclado ABNT pode chegar como aspas).
   if (e.ctrlKey && (e.key === '`' || e.key === "'" || e.code === 'Backquote')) {
     e.preventDefault();
@@ -1557,6 +1747,32 @@ window.addEventListener('keydown', (e) => {
     else if (!settingsOverlay.classList.contains('hidden')) closeSettings();
   }
 }, true);
+
+// --- zoom da fonte do documento (Ctrl+=/-/0 e Ctrl+scroll no editor):
+// mexe no fontSize do config, com o clamp 11 a 26 do painel, e atualiza o
+// campo do painel de configurações se ele estiver aberto. ---
+
+function setFontZoom(v) {
+  const size = Math.max(11, Math.min(26, Math.round(v)));
+  config.fontSize = size;
+  applyCustom();
+  if (!settingsOverlay.classList.contains('hidden')) inpFontSize.value = size;
+  saveConfig();
+}
+
+function adjustFontZoom(delta) {
+  setFontZoom((Number(config.fontSize) || 15) + delta);
+}
+
+panesEl.addEventListener(
+  'wheel',
+  (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    adjustFontZoom(e.deltaY < 0 ? 1 : -1);
+  },
+  { passive: false }
+);
 
 window.wired.onOpenFilePath((p) => openPath(p, false));
 

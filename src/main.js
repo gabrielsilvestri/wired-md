@@ -25,7 +25,8 @@ const DEFAULT_CONFIG = {
   sidebarWidth: 240,
   sidebarVisible: true,
   recentFiles: [],
-  treeSort: 'az'
+  treeSort: 'az',
+  terminalHeight: 260
 };
 
 function ensureUserDirs() {
@@ -660,8 +661,8 @@ async function runE2eTest() {
 
     // 9. janela frameless com barra só de ícones
     const noMenu = Menu.getApplicationMenu() === null;
-    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;var enxuta=['btn-new','btn-open','btn-open-side','btn-save'].every(function(id){return !document.getElementById(id);});return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-terminal','btn-claude-file','btn-claude-sel'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0 && t.contains(b);}),config:(function(){var b=document.getElementById('btn-config');return !!b && !t.contains(b);})(),enxuta:enxuta,menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
-    check('janela frameless: barra enxuta (sidebar, terminal, claude), config no rodapé, sem botões novo/abrir/salvar', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.config && bar.enxuta && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
+    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;var enxuta=['btn-new','btn-open','btn-open-side','btn-save','btn-claude-file','btn-claude-sel'].every(function(id){return !document.getElementById(id);});return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-terminal'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0 && t.contains(b);}),config:(function(){var b=document.getElementById('btn-config');return !!b && !t.contains(b);})(),enxuta:enxuta,menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
+    check('janela frameless: barra enxuta (sidebar, terminal), config no rodapé, claude fora da barra', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.config && bar.enxuta && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
 
     // 10. controles custom respondem: maximizar e restaurar via clique
     await js(`document.getElementById('win-max').click()`);
@@ -767,9 +768,9 @@ async function runE2eTest() {
     await js(`(function(){config.recentFiles=config.recentFiles.filter(function(p){return p.indexOf('pane-e2e')===-1;});saveConfig();renderRecents();})()`);
     await sleep(800);
 
-    // 20. ponte claude: botões de ícone e ações na palette existem
-    const ponte = await js(`(function(){var f=document.getElementById('btn-claude-file');var s=document.getElementById('btn-claude-sel');var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {btnFile:!!f&&!!f.querySelector('svg')&&(f.title||'').length>0,btnSel:!!s&&!!s.querySelector('svg')&&(s.title||'').length>0,acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,acaoLado:acoes.indexOf('abrir arquivo ao lado')!==-1};})()`);
-    check('ponte claude: botões e ações na palette', !!ponte && ponte.btnFile && ponte.btnSel && ponte.acaoFile && ponte.acaoSel && ponte.acaoLado, JSON.stringify(ponte));
+    // 20. ponte claude por nota: sparkles no cabeçalho de cada pane e ações na palette
+    const ponte = await js(`(function(){var todos=[...document.querySelectorAll('#panes .pane')];var okBtn=todos.length>0&&todos.every(function(p){var b=p.querySelector('.pane-header .pane-claude');return !!b&&!!b.querySelector('svg')&&(b.title||'').length>0;});var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {okBtn:okBtn,semBarra:!document.getElementById('btn-claude-file')&&!document.getElementById('btn-claude-sel'),acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,acaoLado:acoes.indexOf('abrir arquivo ao lado')!==-1};})()`);
+    check('ponte claude: sparkles no cabeçalho do pane (e fora da barra de título), ações na palette', !!ponte && ponte.okBtn && ponte.semBarra && ponte.acaoFile && ponte.acaoSel && ponte.acaoLado, JSON.stringify(ponte));
 
     // 22. cabeçalho da tree: nome da pasta raiz, tooltip com o path e botão do Explorer
     const rootDir = path.dirname(demoPath);
@@ -832,6 +833,74 @@ async function runE2eTest() {
     await js(`setTreeSort('az')`);
     await sleep(300);
     check('ordenação muda pelo menu e persiste no config.json', sortCfg === 'recente' && !!cfgDisk && cfgDisk.treeSort === 'recente', JSON.stringify({ sortCfg, disk: cfgDisk && cfgDisk.treeSort }));
+
+    // 28. sliding panes: em janela estreita, os panes inativos viram lombada
+    // vertical (writing-mode vertical-rl) com X e título; só o ativo fica largo
+    mainWindow.setSize(700, 840);
+    await sleep(500);
+    const spineA = path.join(path.dirname(demoPath), 'lombada-a-e2e.md');
+    const spineB = path.join(path.dirname(demoPath), 'lombada-b-e2e.md');
+    fs.writeFileSync(spineA, '# lombada a\n', 'utf8');
+    fs.writeFileSync(spineB, '# lombada b\n', 'utf8');
+    await sleep(1200);
+    await js(`openPath(${JSON.stringify(spineA)}, true)`);
+    await sleep(800);
+    await js(`openPath(${JSON.stringify(spineB)}, true)`);
+    await sleep(1000);
+    const lomb = await js(`(function(){var todos=[...document.querySelectorAll('#panes .pane')];var col=todos.filter(function(p){return p.classList.contains('collapsed');});var ativo=document.querySelector('#panes .pane.active');var sp=col[0]?col[0].querySelector('.pane-spine'):null;var t=sp?sp.querySelector('.spine-title'):null;return {n:todos.length,col:col.length,ativoAberto:!!ativo&&!ativo.classList.contains('collapsed'),larguraLombada:col[0]?Math.round(col[0].getBoundingClientRect().width):0,vertical:t?getComputedStyle(t).writingMode:null,titulo:t?t.textContent:null,xNoTopo:sp?!!sp.querySelector('.spine-close'):false,dot:sp?!!sp.querySelector('.spine-dot'):false};})()`);
+    check('lombada: janela estreita colapsa os inativos com título vertical, X e bolinha', !!lomb && lomb.n === 3 && lomb.col === 2 && lomb.ativoAberto && lomb.larguraLombada === 40 && lomb.vertical === 'vertical-rl' && !!lomb.titulo && lomb.xNoTopo && lomb.dot, JSON.stringify(lomb));
+
+    // 29. clicar na lombada expande aquele pane e encolhe o anterior
+    await js(`(function(){var todos=[...document.querySelectorAll('#panes .pane')];var alvo=todos.find(function(p){return p.classList.contains('collapsed')&&p.querySelector('.spine-title').textContent==='lombada-a-e2e.md';});if(alvo)alvo.querySelector('.pane-spine').dispatchEvent(new MouseEvent('click',{bubbles:true}));})()`);
+    await sleep(700);
+    const expandiu = await js(`(function(){var ativo=document.querySelector('#panes .pane.active');var col=document.querySelectorAll('#panes .pane.collapsed').length;return {ativo:currentPath,aberto:!!ativo&&!ativo.classList.contains('collapsed'),col:col};})()`);
+    check('lombada expande no clique e o anterior encolhe', !!expandiu && expandiu.ativo === spineA && expandiu.aberto && expandiu.col === 2, JSON.stringify(expandiu));
+
+    // 30. resize da janela recalcula o layout: larga abre todos, estreita volta
+    // a colapsar (sidebar oculta pra régua ser só a área dos panes)
+    await js('setSidebarVisible(false)');
+    mainWindow.setSize(1500, 840);
+    await sleep(700);
+    const largo = await js(`document.querySelectorAll('#panes .pane.collapsed').length`);
+    mainWindow.setSize(700, 840);
+    await sleep(700);
+    const estreito = await js(`document.querySelectorAll('#panes .pane.collapsed').length`);
+    await js('setSidebarVisible(true)');
+    check('resize recalcula: 1500px abre os 3 panes, 700px colapsa 2', largo === 0 && estreito === 2, 'largo=' + largo + ' estreito=' + estreito);
+    // limpa: fecha os panes extras e apaga os artefatos
+    await js(`(function(){['lombada-a-e2e','lombada-b-e2e'].forEach(function(k){var p=panes.find(function(x){return x.path&&x.path.indexOf(k)!==-1;});if(p){setPaneDirty(p,false);closePane(p);}});config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('lombada-')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(500);
+    fs.rmSync(spineA, { force: true });
+    fs.rmSync(spineB, { force: true });
+    await sleep(800);
+
+    // 31. terminal redimensionável: arrastar a borda superior muda a altura e persiste
+    await js('toggleTerminal(true)');
+    await sleep(600);
+    const dragH = await js(`(function(){var panel=document.getElementById('terminal-panel');var r=panel.getBoundingClientRect();var res=document.getElementById('terminal-resizer');res.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,clientY:Math.round(r.top)}));window.dispatchEvent(new MouseEvent('mousemove',{clientY:Math.round(r.bottom-340)}));window.dispatchEvent(new MouseEvent('mouseup',{}));return {css:panel.style.height,cfg:config.terminalHeight};})()`);
+    await sleep(500);
+    let cfgTerm = null;
+    try {
+      cfgTerm = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    const clampTerm = await js(`(function(){setTerminalHeight(50);var min=document.getElementById('terminal-panel').style.height;setTerminalHeight(9999);var max=parseInt(document.getElementById('terminal-panel').style.height,10);setTerminalHeight(260);saveConfig();return {min:min,maxOk:max<=Math.round(window.innerHeight*0.7)};})()`);
+    await js('toggleTerminal(false)');
+    check('terminal arrasta a altura (340px), persiste no config.json e respeita o clamp', !!dragH && dragH.css === '340px' && dragH.cfg === 340 && !!cfgTerm && cfgTerm.terminalHeight === 340 && !!clampTerm && clampTerm.min === '120px' && clampTerm.maxOk, JSON.stringify({ dragH, disk: cfgTerm && cfgTerm.terminalHeight, clampTerm }));
+
+    // 32. zoom da fonte do documento: Ctrl+= sobe, Ctrl+0 volta pro padrão
+    await js('setFontZoom(15)'); // ponto de partida determinístico
+    await sleep(300);
+    await js(`(function(){window.dispatchEvent(new KeyboardEvent('keydown',{key:'=',ctrlKey:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'=',ctrlKey:true}));})()`);
+    await sleep(500);
+    const zoomUp = await js(`(function(){return {cfg:config.fontSize,css:getComputedStyle(document.documentElement).getPropertyValue('--font-size-body').trim()};})()`);
+    let cfgZoom = null;
+    try {
+      cfgZoom = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'0',ctrlKey:true}))`);
+    await sleep(400);
+    const zoomReset = await js('config.fontSize');
+    check('zoom: Ctrl+= sobe a fonte pra 17 (persistida) e Ctrl+0 volta pra 15', !!zoomUp && zoomUp.cfg === 17 && zoomUp.css === '17px' && !!cfgZoom && cfgZoom.fontSize === 17 && zoomReset === 15, JSON.stringify({ zoomUp, disk: cfgZoom && cfgZoom.fontSize, zoomReset }));
 
     // 21. screenshot final: janela larga, sidebar visível e dois panes abertos
     await js('toggleTerminal(false)');

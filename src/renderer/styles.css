@@ -344,24 +344,72 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   flex: 1;
   min-height: 0;
   display: flex;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
+/* Pane aberto ocupa a largura flexível; o encolhido vira lombada de 40px.
+   O deslize é a transição de flex-grow e flex-basis (~200ms). */
 .pane {
-  flex: 0 0 640px;
-  max-width: 640px;
+  flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   border-right: 1px solid var(--rule-soft);
+  transition: flex-grow 0.2s ease, flex-basis 0.2s ease;
 }
 
-#panes.single .pane {
-  flex: 1 1 auto;
-  max-width: none;
-  border-right: none;
+.pane:last-child { border-right: none; }
+
+.pane.collapsed {
+  flex: 0 0 40px;
+  cursor: pointer;
 }
+
+.pane.collapsed .pane-header,
+.pane.collapsed .pane-editor { display: none; }
+
+/* --- lombada do pane encolhido: X no topo, bolinha de sujo, título vertical --- */
+
+.pane-spine { display: none; }
+
+.pane.collapsed .pane-spine {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 6px 0 12px;
+  background: var(--bg-2);
+  user-select: none;
+}
+
+.pane.collapsed:hover .pane-spine { background: var(--bg-3); }
+
+.spine-title {
+  writing-mode: vertical-rl;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-height: 100%;
+}
+
+.pane.collapsed:hover .spine-title { color: var(--ink); }
+
+/* bolinha âmbar de não salvo, visível também na lombada */
+.spine-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.spine-dot.on { background: var(--amber); }
 
 .pane-header {
   flex: 0 0 auto;
@@ -389,7 +437,8 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .pane-title.dirty { color: var(--amber); }
 .pane.active .pane-header { box-shadow: inset 0 -1px 0 var(--accent-dim); }
 
-.pane-close {
+.pane-close,
+.pane-claude {
   flex: 0 0 auto;
   background: transparent;
   border: none;
@@ -402,6 +451,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 }
 
 .pane-close:hover { background: var(--bg-3); color: var(--ink); }
+.pane-claude:hover { background: var(--bg-3); color: var(--accent-soft); }
 
 .pane-editor {
   flex: 1;
@@ -495,8 +545,10 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 /* --- terminal embutido --- */
 
 #terminal-panel {
+  position: relative;
   height: 260px;
   min-height: 120px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   background: var(--bg-2);
@@ -504,6 +556,22 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 }
 
 #terminal-panel.hidden { display: none; }
+
+/* pega na borda superior do painel e arrasta a altura */
+#terminal-resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: row-resize;
+  z-index: 10;
+}
+
+#terminal-resizer:hover { background: rgba(var(--accent-rgb), 0.25); }
+
+body.resizing-terminal { cursor: row-resize; user-select: none; }
+body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0.35); }
 
 #terminal-bar {
   display: flex;
