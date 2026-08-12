@@ -623,11 +623,13 @@ function pathRenamed(from, to) {
     if (pane.id === activePaneId) updateChrome();
   }
   const isDir = !/\.(md|markdown)$/i.test(from);
-  config.recentFiles = (config.recentFiles || []).map((r) => {
+  // o map pode gerar duplicata quando o path de destino já estava nos
+  // recentes (sessão antiga), então dedup preservando a ordem
+  config.recentFiles = [...new Set((config.recentFiles || []).map((r) => {
     if (r === from) return to;
     if (isDir && r.startsWith(from + '\\')) return to + r.slice(from.length);
     return r;
-  });
+  }))];
   saveConfig();
   refreshSidebar();
 }
@@ -649,7 +651,7 @@ async function createNewMd(targetDir) {
     newFile();
     return;
   }
-  let name = await askInput('novo arquivo em ' + baseName(dir), 'sem-titulo.md', 'criar');
+  let name = await askInput('novo arquivo em ' + baseName(dir), 'sem-título.md', 'criar');
   if (!name) return;
   if (!/\.(md|markdown)$/i.test(name)) name += '.md';
   const res = await window.wired.createFile(dir + '\\' + name);

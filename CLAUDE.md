@@ -74,6 +74,15 @@ npm start
 - ZOOM DA FONTE DO DOCUMENTO: Ctrl+= (e Ctrl+Shift+=, que chega como `+`), Ctrl+- e Ctrl+0 (volta a 15), além de Ctrl+scroll no `#panes`; mexe em `config.fontSize` com o clamp 11 a 26 e atualiza o campo do painel de configurações se aberto.
 - E2E da fase 6b: 35 checks. Novos: lombada em janela estreita (3 panes, 2 colapsados, título vertical), clique na lombada expande, resize recalcula (o check oculta a sidebar antes, senão os ~320px dela mudam a régua), arrasto do terminal com persistência e clamp, zoom por atalho persistido (o check faz `setFontZoom(15)` antes porque o config real do usuário pode ter outro tamanho). Adaptados: checks 9 e 20, que referenciavam os botões claude da barra de título.
 
+## Integração e teste (fase 6c, implementada)
+
+- E2E 35/35 verde estável (duas rodadas seguidas) e smoke verde após as fases 6a e 6b.
+- Exploratório dirigido via hook temporário no main.js (WIRED_EXPLORE, removido depois): criar .md pela toolbar dentro de subpasta, renomear pelo menu de contexto com o arquivo aberto num pane (pane, barra de título e recentes acompanham), excluir pela lixeira (pane fecha e recentes limpam), busca filtra e Esc restaura, 3 panes com três trocas de foco pela lombada, maximizar recalcula pela régua, Ctrl+scroll de zoom persistido, altura do terminal persistida ENTRE SESSÕES (duas execuções do app), ponte claude com claude real digitando o path sem Enter.
+- Armadilha do exploratório: artefato de rodada morta no meio (arquivo de teste que sobrou) faz o `alert()` de erro de criação bloquear o renderer e travar todo executeJavaScript seguinte; o hook precisa limpar os artefatos no INÍCIO, não só no fim. E `executeJavaScript` que termina numa atribuição de função ("An object could not be cloned") precisa terminar em `void 0`.
+- Fix do exploratório: `pathRenamed` deduplica os recentes depois do map (renomear pra um path que já estava na lista criava entrada dupla).
+- O screenshot do E2E (passo 21) sai com 3 panes (demo, anotações e o guia.md novo em exemplos/), um deles em lombada, e a sidebar visível.
+- Placeholder de nome de arquivo ganhou acento: `sem-título.md` (renderer e dialog save do main).
+
 ## Auditoria integrada (fase 5c, implementada)
 
 - E2E 24/24 verde estável (duas rodadas seguidas) e smoke verde. Teste exploratório extra (10 fluxos cruzados que o E2E não cobre) rodado via hook temporário no main.js, depois removido: dois panes sujos com Ctrl+S em cada, tema com panes abertos, resize da sidebar com terminal aberto, recentes com vários arquivos, fs.watch com arquivo criado por fora, fechar o último pane, switcher com Ctrl+Enter.

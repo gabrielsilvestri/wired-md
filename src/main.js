@@ -205,7 +205,7 @@ ipcMain.handle('dialog:open', async () => {
 ipcMain.handle('dialog:saveAs', async (_ev, suggestedPath) => {
   const result = await dialog.showSaveDialog(mainWindow, {
     title: 'Salvar como',
-    defaultPath: suggestedPath || 'sem-titulo.md',
+    defaultPath: suggestedPath || 'sem-título.md',
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
   });
   if (result.canceled || !result.filePath) return null;
@@ -902,12 +902,16 @@ async function runE2eTest() {
     const zoomReset = await js('config.fontSize');
     check('zoom: Ctrl+= sobe a fonte pra 17 (persistida) e Ctrl+0 volta pra 15', !!zoomUp && zoomUp.cfg === 17 && zoomUp.css === '17px' && !!cfgZoom && cfgZoom.fontSize === 17 && zoomReset === 15, JSON.stringify({ zoomUp, disk: cfgZoom && cfgZoom.fontSize, zoomReset }));
 
-    // 21. screenshot final: janela larga, sidebar visível e dois panes abertos
+    // 21. screenshot final: janela larga, sidebar visível e três panes (a
+    // régua com a sidebar de 320px deixa dois abertos e um em lombada)
     await js('toggleTerminal(false)');
     mainWindow.setSize(1360, 840);
     mainWindow.center();
     const notasPath = path.join(path.dirname(demoPath), 'anotacoes.md');
+    const guiaPath = path.join(path.dirname(demoPath), 'guia.md');
     await js(`openPath(${JSON.stringify(notasPath)}, true)`);
+    await sleep(1000);
+    await js(`openPath(${JSON.stringify(guiaPath)}, true)`);
     await sleep(1500);
     const img = await mainWindow.webContents.capturePage();
     const docsDir = path.join(__dirname, '..', 'docs');
