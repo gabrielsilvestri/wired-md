@@ -49,6 +49,13 @@ npm start
 - Terminal nasce no diretório da nota ativa (já era assim) e ganhou o botão cd no painel: manda `cd "<pasta da nota>"` pro shell aberto sem reiniciar.
 - E2E da fase 5a: 19 checks (árvore com ativo, pasta nova via fs.watch + expandir, recentes, resize com clamp, ocultar/mostrar persistido, botões de ícone, botão cd). O match do `dir` no terminal ignora quebras de linha, porque o xterm quebra nomes conforme a largura da sidebar.
 
+## Panes, palette e ponte claude (fase 5b, implementada)
+
+- SLIDING PANES: até 4 arquivos lado a lado (estilo Obsidian/Andy Matuschak). Cada pane é uma instância própria do Vditor com path e dirty próprios; `currentPath`, `vditor` e `dirty` viraram getters do pane ativo em `window` (compat com o resto do código e com o E2E). Ctrl+clique na árvore ou nos recentes (ou o botão "abrir ao lado" na barra) abre num pane novo à direita; clique simples abre no pane ativo. Pane com 640px fixos e scroll horizontal do conjunto (`#panes`); com um pane só, ele ocupa tudo (classe `single`). Cabeçalho fino por pane (nome, bolinha âmbar de sujo, botão fechar); pane ativo com linha accent no cabeçalho. Arquivo já aberto em outro pane não duplica: ativa o pane dele. Ctrl+S salva o pane ativo (mousedown no pane ativa ele).
+- COMMAND PALETTE (Ctrl+Shift+P) e QUICK SWITCHER (Ctrl+P): overlay central com busca fuzzy por subsequência (`fuzzyScore` no renderer, bônus pra começo de palavra e trechos contíguos). Palette lista as ações do app (`PALETTE_ACTIONS`); switcher busca nos .md da árvore atual (`treeFiles`, achatada no refreshSidebar). Enter executa/abre, Ctrl+Enter abre ao lado, setas navegam, Esc fecha.
+- PONTE CLAUDE: "mandar arquivo pro claude" e "mandar seleção pro claude" (botões de ícone na barra + ações na palette). Abrem o terminal, esperam o shell subir, fazem cd pra pasta da nota e digitam `claude '<prompt>'` (aspas simples do PowerShell, com aspa simples dobrada via `psQuote`; path do arquivo entre aspas duplas dentro do prompt; seleção compactada a 2000 chars). A seleção é capturada quando a palette abre (`lastSelection`), porque o foco no input derruba a seleção do editor.
+- E2E da fase 5b: 24 checks no total (panes abrem/fecham, palette filtra e executa, switcher acha e abre, botões da ponte claude).
+
 ## Armadilhas
 
 - Windows: node-pty precisa de build tools; se a build falhar, o fallback é um pseudo-terminal via child_process (spawn powershell, stdin/stdout pipe) com xterm.js só como render.

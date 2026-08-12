@@ -1,12 +1,7 @@
-// Renderer do wired-md: Vditor em modo IR (instant rendering), sidebar de
-// arquivos, painel de configurações (tema, accent, fontes, snippets) e
-// terminal embutido com xterm.js.
-
-let vditor = null;
-let currentPath = null;
-let dirty = false;
-let editorReady = false;
-let pendingPath = null;
+// Renderer do wired-md: Vditor em modo IR (instant rendering) em sliding panes
+// (até 4 lado a lado, estilo Obsidian), sidebar de arquivos, command palette e
+// quick switcher, painel de configurações (tema, accent, fontes, snippets),
+// terminal embutido com xterm.js e ponte pro claude.
 
 let config = {
   theme: 'wired',
@@ -29,6 +24,7 @@ const recentSection = document.getElementById('recent-section');
 const sidebarEmpty = document.getElementById('sidebar-empty');
 const themeStyle = document.getElementById('theme-style');
 const customStyle = document.getElementById('custom-style');
+const panesEl = document.getElementById('panes');
 
 function baseName(p) {
   return p.split(/[\\/]/).pop();
@@ -39,21 +35,25 @@ function dirName(p) {
   return i > 0 ? p.slice(0, i) : p;
 }
 
-function updateChrome() {
-  const name = currentPath ? baseName(currentPath) : 'nenhum arquivo';
-  titlebarTitle.textContent = (dirty ? '● ' : '') + name;
-  titlebarTitle.title = currentPath || '';
-  titlebarTitle.classList.toggle('dirty', dirty);
-  window.wired.setTitle((dirty ? '● ' : '') + name + ' | wired-md');
+// ---------------------------------------------------------------------------
+// sliding panes: cada pane tem seu próprio Vditor, path e estado sujo.
+// Máximo de 4 panes lado a lado; o conjunto rola na horizontal.
+// ---------------------------------------------------------------------------
+
+const MAX_PANES = 4;
+const panes = []; // { id, el, titleEl, path, dirty, vditor, ready, pendingPath }
+let activePaneId = null;
+let paneSeq = 0;
+
+function activePane() {
+  return panes.find((p) => p.id === activePaneId) || panes[0] || null;
 }
 
-function setDirty(v) {
-  if (dirty === v) return;
-  dirty = v;
-  updateChrome();
-}
-
-// --- file tree (árvore da pasta da nota aberta, estilo Obsidian) ---
+// Compatibilidade com o restante do código (e com o E2E): currentPath, vditor
+// e dirty continuam existindo como leituras do pane ativo.
+Object.defineProperty(window, 'currentPath', { get: () => (activePane() ? activePane().path : null) });
+Object.defineProperty(window, 'vditor', { get: () => (activePane() ? activePane().vditor : null) });
+Object.defineProperty(window, 'dirty', { get: () => !!(activePane() && activePane().dirty) });
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -78,9 +78,155 @@ function svgIcon(size, paths) {
 const ICON_CHEVRON = ['m9 18 6-6-6-6'];
 const ICON_FOLDER = ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'];
 const ICON_FILE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M15 2v5h5'];
+const ICON_X = ['M18 6 6 18', 'm6 6 12 12'];
+
+function vditorOptions(pane) {
+  return {
+    mode: 'ir',
+    cdn: '../../node_modules/vditor',
+    height: '100%',
+    theme: 'dark',
+    lang: 'pt_BR',
+    toolbar: [],
+    toolbarConfig: { hide: true },
+    cache: { enable: false },
+    preview: {
+      theme: { current: 'dark', path: '../../node_modules/vditor/dist/css/content-theme' },
+      hljs: { style: 'native', lineNumber: false },
+      markdown: { toc: true, mark: true }
+    },
+    placeholder: 'abra um arquivo .md ou comece a escrever...',
+    input: () => setPaneDirty(pane, true),
+    after: () => {
+      pane.ready = true;
+      if (pane.pendingPath) {
+        const p = pane.pendingPath;
+        pane.pendingPath = null;
+        openInPane(pane, p);
+      }
+    }
+  };
+}
+
+function updatePanesLayout() {
+  panesEl.classList.toggle('single', panes.length === 1);
+}
+
+function paneTitleText(pane) {
+  return pane.path ? baseName(pane.path) : 'sem título';
+}
+
+function updatePaneHeader(pane) {
+  pane.titleEl.textContent = (pane.dirty ? '● ' : '') + paneTitleText(pane);
+  pane.titleEl.title = pane.path || '';
+  pane.titleEl.classList.toggle('dirty', pane.dirty);
+}
+
+function createPane() {
+  if (panes.length >= MAX_PANES) return null;
+  const id = ++paneSeq;
+  const el = document.createElement('div');
+  el.className = 'pane';
+
+  const header = document.createElement('div');
+  header.className = 'pane-header';
+  const titleEl = document.createElement('span');
+  titleEl.className = 'pane-title';
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'pane-close';
+  closeBtn.title = 'Fechar painel';
+  closeBtn.setAttribute('aria-label', 'Fechar painel');
+  closeBtn.appendChild(svgIcon(12, ICON_X));
+  header.appendChild(titleEl);
+  header.appendChild(closeBtn);
+
+  const edEl = document.createElement('div');
+  edEl.className = 'pane-editor';
+  edEl.id = 'pane-ed-' + id;
+
+  el.appendChild(header);
+  el.appendChild(edEl);
+  panesEl.appendChild(el);
+
+  const pane = { id, el, titleEl, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
+  pane.vditor = new Vditor(edEl.id, vditorOptions(pane));
+
+  el.addEventListener('mousedown', () => setActivePane(pane));
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePane(pane);
+  });
+
+  panes.push(pane);
+  updatePanesLayout();
+  updatePaneHeader(pane);
+  return pane;
+}
+
+function setActivePane(pane) {
+  if (!pane || activePaneId === pane.id) return;
+  activePaneId = pane.id;
+  for (const p of panes) p.el.classList.toggle('active', p.id === pane.id);
+  updateChrome();
+  refreshSidebar();
+}
+
+function closePane(pane) {
+  if (pane.dirty && !confirm('Há alterações não salvas neste painel. Fechar mesmo assim?')) return;
+  const idx = panes.indexOf(pane);
+  if (idx === -1) return;
+  try {
+    pane.vditor.destroy();
+  } catch {}
+  pane.el.remove();
+  panes.splice(idx, 1);
+  if (panes.length === 0) {
+    const novo = createPane();
+    activePaneId = novo.id;
+    novo.el.classList.add('active');
+  } else if (activePaneId === pane.id) {
+    const next = panes[Math.min(idx, panes.length - 1)];
+    activePaneId = null;
+    setActivePane(next);
+  }
+  updatePanesLayout();
+  updateChrome();
+  refreshSidebar();
+}
+
+function closeActivePane() {
+  const p = activePane();
+  if (p) closePane(p);
+}
+
+function setPaneDirty(pane, v) {
+  if (pane.dirty === v) return;
+  pane.dirty = v;
+  updatePaneHeader(pane);
+  if (pane.id === activePaneId) updateChrome();
+}
+
+// Compat: setDirty aplica ao pane ativo.
+function setDirty(v) {
+  const p = activePane();
+  if (p) setPaneDirty(p, v);
+}
+
+function updateChrome() {
+  const p = activePane();
+  const isDirty = !!(p && p.dirty);
+  const name = p && p.path ? baseName(p.path) : 'nenhum arquivo';
+  titlebarTitle.textContent = (isDirty ? '● ' : '') + name;
+  titlebarTitle.title = (p && p.path) || '';
+  titlebarTitle.classList.toggle('dirty', isDirty);
+  window.wired.setTitle((isDirty ? '● ' : '') + name + ' | wired-md');
+}
+
+// --- file tree (árvore da pasta da nota aberta, estilo Obsidian) ---
 
 let treeRoot = null; // pasta raiz da árvore (pasta da nota aberta)
 const expandedDirs = new Set(); // paths de subpastas abertas (fechadas por padrão; estado preservado entre refreshes)
+let treeFiles = []; // lista achatada de arquivos da árvore atual (quick switcher)
 
 function fileRow(f, depth) {
   const row = document.createElement('div');
@@ -94,8 +240,10 @@ function fileRow(f, depth) {
   name.textContent = f.name;
   row.appendChild(ico);
   row.appendChild(name);
-  if (f.path === currentPath) row.classList.add('active');
-  row.addEventListener('click', () => openPath(f.path));
+  const p = activePane();
+  if (p && f.path === p.path) row.classList.add('active');
+  // Ctrl+clique abre num pane novo ao lado, clique simples abre no pane ativo.
+  row.addEventListener('click', (e) => openPath(f.path, e.ctrlKey));
   return row;
 }
 
@@ -134,14 +282,22 @@ function renderTreeLevel(container, node, depth) {
   for (const f of node.files) container.appendChild(fileRow(f, depth + 0.35));
 }
 
+function flattenTree(node, out) {
+  for (const f of node.files) out.push(f);
+  for (const d of node.dirs) flattenTree(d, out);
+  return out;
+}
+
 async function refreshSidebar() {
   fileTreeEl.innerHTML = '';
   renderRecents();
-  if (!currentPath) {
+  const p = activePane();
+  const cur = p ? p.path : null;
+  if (!cur) {
     sidebarEmpty.style.display = 'block';
     return;
   }
-  const dir = dirName(currentPath);
+  const dir = dirName(cur);
   if (dir !== treeRoot) {
     treeRoot = dir;
     expandedDirs.clear();
@@ -150,6 +306,7 @@ async function refreshSidebar() {
   }
   const res = await window.wired.dirTree(dir);
   const tree = res.tree || { dirs: [], files: [] };
+  treeFiles = flattenTree(tree, []);
   if (!res.ok || (tree.dirs.length === 0 && tree.files.length === 0)) {
     sidebarEmpty.style.display = 'block';
     return;
@@ -176,79 +333,107 @@ function renderRecents() {
   recentListEl.innerHTML = '';
   const list = config.recentFiles || [];
   recentSection.style.display = list.length > 0 ? '' : 'none';
+  const ap = activePane();
   for (const p of list) {
     const li = document.createElement('li');
     li.textContent = baseName(p);
     li.title = p;
-    if (p === currentPath) li.classList.add('active');
-    li.addEventListener('click', () => openPath(p));
+    if (ap && p === ap.path) li.classList.add('active');
+    li.addEventListener('click', (e) => openPath(p, e.ctrlKey));
     recentListEl.appendChild(li);
   }
 }
 
-async function openPath(p) {
-  if (!editorReady) {
-    pendingPath = p;
+// Abre o arquivo num pane. Com side=true, abre num pane novo à direita
+// (respeitando o teto de 4); se o arquivo já está aberto em algum pane,
+// só ativa o pane dele.
+async function openPath(p, side) {
+  const existing = panes.find((x) => x.path === p);
+  if (existing) {
+    setActivePane(existing);
     return;
   }
-  if (p === currentPath) return;
-  if (dirty && !confirm('Há alterações não salvas. Descartar e abrir outro arquivo?')) return;
+  let pane;
+  if (side) {
+    pane = createPane();
+    if (pane) setActivePane(pane);
+    else pane = activePane(); // teto de panes: degrada pro pane ativo
+  } else {
+    pane = activePane();
+  }
+  if (!pane) return;
+  await openInPane(pane, p);
+}
+
+async function openInPane(pane, p) {
+  if (!pane.ready) {
+    pane.pendingPath = p;
+    return;
+  }
+  if (pane.path === p) return;
+  if (pane.dirty && !confirm('Há alterações não salvas. Descartar e abrir outro arquivo?')) return;
   const res = await window.wired.readFile(p);
   if (!res.ok) {
     alert('Não foi possível abrir o arquivo: ' + res.error);
     return;
   }
-  currentPath = p;
-  vditor.setValue(res.content);
-  setDirty(false);
-  updateChrome();
+  pane.path = p;
+  pane.vditor.setValue(res.content);
+  setPaneDirty(pane, false);
+  updatePaneHeader(pane);
+  if (pane.id === activePaneId) updateChrome();
   pushRecent(p);
   refreshSidebar();
 }
 
 async function save() {
-  if (!vditor) return;
-  if (!currentPath) {
+  const pane = activePane();
+  if (!pane || !pane.vditor) return;
+  if (!pane.path) {
     saveAs();
     return;
   }
-  const res = await window.wired.writeFile(currentPath, vditor.getValue());
+  const res = await window.wired.writeFile(pane.path, pane.vditor.getValue());
   if (!res.ok) {
     alert('Falha ao salvar: ' + res.error);
     return;
   }
-  setDirty(false);
+  setPaneDirty(pane, false);
 }
 
 async function saveAs() {
-  if (!vditor) return;
-  const p = await window.wired.saveAsDialog(currentPath);
+  const pane = activePane();
+  if (!pane || !pane.vditor) return;
+  const p = await window.wired.saveAsDialog(pane.path);
   if (!p) return;
-  const res = await window.wired.writeFile(p, vditor.getValue());
+  const res = await window.wired.writeFile(p, pane.vditor.getValue());
   if (!res.ok) {
     alert('Falha ao salvar: ' + res.error);
     return;
   }
-  currentPath = p;
-  setDirty(false);
+  pane.path = p;
+  setPaneDirty(pane, false);
+  updatePaneHeader(pane);
   updateChrome();
   pushRecent(p);
   refreshSidebar();
 }
 
 function newFile() {
-  if (!vditor) return;
-  if (dirty && !confirm('Há alterações não salvas. Descartar e criar um novo arquivo?')) return;
-  currentPath = null;
-  vditor.setValue('');
-  setDirty(false);
+  const pane = activePane();
+  if (!pane || !pane.vditor) return;
+  if (pane.dirty && !confirm('Há alterações não salvas. Descartar e criar um novo arquivo?')) return;
+  pane.path = null;
+  pane.vditor.setValue('');
+  setPaneDirty(pane, false);
+  updatePaneHeader(pane);
   updateChrome();
   refreshSidebar();
 }
 
-async function openViaDialog() {
+async function openViaDialog(side) {
   const p = await window.wired.openDialog();
-  if (p) openPath(p);
+  if (p) openPath(p, !!side);
 }
 
 // ---------------------------------------------------------------------------
@@ -619,11 +804,9 @@ function toggleTerminal(forceOpen) {
 
 document.getElementById('btn-term-close').addEventListener('click', () => toggleTerminal(false));
 
-// Manda o shell aberto pra pasta da nota atual (cd), sem reiniciar o terminal.
-document.getElementById('btn-term-cd').addEventListener('click', () => {
-  if (!currentPath || !termRunning) return;
-  const dir = dirName(currentPath);
-  const cmd = 'cd "' + dir + '"';
+// Digita uma linha de comando no shell aberto (pty ou pipe), com Enter.
+function termType(cmd) {
+  if (!termRunning) return;
   if (termKind === 'pty') {
     window.wired.termInput(cmd + '\r');
   } else {
@@ -631,53 +814,237 @@ document.getElementById('btn-term-cd').addEventListener('click', () => {
     window.wired.termInput(cmd + '\r\n');
     pipeLine = '';
   }
+}
+
+// Manda o shell aberto pra pasta da nota atual (cd), sem reiniciar o terminal.
+function cdTerminalToNote() {
+  if (!currentPath || !termRunning) return;
+  const dir = dirName(currentPath);
+  termType('cd "' + dir + '"');
   terminalCwd.textContent = dir;
   xterm.focus();
-});
+}
+
+document.getElementById('btn-term-cd').addEventListener('click', cdTerminalToNote);
 
 // Digita o comando claude no shell, já com Enter.
 document.getElementById('btn-claude').addEventListener('click', () => {
   toggleTerminal(true);
-  setTimeout(() => {
-    if (!termRunning) return;
-    if (termKind === 'pty') {
-      window.wired.termInput('claude\r');
-    } else {
-      xterm.write('claude\r\n');
-      window.wired.termInput('claude\r\n');
-      pipeLine = '';
-    }
-  }, 300);
+  setTimeout(() => termType('claude'), 300);
 });
 
 // ---------------------------------------------------------------------------
-// Vditor
+// ponte claude: manda o arquivo (path) ou a seleção como contexto pro claude,
+// digitando o comando no terminal embutido, na pasta da nota. Sem API.
 // ---------------------------------------------------------------------------
 
-vditor = new Vditor('editor', {
-  mode: 'ir',
-  cdn: '../../node_modules/vditor',
-  height: '100%',
-  theme: 'dark',
-  lang: 'pt_BR',
-  toolbar: [],
-  toolbarConfig: { hide: true },
-  cache: { enable: false },
-  preview: {
-    theme: { current: 'dark', path: '../../node_modules/vditor/dist/css/content-theme' },
-    hljs: { style: 'native', lineNumber: false },
-    markdown: { toc: true, mark: true }
-  },
-  placeholder: 'abra um arquivo .md ou comece a escrever...',
-  input: () => setDirty(true),
-  after: () => {
-    editorReady = true;
-    if (pendingPath) {
-      const p = pendingPath;
-      pendingPath = null;
-      openPath(p);
+// Literal de string do PowerShell entre aspas simples (aspa simples dobrada).
+function psQuote(s) {
+  return "'" + String(s).replace(/'/g, "''") + "'";
+}
+
+// Abre o terminal, espera o shell subir, faz cd pra pasta da nota e digita o comando.
+function runInNoteTerminal(cmd) {
+  toggleTerminal(true);
+  const dir = currentPath ? dirName(currentPath) : null;
+  const started = Date.now();
+  const tick = () => {
+    if (!termRunning) {
+      if (Date.now() - started < 8000) setTimeout(tick, 200);
+      return;
     }
+    if (dir) {
+      termType('cd "' + dir + '"');
+      terminalCwd.textContent = dir;
+    }
+    setTimeout(() => termType(cmd), 200);
+  };
+  setTimeout(tick, 300);
+}
+
+function sendFileToClaude() {
+  if (!currentPath) {
+    alert('Nenhum arquivo aberto para mandar pro claude.');
+    return;
   }
+  const prompt = 'leia o arquivo "' + currentPath + '" como contexto e me ajude com ele';
+  runInNoteTerminal('claude ' + psQuote(prompt));
+}
+
+// Seleção capturada quando a palette abre (o foco no input pode derrubar a seleção do editor).
+let lastSelection = '';
+
+function currentSelectionText() {
+  const sel = window.getSelection ? String(window.getSelection()) : '';
+  return (sel || lastSelection || '').trim();
+}
+
+function sendSelectionToClaude() {
+  const text = currentSelectionText();
+  if (!text) {
+    alert('Nenhum texto selecionado para mandar pro claude.');
+    return;
+  }
+  const compact = text.replace(/\s+/g, ' ').slice(0, 2000);
+  const prompt = 'sobre este trecho da minha nota: "' + compact + '"';
+  runInNoteTerminal('claude ' + psQuote(prompt));
+}
+
+// ---------------------------------------------------------------------------
+// command palette (Ctrl+Shift+P) e quick switcher (Ctrl+P)
+// ---------------------------------------------------------------------------
+
+const paletteOverlay = document.getElementById('palette-overlay');
+const paletteInput = document.getElementById('palette-input');
+const paletteList = document.getElementById('palette-list');
+
+let paletteMode = null; // 'commands' | 'files'
+let paletteItems = []; // itens filtrados na tela: { label, hint, run(ctrl) }
+let paletteSel = 0;
+
+const PALETTE_ACTIONS = [
+  { label: 'alternar barra lateral', run: () => toggleSidebar() },
+  { label: 'novo arquivo', hint: 'Ctrl+N', run: () => newFile() },
+  { label: 'abrir arquivo', hint: 'Ctrl+O', run: () => openViaDialog(false) },
+  { label: 'abrir arquivo ao lado', run: () => openViaDialog(true) },
+  { label: 'salvar', hint: 'Ctrl+S', run: () => save() },
+  { label: 'salvar como', hint: 'Ctrl+Shift+S', run: () => saveAs() },
+  { label: 'fechar painel atual', run: () => closeActivePane() },
+  { label: 'alternar terminal', hint: 'Ctrl+`', run: () => toggleTerminal() },
+  { label: 'terminal: ir pra pasta da nota (cd)', run: () => { toggleTerminal(true); setTimeout(cdTerminalToNote, 300); } },
+  { label: 'mandar arquivo pro claude', run: () => sendFileToClaude() },
+  { label: 'mandar seleção pro claude', run: () => sendSelectionToClaude() },
+  { label: 'configurações', run: () => openSettings() }
+];
+
+// Fuzzy por subsequência: cada caractere da busca tem que aparecer em ordem.
+// Pontua começo de palavra e sequências contíguas; menor distância ganha.
+function fuzzyScore(query, text) {
+  const q = query.toLowerCase();
+  const t = text.toLowerCase();
+  if (!q) return 0;
+  let ti = 0;
+  let score = 0;
+  let streak = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const idx = t.indexOf(q[qi], ti);
+    if (idx === -1) return -Infinity;
+    if (idx === ti && qi > 0) {
+      streak += 1;
+      score += 3 + streak;
+    } else {
+      streak = 0;
+      score += 1;
+      if (idx === 0 || /[\s\-_./\\]/.test(t[idx - 1])) score += 3;
+      score -= Math.min(idx - ti, 10) * 0.1;
+    }
+    ti = idx + 1;
+  }
+  score -= t.length * 0.01;
+  return score;
+}
+
+function openPalette(mode) {
+  paletteMode = mode;
+  lastSelection = window.getSelection ? String(window.getSelection()).trim() : '';
+  paletteInput.value = '';
+  paletteInput.placeholder = mode === 'files' ? 'buscar arquivo... (Enter abre, Ctrl+Enter abre ao lado)' : 'buscar comando...';
+  paletteOverlay.classList.remove('hidden');
+  renderPalette();
+  paletteInput.focus();
+}
+
+function closePalette() {
+  paletteOverlay.classList.add('hidden');
+  paletteMode = null;
+}
+
+function paletteSource() {
+  if (paletteMode === 'files') {
+    return treeFiles.map((f) => ({
+      label: f.name,
+      hint: f.path,
+      run: (ctrl) => openPath(f.path, !!ctrl)
+    }));
+  }
+  return PALETTE_ACTIONS.map((a) => ({ label: a.label, hint: a.hint || '', run: () => a.run() }));
+}
+
+function renderPalette() {
+  const q = paletteInput.value.trim();
+  const scored = [];
+  for (const item of paletteSource()) {
+    const s = fuzzyScore(q, item.label);
+    if (s === -Infinity) continue;
+    scored.push({ item, s });
+  }
+  scored.sort((a, b) => b.s - a.s);
+  paletteItems = scored.slice(0, 30).map((x) => x.item);
+  paletteSel = 0;
+  paletteList.innerHTML = '';
+  if (paletteItems.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'palette-empty';
+    empty.textContent = 'nada encontrado';
+    paletteList.appendChild(empty);
+    return;
+  }
+  paletteItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'palette-row' + (i === paletteSel ? ' selected' : '');
+    const label = document.createElement('span');
+    label.className = 'palette-label';
+    label.textContent = item.label;
+    row.appendChild(label);
+    if (item.hint) {
+      const hint = document.createElement('span');
+      hint.className = 'palette-hint';
+      hint.textContent = item.hint;
+      row.appendChild(hint);
+    }
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      runPaletteItem(item, e.ctrlKey);
+    });
+    paletteList.appendChild(row);
+  });
+}
+
+function movePaletteSel(delta) {
+  if (paletteItems.length === 0) return;
+  paletteSel = (paletteSel + delta + paletteItems.length) % paletteItems.length;
+  const rows = paletteList.querySelectorAll('.palette-row');
+  rows.forEach((r, i) => r.classList.toggle('selected', i === paletteSel));
+  const sel = rows[paletteSel];
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function runPaletteItem(item, ctrl) {
+  closePalette();
+  item.run(ctrl);
+}
+
+paletteInput.addEventListener('input', renderPalette);
+
+paletteInput.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    movePaletteSel(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    movePaletteSel(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const item = paletteItems[paletteSel];
+    if (item) runPaletteItem(item, e.ctrlKey);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closePalette();
+  }
+});
+
+paletteOverlay.addEventListener('mousedown', (e) => {
+  if (e.target === paletteOverlay) closePalette();
 });
 
 // ---------------------------------------------------------------------------
@@ -735,9 +1102,12 @@ window.addEventListener('mouseup', () => {
 
 document.getElementById('btn-toggle-sidebar').addEventListener('click', toggleSidebar);
 document.getElementById('btn-new').addEventListener('click', () => newFile());
-document.getElementById('btn-open').addEventListener('click', () => openViaDialog());
+document.getElementById('btn-open').addEventListener('click', () => openViaDialog(false));
+document.getElementById('btn-open-side').addEventListener('click', () => openViaDialog(true));
 document.getElementById('btn-save').addEventListener('click', () => save());
 document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
+document.getElementById('btn-claude-file').addEventListener('click', () => sendFileToClaude());
+document.getElementById('btn-claude-sel').addEventListener('click', () => sendSelectionToClaude());
 document.getElementById('btn-config').addEventListener('click', () => openSettings());
 
 const winMaxBtn = document.getElementById('win-max');
@@ -776,21 +1146,35 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.ctrlKey && e.key.toLowerCase() === 'o') {
     e.preventDefault();
-    openViaDialog();
+    openViaDialog(false);
+  }
+  // Ctrl+P quick switcher, Ctrl+Shift+P command palette (estilo Obsidian).
+  if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    openPalette('files');
+  }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    openPalette('commands');
   }
   // Ctrl+` abre e fecha o terminal (em teclado ABNT pode chegar como aspas).
   if (e.ctrlKey && (e.key === '`' || e.key === "'" || e.code === 'Backquote')) {
     e.preventDefault();
     toggleTerminal();
   }
-  if (e.key === 'Escape' && !settingsOverlay.classList.contains('hidden')) {
-    closeSettings();
+  if (e.key === 'Escape') {
+    if (!paletteOverlay.classList.contains('hidden')) closePalette();
+    else if (!settingsOverlay.classList.contains('hidden')) closeSettings();
   }
 }, true);
 
-window.wired.onOpenFilePath((p) => openPath(p));
+window.wired.onOpenFilePath((p) => openPath(p, false));
 
-// --- boot: aplica config salva ---
+// --- boot: cria o primeiro pane e aplica config salva ---
+
+const firstPane = createPane();
+activePaneId = firstPane.id;
+firstPane.el.classList.add('active');
 
 (async function boot() {
   try {

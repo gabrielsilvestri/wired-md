@@ -569,7 +569,7 @@ async function runE2eTest() {
 
     // 9. janela frameless com barra só de ícones
     const noMenu = Menu.getApplicationMenu() === null;
-    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-new','btn-open','btn-save','btn-terminal','btn-config'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0;}),menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
+    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-new','btn-open','btn-open-side','btn-save','btn-terminal','btn-claude-file','btn-claude-sel','btn-config'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0;}),menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
     check('janela frameless: sem menu nativo, barra arrastável, controles e botões de ícone com tooltip', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
 
     // 10. controles custom respondem: maximizar e restaurar via clique
@@ -635,7 +635,52 @@ async function runE2eTest() {
     const cdBtn = await js(`(function(){var b=document.getElementById('btn-term-cd');return !!b && !!b.querySelector('svg') && (b.title||'').length>0;})()`);
     check('botão cd no painel do terminal', cdBtn === true, String(cdBtn));
 
-    // 16. screenshot final
+    // 16. sliding panes: abrir um segundo arquivo ao lado, ativo no novo pane
+    const paneFile = path.join(path.dirname(demoPath), 'pane-e2e.md');
+    fs.writeFileSync(paneFile, '# nota do pane e2e\n\ntexto de teste.\n', 'utf8');
+    await sleep(1200); // fs.watch atualiza a árvore (e o quick switcher)
+    await js(`openPath(${JSON.stringify(paneFile)}, true)`);
+    await sleep(1500);
+    const panes2 = await js(`(function(){var t=document.querySelector('#panes .pane.active .pane-title');return {n:panes.length,dom:document.querySelectorAll('#panes .pane').length,ativo:currentPath,titulo:t?t.textContent:null,single:document.getElementById('panes').classList.contains('single')};})()`);
+    check('panes: segundo pane abre ao lado e fica ativo', !!panes2 && panes2.n === 2 && panes2.dom === 2 && panes2.ativo === paneFile && panes2.titulo === 'pane-e2e.md' && !panes2.single, JSON.stringify(panes2));
+
+    // 17. panes: fechar o pane ativo volta pro primeiro (demo.md)
+    await js(`document.querySelector('#panes .pane.active .pane-close').click()`);
+    await sleep(600);
+    const panes1 = await js(`(function(){return {n:panes.length,dom:document.querySelectorAll('#panes .pane').length,ativo:currentPath,single:document.getElementById('panes').classList.contains('single')};})()`);
+    check('panes: fechar volta pra um pane com demo.md ativo', !!panes1 && panes1.n === 1 && panes1.dom === 1 && panes1.ativo === demoPath && panes1.single, JSON.stringify(panes1));
+
+    // 18. command palette: abre, filtra e executa uma ação de verdade
+    await js(`(function(){openPalette('commands');var i=document.getElementById('palette-input');i.value='barra lateral';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(200);
+    const palSel = await js(`(function(){var r=document.querySelector('#palette-list .palette-row.selected .palette-label');return r?r.textContent:null;})()`);
+    await js(`document.getElementById('palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(300);
+    const palRes = await js(`(function(){return {fechou:document.getElementById('palette-overlay').classList.contains('hidden'),sidebarOculta:document.getElementById('sidebar').classList.contains('hidden')};})()`);
+    await js(`toggleSidebar()`);
+    await sleep(200);
+    check('command palette filtra e executa (barra lateral)', palSel === 'alternar barra lateral' && !!palRes && palRes.fechou && palRes.sidebarOculta, JSON.stringify({ palSel, palRes }));
+
+    // 19. quick switcher: acha o arquivo por fuzzy e Enter abre no pane ativo
+    await js(`(function(){openPalette('files');var i=document.getElementById('palette-input');i.value='panee2e';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(200);
+    const swSel = await js(`(function(){var r=document.querySelector('#palette-list .palette-row.selected .palette-label');return r?r.textContent:null;})()`);
+    await js(`document.getElementById('palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(800);
+    const swPath = await js('currentPath');
+    check('quick switcher acha pane-e2e.md e abre', swSel === 'pane-e2e.md' && swPath === paneFile, JSON.stringify({ swSel, swPath }));
+    // volta pro demo e limpa os artefatos
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(paneFile, { force: true });
+    await js(`(function(){config.recentFiles=config.recentFiles.filter(function(p){return p.indexOf('pane-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(800);
+
+    // 20. ponte claude: botões de ícone e ações na palette existem
+    const ponte = await js(`(function(){var f=document.getElementById('btn-claude-file');var s=document.getElementById('btn-claude-sel');var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {btnFile:!!f&&!!f.querySelector('svg')&&(f.title||'').length>0,btnSel:!!s&&!!s.querySelector('svg')&&(s.title||'').length>0,acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,ladoBtn:!!document.getElementById('btn-open-side')};})()`);
+    check('ponte claude: botões e ações na palette', !!ponte && ponte.btnFile && ponte.btnSel && ponte.acaoFile && ponte.acaoSel && ponte.ladoBtn, JSON.stringify(ponte));
+
+    // 21. screenshot final
     await js('toggleTerminal(false)');
     await sleep(400);
     const img = await mainWindow.webContents.capturePage();
