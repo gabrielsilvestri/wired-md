@@ -56,6 +56,12 @@ npm start
 - PONTE CLAUDE: "mandar arquivo pro claude" e "mandar seleção pro claude" (botões de ícone na barra + ações na palette). Abrem o terminal, esperam o shell subir, fazem cd pra pasta da nota e digitam `claude '<prompt>'` (aspas simples do PowerShell, com aspa simples dobrada via `psQuote`; path do arquivo entre aspas duplas dentro do prompt; seleção compactada a 2000 chars). A seleção é capturada quando a palette abre (`lastSelection`), porque o foco no input derruba a seleção do editor.
 - E2E da fase 5b: 24 checks no total (panes abrem/fecham, palette filtra e executa, switcher acha e abre, botões da ponte claude).
 
+## Auditoria integrada (fase 5c, implementada)
+
+- E2E 24/24 verde estável (duas rodadas seguidas) e smoke verde. Teste exploratório extra (10 fluxos cruzados que o E2E não cobre) rodado via hook temporário no main.js, depois removido: dois panes sujos com Ctrl+S em cada, tema com panes abertos, resize da sidebar com terminal aberto, recentes com vários arquivos, fs.watch com arquivo criado por fora, fechar o último pane, switcher com Ctrl+Enter.
+- Fix da auditoria: `openPath` de arquivo já aberto em outro pane agora faz `pushRecent(p)` ao ativar o pane, senão a ordem dos recentes mente sobre o último usado.
+- Ruídos conhecidos e benignos: no fim do E2E o node-pty pode cuspir "AttachConsole failed" do conpty_console_list_agent no teardown (exit code segue 0); no boot em dev aparecem o warning de CSP do Electron (some empacotado) e "Failed to read DnsHosts" (hosts customizado da máquina). Nenhum console.error do app.
+
 ## Armadilhas
 
 - Windows: node-pty precisa de build tools; se a build falhar, o fallback é um pseudo-terminal via child_process (spawn powershell, stdin/stdout pipe) com xterm.js só como render.

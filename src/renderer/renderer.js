@@ -351,6 +351,7 @@ async function openPath(p, side) {
   const existing = panes.find((x) => x.path === p);
   if (existing) {
     setActivePane(existing);
+    pushRecent(p); // volta pro topo dos recentes mesmo sem reabrir
     return;
   }
   let pane;

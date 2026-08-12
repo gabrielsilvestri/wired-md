@@ -680,9 +680,13 @@ async function runE2eTest() {
     const ponte = await js(`(function(){var f=document.getElementById('btn-claude-file');var s=document.getElementById('btn-claude-sel');var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {btnFile:!!f&&!!f.querySelector('svg')&&(f.title||'').length>0,btnSel:!!s&&!!s.querySelector('svg')&&(s.title||'').length>0,acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,ladoBtn:!!document.getElementById('btn-open-side')};})()`);
     check('ponte claude: botões e ações na palette', !!ponte && ponte.btnFile && ponte.btnSel && ponte.acaoFile && ponte.acaoSel && ponte.ladoBtn, JSON.stringify(ponte));
 
-    // 21. screenshot final
+    // 21. screenshot final: janela larga, sidebar visível e dois panes abertos
     await js('toggleTerminal(false)');
-    await sleep(400);
+    mainWindow.setSize(1360, 840);
+    mainWindow.center();
+    const notasPath = path.join(path.dirname(demoPath), 'anotacoes.md');
+    await js(`openPath(${JSON.stringify(notasPath)}, true)`);
+    await sleep(1500);
     const img = await mainWindow.webContents.capturePage();
     const docsDir = path.join(__dirname, '..', 'docs');
     fs.mkdirSync(docsDir, { recursive: true });
