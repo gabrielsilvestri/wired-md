@@ -1,0 +1,11 @@
+/* Tema claro simples de exemplo. Contraste contido: texto entre 4.5:1 e 11:1
+   sobre o fundo, sem preto puro nem branco puro. */
+
+:root {
+  --bg:#f2f0ea; --bg-2:#e9e6de; --bg-3:#dedad0;
+  --rule:#b3aca0; --rule-soft:#ddd8ce; --rule-row:#c8c2b6; --leader:#beb8ac;
+  --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#6a7079;
+  --accent:#1f7a72; --accent-soft:#2a6b64; --accent-ink:#22706a; --accent-dim:#5b9c96;
+  --accent-rgb:31,122,114;
+  --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
+}

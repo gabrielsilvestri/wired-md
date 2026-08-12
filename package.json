@@ -1,0 +1,19 @@
+{
+  "name": "wired-md",
+  "version": "0.1.0",
+  "description": "Editor de markdown desktop estilo Typora, feito para quem escreve markdown para IA",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^37.2.0"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "node-pty": "^1.1.0",
+    "vditor": "^3.11.1"
+  }
+}

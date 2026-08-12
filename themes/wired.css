@@ -1,0 +1,11 @@
+/* Tema padrão "wired": dark, paleta do dashboard da lain.
+   Um tema define só as variáveis; a estrutura fica em styles.css. */
+
+:root {
+  --bg:#101216; --bg-2:#191d23; --bg-3:#222732;
+  --rule:#3d4854; --rule-soft:#22272f; --rule-row:#313a45; --leader:#38414c;
+  --ink:#bcc2c9; --ink-dim:#9fa6b0; --ink-faint:#9098a3;
+  --accent:#4fc7bb; --accent-soft:#83cdc6; --accent-ink:#5bbcb2; --accent-dim:#3a8c85;
+  --accent-rgb:79,199,187;
+  --green:#5fc890; --amber:#d5a95a; --red:#e88080;
+}

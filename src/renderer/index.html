@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>wired-md</title>
+  <link rel="stylesheet" href="../../node_modules/vditor/dist/index.css">
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="styles.css">
+  <style id="theme-style"></style>
+  <style id="custom-style"></style>
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div id="sidebar-header">
+        <span id="sidebar-title">arquivos</span>
+      </div>
+      <ul id="file-list"></ul>
+      <div id="sidebar-empty">nenhuma pasta aberta</div>
+    </aside>
+    <div id="main-col">
+      <div id="toolbar">
+        <button id="btn-toggle-sidebar" title="Mostrar ou esconder a barra lateral">☰</button>
+        <button id="btn-open" title="Abrir arquivo (Ctrl+O)">abrir</button>
+        <span id="file-label">nenhum arquivo</span>
+        <span id="dirty-dot" title="Alterações não salvas">●</span>
+        <span class="toolbar-spacer"></span>
+        <button id="btn-terminal" title="Terminal (Ctrl+`)">terminal</button>
+        <button id="btn-settings" title="Configurações">⚙</button>
+      </div>
+      <div id="editor"></div>
+      <div id="terminal-panel" class="hidden">
+        <div id="terminal-bar">
+          <span id="terminal-title">terminal</span>
+          <span id="terminal-cwd"></span>
+          <span class="toolbar-spacer"></span>
+          <button id="btn-claude" title="Digitar o comando claude no shell">claude</button>
+          <button id="btn-term-close" title="Fechar terminal">✕</button>
+        </div>
+        <div id="terminal-host"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settings-overlay" class="hidden">
+    <div id="settings-panel">
+      <div id="settings-header">
+        <span>configurações</span>
+        <button id="btn-settings-close" title="Fechar">✕</button>
+      </div>
+      <div id="settings-body">
+        <section>
+          <h3>tema</h3>
+          <div class="setting-row">
+            <label for="sel-theme">tema ativo</label>
+            <select id="sel-theme"></select>
+            <button id="btn-open-themes" title="Abrir a pasta de temas no Explorer">pasta</button>
+          </div>
+          <div class="setting-row">
+            <label for="inp-accent">cor de destaque</label>
+            <input type="color" id="inp-accent">
+            <button id="btn-accent-reset" title="Voltar ao accent do tema">padrão do tema</button>
+          </div>
+        </section>
+        <section>
+          <h3>fontes</h3>
+          <div class="setting-row">
+            <label for="inp-font-body">fonte do documento</label>
+            <input type="text" id="inp-font-body" list="font-options" placeholder="padrão do tema">
+          </div>
+          <div class="setting-row">
+            <label for="inp-font-code">fonte de código</label>
+            <input type="text" id="inp-font-code" list="font-options" placeholder="padrão do tema">
+          </div>
+          <datalist id="font-options"></datalist>
+          <div class="setting-row">
+            <label for="inp-font-size">tamanho do texto</label>
+            <input type="number" id="inp-font-size" min="11" max="26" step="1">
+            <span class="setting-hint">px</span>
+          </div>
+        </section>
+        <section>
+          <h3>snippets de css</h3>
+          <p class="setting-hint">arquivos .css na pasta de snippets; ligue os que quiser aplicar por cima do tema.</p>
+          <div id="snippet-list"></div>
+          <div class="setting-row">
+            <button id="btn-open-snippets" title="Abrir a pasta de snippets no Explorer">abrir pasta de snippets</button>
+            <button id="btn-reload-snippets" title="Reler a lista de snippets">recarregar lista</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../node_modules/vditor/dist/index.min.js"></script>
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
