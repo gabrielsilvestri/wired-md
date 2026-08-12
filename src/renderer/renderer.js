@@ -14,12 +14,18 @@ let config = {
   fontBody: '',
   fontCode: '',
   fontSize: 15,
-  snippets: []
+  snippets: [],
+  sidebarWidth: 240,
+  sidebarVisible: true,
+  recentFiles: []
 };
 
 const titlebarTitle = document.getElementById('titlebar-title');
 const sidebar = document.getElementById('sidebar');
-const fileListEl = document.getElementById('file-list');
+const sidebarResizer = document.getElementById('sidebar-resizer');
+const fileTreeEl = document.getElementById('file-tree');
+const recentListEl = document.getElementById('recent-list');
+const recentSection = document.getElementById('recent-section');
 const sidebarEmpty = document.getElementById('sidebar-empty');
 const themeStyle = document.getElementById('theme-style');
 const customStyle = document.getElementById('custom-style');
@@ -47,26 +53,136 @@ function setDirty(v) {
   updateChrome();
 }
 
+// --- file tree (árvore da pasta da nota aberta, estilo Obsidian) ---
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgIcon(size, paths) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.5');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  for (const d of paths) {
+    const p = document.createElementNS(SVG_NS, 'path');
+    p.setAttribute('d', d);
+    svg.appendChild(p);
+  }
+  return svg;
+}
+
+const ICON_CHEVRON = ['m9 18 6-6-6-6'];
+const ICON_FOLDER = ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'];
+const ICON_FILE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M15 2v5h5'];
+
+let treeRoot = null; // pasta raiz da árvore (pasta da nota aberta)
+const expandedDirs = new Set(); // paths de subpastas abertas (fechadas por padrão; estado preservado entre refreshes)
+
+function fileRow(f, depth) {
+  const row = document.createElement('div');
+  row.className = 'tree-row file';
+  row.style.paddingLeft = 10 + depth * 14 + 'px';
+  row.title = f.path;
+  const ico = svgIcon(13, ICON_FILE);
+  ico.classList.add('tree-ico');
+  const name = document.createElement('span');
+  name.className = 'tree-name';
+  name.textContent = f.name;
+  row.appendChild(ico);
+  row.appendChild(name);
+  if (f.path === currentPath) row.classList.add('active');
+  row.addEventListener('click', () => openPath(f.path));
+  return row;
+}
+
+function renderTreeLevel(container, node, depth) {
+  for (const d of node.dirs) {
+    const row = document.createElement('div');
+    row.className = 'tree-row folder';
+    row.style.paddingLeft = 10 + depth * 14 + 'px';
+    row.title = d.path;
+    const chev = svgIcon(11, ICON_CHEVRON);
+    chev.classList.add('tree-chevron');
+    const ico = svgIcon(13, ICON_FOLDER);
+    ico.classList.add('tree-ico');
+    const name = document.createElement('span');
+    name.className = 'tree-name';
+    name.textContent = d.name;
+    row.appendChild(chev);
+    row.appendChild(ico);
+    row.appendChild(name);
+    const children = document.createElement('div');
+    children.className = 'tree-children';
+    const open = expandedDirs.has(d.path);
+    row.classList.toggle('open', open);
+    children.style.display = open ? '' : 'none';
+    row.addEventListener('click', () => {
+      if (expandedDirs.has(d.path)) expandedDirs.delete(d.path);
+      else expandedDirs.add(d.path);
+      const nowOpen = expandedDirs.has(d.path);
+      row.classList.toggle('open', nowOpen);
+      children.style.display = nowOpen ? '' : 'none';
+    });
+    container.appendChild(row);
+    renderTreeLevel(children, d, depth + 1);
+    container.appendChild(children);
+  }
+  for (const f of node.files) container.appendChild(fileRow(f, depth + 0.35));
+}
+
 async function refreshSidebar() {
-  fileListEl.innerHTML = '';
+  fileTreeEl.innerHTML = '';
+  renderRecents();
   if (!currentPath) {
     sidebarEmpty.style.display = 'block';
     return;
   }
   const dir = dirName(currentPath);
-  const res = await window.wired.listMd(dir);
-  if (!res.ok || res.files.length === 0) {
+  if (dir !== treeRoot) {
+    treeRoot = dir;
+    expandedDirs.clear();
+    // Subpastas nascem fechadas quando a raiz muda; abrir é um clique.
+    window.wired.watchDir(dir);
+  }
+  const res = await window.wired.dirTree(dir);
+  const tree = res.tree || { dirs: [], files: [] };
+  if (!res.ok || (tree.dirs.length === 0 && tree.files.length === 0)) {
     sidebarEmpty.style.display = 'block';
     return;
   }
   sidebarEmpty.style.display = 'none';
-  for (const f of res.files) {
+  renderTreeLevel(fileTreeEl, tree, 0);
+}
+
+window.wired.onDirChanged(() => {
+  refreshSidebar();
+});
+
+// --- arquivos recentes ---
+
+const MAX_RECENT = 12;
+
+function pushRecent(p) {
+  config.recentFiles = [p, ...(config.recentFiles || []).filter((r) => r !== p)].slice(0, MAX_RECENT);
+  saveConfig();
+  renderRecents();
+}
+
+function renderRecents() {
+  recentListEl.innerHTML = '';
+  const list = config.recentFiles || [];
+  recentSection.style.display = list.length > 0 ? '' : 'none';
+  for (const p of list) {
     const li = document.createElement('li');
-    li.textContent = f.name;
-    li.title = f.path;
-    if (f.path === currentPath) li.classList.add('active');
-    li.addEventListener('click', () => openPath(f.path));
-    fileListEl.appendChild(li);
+    li.textContent = baseName(p);
+    li.title = p;
+    if (p === currentPath) li.classList.add('active');
+    li.addEventListener('click', () => openPath(p));
+    recentListEl.appendChild(li);
   }
 }
 
@@ -86,6 +202,7 @@ async function openPath(p) {
   vditor.setValue(res.content);
   setDirty(false);
   updateChrome();
+  pushRecent(p);
   refreshSidebar();
 }
 
@@ -115,6 +232,7 @@ async function saveAs() {
   currentPath = p;
   setDirty(false);
   updateChrome();
+  pushRecent(p);
   refreshSidebar();
 }
 
@@ -501,6 +619,22 @@ function toggleTerminal(forceOpen) {
 
 document.getElementById('btn-term-close').addEventListener('click', () => toggleTerminal(false));
 
+// Manda o shell aberto pra pasta da nota atual (cd), sem reiniciar o terminal.
+document.getElementById('btn-term-cd').addEventListener('click', () => {
+  if (!currentPath || !termRunning) return;
+  const dir = dirName(currentPath);
+  const cmd = 'cd "' + dir + '"';
+  if (termKind === 'pty') {
+    window.wired.termInput(cmd + '\r');
+  } else {
+    xterm.write(cmd + '\r\n');
+    window.wired.termInput(cmd + '\r\n');
+    pipeLine = '';
+  }
+  terminalCwd.textContent = dir;
+  xterm.focus();
+});
+
 // Digita o comando claude no shell, já com Enter.
 document.getElementById('btn-claude').addEventListener('click', () => {
   toggleTerminal(true);
@@ -550,67 +684,61 @@ vditor = new Vditor('editor', {
 // eventos globais
 // ---------------------------------------------------------------------------
 
-document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
-  sidebar.classList.toggle('collapsed');
+// --- sidebar: mostrar/ocultar e redimensionar (persistidos no config) ---
+
+const SIDEBAR_MIN = 180;
+const SIDEBAR_MAX = 480;
+
+function applySidebarState() {
+  const w = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, Number(config.sidebarWidth) || 240));
+  sidebar.style.width = w + 'px';
+  const visible = config.sidebarVisible !== false;
+  sidebar.classList.toggle('hidden', !visible);
+  sidebarResizer.classList.toggle('hidden', !visible);
+}
+
+function setSidebarVisible(v) {
+  config.sidebarVisible = !!v;
+  applySidebarState();
+  saveConfig();
+}
+
+function toggleSidebar() {
+  setSidebarVisible(sidebar.classList.contains('hidden'));
+}
+
+function setSidebarWidth(w) {
+  config.sidebarWidth = Math.max(SIDEBAR_MIN, Math.min(SIDEBAR_MAX, w));
+  applySidebarState();
+}
+
+let resizing = false;
+sidebarResizer.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+  resizing = true;
+  document.body.classList.add('resizing-sidebar');
+});
+window.addEventListener('mousemove', (e) => {
+  if (!resizing) return;
+  setSidebarWidth(e.clientX);
+});
+window.addEventListener('mouseup', () => {
+  if (!resizing) return;
+  resizing = false;
+  document.body.classList.remove('resizing-sidebar');
+  saveConfig();
 });
 
 // ---------------------------------------------------------------------------
-// barra de título custom: menus, controles de janela e estado maximizado
+// barra de título custom: botões de ícone, controles de janela e maximizado
 // ---------------------------------------------------------------------------
 
-const menuRoots = [...document.querySelectorAll('#titlebar .menu-root')];
-
-function closeMenus() {
-  for (const m of menuRoots) {
-    m.querySelector('.menu-drop').classList.add('hidden');
-    m.classList.remove('open');
-  }
-}
-
-function anyMenuOpen() {
-  return menuRoots.some((m) => m.classList.contains('open'));
-}
-
-for (const root of menuRoots) {
-  const label = root.querySelector('.menu-label');
-  label.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const drop = root.querySelector('.menu-drop');
-    const willOpen = drop.classList.contains('hidden');
-    closeMenus();
-    if (willOpen) {
-      drop.classList.remove('hidden');
-      root.classList.add('open');
-    }
-  });
-  // Com um menu aberto, passar o mouse troca de menu, como no menu nativo.
-  label.addEventListener('mouseenter', () => {
-    if (anyMenuOpen() && !root.classList.contains('open')) label.click();
-  });
-}
-
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.menu-root')) closeMenus();
-});
-
-const MENU_ACTIONS = {
-  novo: () => newFile(),
-  abrir: () => openViaDialog(),
-  salvar: () => save(),
-  'salvar-como': () => saveAs(),
-  sidebar: () => sidebar.classList.toggle('collapsed'),
-  terminal: () => toggleTerminal(),
-  config: () => openSettings()
-};
-
-for (const btn of document.querySelectorAll('.menu-drop button')) {
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeMenus();
-    const fn = MENU_ACTIONS[btn.dataset.action];
-    if (fn) fn();
-  });
-}
+document.getElementById('btn-toggle-sidebar').addEventListener('click', toggleSidebar);
+document.getElementById('btn-new').addEventListener('click', () => newFile());
+document.getElementById('btn-open').addEventListener('click', () => openViaDialog());
+document.getElementById('btn-save').addEventListener('click', () => save());
+document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
+document.getElementById('btn-config').addEventListener('click', () => openSettings());
 
 const winMaxBtn = document.getElementById('win-max');
 
@@ -650,9 +778,6 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     openViaDialog();
   }
-  if (e.key === 'Escape' && anyMenuOpen()) {
-    closeMenus();
-  }
   // Ctrl+` abre e fecha o terminal (em teclado ABNT pode chegar como aspas).
   if (e.ctrlKey && (e.key === '`' || e.key === "'" || e.code === 'Backquote')) {
     e.preventDefault();
@@ -673,5 +798,7 @@ window.wired.onOpenFilePath((p) => openPath(p));
   } catch {}
   await applyTheme(config.theme);
   await applySnippets();
+  applySidebarState();
+  renderRecents();
   updateChrome();
 })();

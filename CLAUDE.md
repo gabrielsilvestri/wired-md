@@ -39,6 +39,16 @@ npm start
 - Capricho: `-webkit-font-smoothing: antialiased`, tabular nums no terminal e nos campos numéricos, letter-spacing positivo em labels pequenos, line-height do documento 1.65.
 - O E2E cobre a fase 4: frameless sem menu nativo, barra arrastável, controles respondendo (maximizar/restaurar), menu abrindo e fechando e window-state.json persistido (15 checks no total).
 
+## Shell Obsidian (fase 5a, implementada)
+
+- Sidebar com FILE TREE de verdade: árvore da pasta da nota aberta (IPC `dir:tree` no main, recursiva, só .md/.markdown e pastas que contenham algum; ignora ocultas, node_modules, .git). Subpastas nascem fechadas, chevron gira ao abrir, estado de expansão preservado entre refreshes (`expandedDirs` no renderer). Item ativo com borda esquerda accent. Ícones SVG inline estilo lucide, traço 1.5.
+- `fs.watch` recursivo na pasta da nota (IPC `dir:watch`, debounce de 350ms no main, evento `dir:changed`): arquivo novo gerado pelo claude aparece sozinho na árvore.
+- Sidebar flexível: resizer de arrasto na borda direita (180 a 480px), botão de ocultar/mostrar na barra. `sidebarWidth` e `sidebarVisible` persistem no config.json.
+- Seção RECENTES abaixo da árvore (ícone de relógio): últimos 12 arquivos abertos, persistidos em `recentFiles` no config.json.
+- Barra de título só de ícones: sem menus de texto Arquivo/Exibir. Botões (SVG lucide, tooltip pt-BR via title): sidebar, novo, abrir, salvar, terminal, configurações. Atalhos de teclado inalterados. Drag region, título central e controles de janela mantidos.
+- Terminal nasce no diretório da nota ativa (já era assim) e ganhou o botão cd no painel: manda `cd "<pasta da nota>"` pro shell aberto sem reiniciar.
+- E2E da fase 5a: 19 checks (árvore com ativo, pasta nova via fs.watch + expandir, recentes, resize com clamp, ocultar/mostrar persistido, botões de ícone, botão cd). O match do `dir` no terminal ignora quebras de linha, porque o xterm quebra nomes conforme a largura da sidebar.
+
 ## Armadilhas
 
 - Windows: node-pty precisa de build tools; se a build falhar, o fallback é um pseudo-terminal via child_process (spawn powershell, stdin/stdout pipe) com xterm.js só como render.

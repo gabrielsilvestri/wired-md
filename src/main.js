@@ -21,7 +21,10 @@ const DEFAULT_CONFIG = {
   fontBody: '',
   fontCode: '',
   fontSize: 15,
-  snippets: []
+  snippets: [],
+  sidebarWidth: 240,
+  sidebarVisible: true,
+  recentFiles: []
 };
 
 function ensureUserDirs() {
@@ -146,6 +149,7 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     killTerminal();
+    closeDirWatcher();
     mainWindow = null;
   });
 }
@@ -224,17 +228,73 @@ ipcMain.handle('file:write', async (_ev, filePath, content) => {
   }
 });
 
-// Lista os .md da pasta do arquivo aberto, para a sidebar.
-ipcMain.handle('dir:listMd', async (_ev, dirPath) => {
+// Árvore da pasta da nota aberta, para a sidebar: só .md/.markdown e
+// subpastas que contenham algum (em qualquer nível).
+const TREE_IGNORE = new Set(['node_modules', '.git', '.obsidian', '.trash']);
+
+function buildTree(dir, depth) {
+  if (depth > 8) return { dirs: [], files: [] };
+  let entries;
   try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    const files = entries
-      .filter((e) => e.isFile() && /\.(md|markdown)$/i.test(e.name))
-      .map((e) => ({ name: e.name, path: path.join(dirPath, e.name) }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-    return { ok: true, files };
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return { dirs: [], files: [] };
+  }
+  const dirs = [];
+  const files = [];
+  for (const e of entries) {
+    if (e.name.startsWith('.') || TREE_IGNORE.has(e.name)) continue;
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) {
+      const sub = buildTree(full, depth + 1);
+      if (sub.dirs.length > 0 || sub.files.length > 0) {
+        dirs.push({ name: e.name, path: full, dirs: sub.dirs, files: sub.files });
+      }
+    } else if (e.isFile() && /\.(md|markdown)$/i.test(e.name)) {
+      files.push({ name: e.name, path: full });
+    }
+  }
+  const cmp = (a, b) => a.name.localeCompare(b.name, 'pt-BR');
+  dirs.sort(cmp);
+  files.sort(cmp);
+  return { dirs, files };
+}
+
+ipcMain.handle('dir:tree', async (_ev, root) => {
+  try {
+    if (!root || !fs.existsSync(root)) return { ok: false, error: 'pasta inexistente', tree: { dirs: [], files: [] } };
+    return { ok: true, tree: buildTree(root, 0) };
   } catch (err) {
-    return { ok: false, error: String(err.message || err), files: [] };
+    return { ok: false, error: String(err.message || err), tree: { dirs: [], files: [] } };
+  }
+});
+
+// fs.watch na pasta da nota: a sidebar se atualiza sozinha quando um arquivo
+// novo aparece (debounce no main; o renderer só recebe 'dir:changed').
+let dirWatcher = null;
+let dirWatchTimer = null;
+
+function closeDirWatcher() {
+  clearTimeout(dirWatchTimer);
+  if (dirWatcher) {
+    try {
+      dirWatcher.close();
+    } catch {}
+    dirWatcher = null;
+  }
+}
+
+ipcMain.handle('dir:watch', (_ev, root) => {
+  closeDirWatcher();
+  if (!root || !fs.existsSync(root)) return { ok: false };
+  try {
+    dirWatcher = fs.watch(root, { recursive: true }, () => {
+      clearTimeout(dirWatchTimer);
+      dirWatchTimer = setTimeout(() => sendWin('dir:changed', root), 350);
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
   }
 });
 
@@ -434,9 +494,9 @@ async function runE2eTest() {
     const dom = await js(`(function(){var r=document.querySelector('.vditor-ir .vditor-reset');if(!r)return null;return {h1:!!r.querySelector('h1'),table:!!r.querySelector('table'),code:!!r.querySelector('pre'),quote:!!r.querySelector('blockquote'),task:!!r.querySelector('input[type=checkbox]')};})()`);
     check('render inline (h1, tabela, código, citação, tarefa)', !!dom && dom.h1 && dom.table && dom.code && dom.quote && dom.task, JSON.stringify(dom));
 
-    // 2. sidebar listou a pasta e marcou o ativo
-    const side = await js(`(function(){var a=document.querySelector('#file-list li.active');return {itens:document.querySelectorAll('#file-list li').length,ativo:a?a.textContent:null};})()`);
-    check('sidebar com item ativo', !!side && side.itens >= 1 && side.ativo === 'demo.md', JSON.stringify(side));
+    // 2. sidebar em árvore listou a pasta e marcou o ativo
+    const side = await js(`(function(){var a=document.querySelector('#file-tree .tree-row.file.active .tree-name');return {itens:document.querySelectorAll('#file-tree .tree-row').length,ativo:a?a.textContent:null};})()`);
+    check('árvore da sidebar com item ativo', !!side && side.itens >= 1 && side.ativo === 'demo.md', JSON.stringify(side));
 
     // 3. editar com teclado de verdade e ver o estado sujo
     const original = fs.readFileSync(demoPath, 'utf8');
@@ -486,18 +546,31 @@ async function runE2eTest() {
     await js(`(async()=>{config.theme='wired';config.accent=null;config.snippets=[];await applyTheme('wired');await applySnippets();})()`);
     await sleep(300);
 
-    // 8. terminal: abrir, rodar dir, ver a saída
+    // 8. terminal: abrir, esperar o prompt, rodar dir, ver a saída (com polling
+    // porque o tempo de subida do shell varia de máquina pra máquina)
     await js('toggleTerminal(true)');
-    await sleep(3500);
+    const readBuf = () => js(`(function(){var out=[];for(var i=0;i<xterm.buffer.active.length;i++){var l=xterm.buffer.active.getLine(i);if(l)out.push(l.translateToString(true));}return out.join('\\n');})()`);
+    let buf = '';
+    for (let i = 0; i < 20; i++) {
+      await sleep(500);
+      buf = await readBuf();
+      if (/PS .*>/.test(buf)) break;
+    }
+    // O xterm quebra nomes no fim da linha (a largura do terminal depende da
+    // sidebar), então o match ignora quebras e espaços.
+    const temDemo = (s) => /demo\.md/.test(s.replace(/\s+/g, ''));
     await js(`window.wired.termInput('dir\\r')`);
-    await sleep(2500);
-    const buf = await js(`(function(){var out=[];for(var i=0;i<xterm.buffer.active.length;i++){var l=xterm.buffer.active.getLine(i);if(l)out.push(l.translateToString(true));}return out.join('\\n');})()`);
-    check('terminal (' + (term ? term.kind : 'nenhum') + ') rodou dir e listou demo.md', /demo\.md/.test(buf), (buf.match(/demo\.md.*/) || ['sem match'])[0].trim());
+    for (let i = 0; i < 16; i++) {
+      await sleep(500);
+      buf = await readBuf();
+      if (temDemo(buf)) break;
+    }
+    check('terminal (' + (term ? term.kind : 'nenhum') + ') rodou dir e listou demo.md', temDemo(buf), temDemo(buf) ? 'demo.md no buffer' : 'sem match');
 
-    // 9. janela frameless com barra de título custom
+    // 9. janela frameless com barra só de ícones
     const noMenu = Menu.getApplicationMenu() === null;
-    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),menus:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
-    check('janela frameless: sem menu nativo, barra arrastável, controles e menus custom', noMenu && !!bar && bar.drag && bar.controles && bar.menus === 2 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
+    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-new','btn-open','btn-save','btn-terminal','btn-config'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0;}),menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
+    check('janela frameless: sem menu nativo, barra arrastável, controles e botões de ícone com tooltip', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
 
     // 10. controles custom respondem: maximizar e restaurar via clique
     await js(`document.getElementById('win-max').click()`);
@@ -517,17 +590,52 @@ async function runE2eTest() {
     } catch {}
     check('estado da janela salvo (window-state.json)', !!winState && typeof winState.width === 'number' && typeof winState.height === 'number', JSON.stringify(winState));
 
-    // 11. menu Arquivo abre por clique e fecha no Escape
-    await js(`document.querySelector('#menu-arquivo > button').click()`);
-    await sleep(200);
-    const menuAberto = await js(`!document.querySelector('#menu-arquivo .menu-drop').classList.contains('hidden')`);
-    mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
-    mainWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-    await sleep(200);
-    const menuFechado = await js(`document.querySelector('#menu-arquivo .menu-drop').classList.contains('hidden')`);
-    check('menu Arquivo abre e fecha', menuAberto && menuFechado, 'aberto=' + menuAberto + ' fechado=' + menuFechado);
+    // 11. árvore: subpasta nova aparece pelo fs.watch e expande no clique
+    const subDir = path.join(path.dirname(demoPath), 'sub-e2e');
+    const subFile = path.join(subDir, 'nota-e2e.md');
+    fs.mkdirSync(subDir, { recursive: true });
+    fs.writeFileSync(subFile, '# nota e2e\n', 'utf8');
+    await sleep(1500);
+    const pastaNaArvore = await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.folder .tree-name')];return rows.some(function(n){return n.textContent==='sub-e2e';});})()`);
+    const notaOculta = await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.file .tree-name')];return !rows.some(function(n){return n.textContent==='nota-e2e.md'&&n.closest('.tree-children').style.display!=='none';});})()`);
+    await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.folder')];var r=rows.find(function(x){return x.querySelector('.tree-name').textContent==='sub-e2e';});if(r)r.click();})()`);
+    await sleep(300);
+    const notaVisivel = await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.file .tree-name')];var n=rows.find(function(x){return x.textContent==='nota-e2e.md';});return !!n && n.closest('.tree-children').style.display!=='none';})()`);
+    check('árvore: pasta nova via fs.watch, fechada por padrão, expande no clique', pastaNaArvore && notaOculta && notaVisivel, 'pasta=' + pastaNaArvore + ' oculta=' + notaOculta + ' visivel=' + notaVisivel);
 
-    // 12. screenshot final
+    // 12. recentes: abrir a nota da subpasta coloca ela no topo da lista
+    await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.file .tree-name')];var n=rows.find(function(x){return x.textContent==='nota-e2e.md';});if(n)n.closest('.tree-row').click();})()`);
+    await sleep(600);
+    const recentes = await js(`(function(){return [...document.querySelectorAll('#recent-list li')].map(function(l){return l.textContent;});})()`);
+    check('recentes: nota aberta no topo e demo.md na lista', Array.isArray(recentes) && recentes[0] === 'nota-e2e.md' && recentes.includes('demo.md'), JSON.stringify(recentes));
+    // volta pro demo e limpa o artefato de teste
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(subDir, { recursive: true, force: true });
+    await js(`(function(){config.recentFiles=config.recentFiles.filter(function(p){return p.indexOf('nota-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(800);
+
+    // 13. sidebar: redimensionar dentro dos limites e persistir no config
+    await js(`setSidebarWidth(320); saveConfig();`);
+    await sleep(200);
+    const widthOk = await js(`(function(){return {css:document.getElementById('sidebar').style.width,cfg:config.sidebarWidth};})()`);
+    const clampOk = await js(`(function(){setSidebarWidth(90);var min=document.getElementById('sidebar').style.width;setSidebarWidth(900);var max=document.getElementById('sidebar').style.width;setSidebarWidth(320);saveConfig();return {min:min,max:max};})()`);
+    check('sidebar redimensiona com limites (180 a 480)', !!widthOk && widthOk.css === '320px' && widthOk.cfg === 320 && !!clampOk && clampOk.min === '180px' && clampOk.max === '480px', JSON.stringify({ widthOk, clampOk }));
+
+    // 14. sidebar: ocultar e mostrar pelo botão de ícone, persistindo
+    await js(`document.getElementById('btn-toggle-sidebar').click()`);
+    await sleep(200);
+    const oculta = await js(`(function(){return {hid:document.getElementById('sidebar').classList.contains('hidden'),cfg:config.sidebarVisible};})()`);
+    await js(`document.getElementById('btn-toggle-sidebar').click()`);
+    await sleep(200);
+    const visivel = await js(`(function(){return {hid:document.getElementById('sidebar').classList.contains('hidden'),cfg:config.sidebarVisible};})()`);
+    check('sidebar oculta e volta pelo botão, com persistência no config', oculta.hid && oculta.cfg === false && !visivel.hid && visivel.cfg === true, JSON.stringify({ oculta, visivel }));
+
+    // 15. botão cd do terminal existe no painel
+    const cdBtn = await js(`(function(){var b=document.getElementById('btn-term-cd');return !!b && !!b.querySelector('svg') && (b.title||'').length>0;})()`);
+    check('botão cd no painel do terminal', cdBtn === true, String(cdBtn));
+
+    // 16. screenshot final
     await js('toggleTerminal(false)');
     await sleep(400);
     const img = await mainWindow.webContents.capturePage();

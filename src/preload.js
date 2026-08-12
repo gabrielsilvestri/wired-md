@@ -15,7 +15,9 @@ contextBridge.exposeInMainWorld('wired', {
 
   readFile: (p) => ipcRenderer.invoke('file:read', p),
   writeFile: (p, content) => ipcRenderer.invoke('file:write', p, content),
-  listMd: (dir) => ipcRenderer.invoke('dir:listMd', dir),
+  dirTree: (root) => ipcRenderer.invoke('dir:tree', root),
+  watchDir: (root) => ipcRenderer.invoke('dir:watch', root),
+  onDirChanged: (cb) => ipcRenderer.on('dir:changed', (_ev, root) => cb(root)),
   setTitle: (t) => ipcRenderer.send('window:setTitle', t),
   onOpenFilePath: (cb) => ipcRenderer.on('open-file-path', (_ev, p) => cb(p)),
 
