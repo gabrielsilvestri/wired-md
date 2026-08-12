@@ -215,6 +215,17 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 /* --- arquivos recentes --- */
 
+#sidebar-footer {
+  border-top: 1px solid var(--rule-soft);
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+}
+
+#sidebar-footer .tb-btn {
+  -webkit-app-region: no-drag;
+}
+
 #recent-section {
   border-top: 1px solid var(--rule-soft);
   padding: 8px 0 10px;
