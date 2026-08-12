@@ -19,6 +19,15 @@ contextBridge.exposeInMainWorld('wired', {
   watchDir: (root) => ipcRenderer.invoke('dir:watch', root),
   onDirChanged: (cb) => ipcRenderer.on('dir:changed', (_ev, root) => cb(root)),
   setTitle: (t) => ipcRenderer.send('window:setTitle', t),
+
+  // operações de arquivo da sidebar (toolbar e menu de contexto)
+  showInFolder: (p) => ipcRenderer.invoke('fs:showInFolder', p),
+  createFile: (p) => ipcRenderer.invoke('fs:createFile', p),
+  createDir: (p) => ipcRenderer.invoke('fs:createDir', p),
+  renamePath: (from, to) => ipcRenderer.invoke('fs:rename', from, to),
+  trashPath: (p) => ipcRenderer.invoke('fs:trash', p),
+  duplicateFile: (p) => ipcRenderer.invoke('fs:duplicate', p),
+  exportFile: (p) => ipcRenderer.invoke('fs:export', p),
   onOpenFilePath: (cb) => ipcRenderer.on('open-file-path', (_ev, p) => cb(p)),
 
   // configuração, temas e snippets

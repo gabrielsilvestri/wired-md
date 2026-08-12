@@ -17,19 +17,6 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
       </button>
       <span class="tb-sep"></span>
-      <button class="tb-btn" id="btn-new" title="Novo arquivo (Ctrl+N)" aria-label="Novo arquivo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M12 12v6"/><path d="M9 15h6"/></svg>
-      </button>
-      <button class="tb-btn" id="btn-open" title="Abrir arquivo (Ctrl+O)" aria-label="Abrir arquivo">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
-      </button>
-      <button class="tb-btn" id="btn-save" title="Salvar (Ctrl+S)" aria-label="Salvar">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
-      </button>
-      <button class="tb-btn" id="btn-open-side" title="Abrir arquivo ao lado (novo painel)" aria-label="Abrir arquivo ao lado">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></svg>
-      </button>
-      <span class="tb-sep"></span>
       <button class="tb-btn" id="btn-terminal" title="Terminal (Ctrl+`)" aria-label="Terminal">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/></svg>
       </button>
@@ -59,7 +46,30 @@
   <div id="app">
     <aside id="sidebar">
       <div id="sidebar-header">
-        <span id="sidebar-title">arquivos</span>
+        <span id="sidebar-root-name" title="">sem pasta</span>
+        <button class="tb-btn" id="btn-root-explorer" title="Abrir a pasta no Explorer" aria-label="Abrir a pasta no Explorer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+      <div id="tree-toolbar">
+        <button class="tb-btn" id="btn-tree-new-file" title="Novo arquivo .md" aria-label="Novo arquivo .md">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M15 2v5h5"/><path d="M12 12v6"/><path d="M9 15h6"/></svg>
+        </button>
+        <button class="tb-btn" id="btn-tree-new-folder" title="Nova pasta" aria-label="Nova pasta">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6"/><path d="M9 13h6"/></svg>
+        </button>
+        <button class="tb-btn" id="btn-tree-sort" title="Ordenação" aria-label="Ordenação">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></svg>
+        </button>
+        <button class="tb-btn" id="btn-tree-collapse" title="Colapsar tudo" aria-label="Colapsar tudo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg>
+        </button>
+        <button class="tb-btn" id="btn-tree-search" title="Buscar na árvore" aria-label="Buscar na árvore">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+      </div>
+      <div id="tree-search-wrap" class="hidden">
+        <input type="text" id="tree-search" spellcheck="false" placeholder="filtrar por nome... (Esc limpa)">
       </div>
       <div id="file-tree"></div>
       <div id="sidebar-empty">nenhuma pasta aberta</div>
@@ -91,6 +101,19 @@
           <button id="btn-term-close" title="Fechar terminal">✕</button>
         </div>
         <div id="terminal-host"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ctx-menu" class="hidden"></div>
+
+  <div id="input-overlay" class="hidden">
+    <div id="input-box">
+      <div id="input-title"></div>
+      <input type="text" id="input-field" spellcheck="false">
+      <div id="input-actions">
+        <button id="input-cancel">cancelar</button>
+        <button id="input-ok">ok</button>
       </div>
     </div>
   </div>

@@ -126,15 +126,26 @@ html, body {
 
 #sidebar {
   width: 240px;
+  min-width: 0;
   flex: 0 0 auto;
   background: var(--bg-2);
   border-right: 1px solid var(--rule-soft);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.18s ease, opacity 0.18s ease;
 }
 
-#sidebar.hidden { display: none; }
+/* Ocultar é animado: a largura encolhe e a opacidade some (~180ms). */
+#sidebar.hidden {
+  width: 0 !important;
+  opacity: 0;
+  border-right: none;
+  pointer-events: none;
+}
+
+/* Sem transição durante o arrasto do resizer, senão a largura "persegue" o mouse. */
+body.resizing-sidebar #sidebar { transition: none; }
 
 #sidebar-resizer {
   flex: 0 0 5px;
@@ -151,16 +162,60 @@ body.resizing-sidebar { cursor: col-resize; user-select: none; }
 body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.35); }
 
 #sidebar-header {
-  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
   border-bottom: 1px solid var(--rule-soft);
 }
 
-#sidebar-title {
+/* nome da pasta raiz da nota aberta (ellipsis; path completo no tooltip) */
+#sidebar-root-name {
+  flex: 1;
+  min-width: 0;
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  color: var(--ink-faint);
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
 }
+
+#btn-root-explorer { flex: 0 0 auto; }
+
+/* --- toolbar da tree (estilo Obsidian) --- */
+
+#tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+#tree-search-wrap {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+
+#tree-search-wrap.hidden { display: none; }
+
+#tree-search {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+#tree-search::placeholder { color: var(--ink-faint); }
+#tree-search:focus { border-color: var(--accent-dim); }
 
 /* --- árvore de arquivos --- */
 
@@ -197,7 +252,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .tree-chevron {
   flex: 0 0 auto;
-  transition: transform 0.12s ease;
+  transition: transform 0.16s ease;
   color: var(--ink-faint);
 }
 
@@ -728,6 +783,146 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .snippet-row:hover { color: var(--ink); }
 
 .snippet-row input[type="checkbox"] { accent-color: var(--accent); }
+
+/* --- menu de contexto custom --- */
+
+@keyframes ctx-pop {
+  from { opacity: 0; transform: scale(0.97) translateY(-2px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+#ctx-menu {
+  position: fixed;
+  z-index: 80;
+  min-width: 180px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 4px 0;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  animation: ctx-pop 0.13s ease;
+  transform-origin: top left;
+  user-select: none;
+}
+
+#ctx-menu.hidden { display: none; }
+
+.ctx-item {
+  padding: 5px 14px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ctx-item:hover { background: var(--bg-3); color: var(--ink); }
+
+.ctx-item.danger { color: var(--red); }
+.ctx-item.danger:hover { background: var(--bg-3); color: var(--red); }
+
+.ctx-item.checked {
+  color: var(--accent-soft);
+  position: relative;
+}
+
+.ctx-item.checked::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.ctx-sep {
+  height: 1px;
+  background: var(--rule-soft);
+  margin: 4px 0;
+}
+
+/* --- dialog de input (novo arquivo, nova pasta, renomear) --- */
+
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#input-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  z-index: 70;
+  animation: overlay-fade 0.13s ease;
+}
+
+#input-overlay.hidden { display: none; }
+
+#input-box {
+  width: 380px;
+  max-width: 92vw;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  animation: ctx-pop 0.14s ease;
+}
+
+#input-title {
+  font-size: 12px;
+  color: var(--ink-dim);
+  margin-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#input-field {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  outline: none;
+}
+
+#input-field:focus { border-color: var(--accent-dim); }
+
+#input-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#input-actions button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-dim);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#input-actions button:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
+
+/* fade/scale sutil nos overlays existentes */
+#palette-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
+#palette-overlay:not(.hidden) #palette { animation: ctx-pop 0.14s ease; }
+#settings-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
+#settings-overlay:not(.hidden) #settings-panel { animation: ctx-pop 0.14s ease; }
 
 /* --- scrollbar fina --- */
 

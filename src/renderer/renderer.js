@@ -12,7 +12,8 @@ let config = {
   snippets: [],
   sidebarWidth: 240,
   sidebarVisible: true,
-  recentFiles: []
+  recentFiles: [],
+  treeSort: 'az'
 };
 
 const titlebarTitle = document.getElementById('titlebar-title');
@@ -22,6 +23,10 @@ const fileTreeEl = document.getElementById('file-tree');
 const recentListEl = document.getElementById('recent-list');
 const recentSection = document.getElementById('recent-section');
 const sidebarEmpty = document.getElementById('sidebar-empty');
+const sidebarRootName = document.getElementById('sidebar-root-name');
+const treeSearchWrap = document.getElementById('tree-search-wrap');
+const treeSearchInput = document.getElementById('tree-search');
+const ctxMenuEl = document.getElementById('ctx-menu');
 const themeStyle = document.getElementById('theme-style');
 const customStyle = document.getElementById('custom-style');
 const panesEl = document.getElementById('panes');
@@ -227,6 +232,37 @@ function updateChrome() {
 let treeRoot = null; // pasta raiz da árvore (pasta da nota aberta)
 const expandedDirs = new Set(); // paths de subpastas abertas (fechadas por padrão; estado preservado entre refreshes)
 let treeFiles = []; // lista achatada de arquivos da árvore atual (quick switcher)
+let selectedDir = null; // última pasta clicada na árvore (alvo de "novo arquivo" e "nova pasta")
+let treeFilter = ''; // filtro da busca da toolbar (vazio = sem filtro)
+let lastTree = null; // última árvore recebida do main (pra re-render sem IPC)
+
+// Ordena a árvore conforme config.treeSort: az, za ou recente (modificado
+// primeiro). Pastas ficam sempre por nome (invertido no za).
+function sortNode(node) {
+  const byName = (a, b) => a.name.localeCompare(b.name, 'pt-BR');
+  const mode = config.treeSort || 'az';
+  node.dirs.sort(byName);
+  if (mode === 'za') node.dirs.reverse();
+  if (mode === 'recente') node.files.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+  else {
+    node.files.sort(byName);
+    if (mode === 'za') node.files.reverse();
+  }
+  for (const d of node.dirs) sortNode(d);
+  return node;
+}
+
+// Poda a árvore pelo filtro da busca: fica o arquivo cujo nome contém o termo
+// e a pasta que tem algum descendente que fica.
+function filterNode(node, term) {
+  const files = node.files.filter((f) => f.name.toLowerCase().includes(term));
+  const dirs = [];
+  for (const d of node.dirs) {
+    const sub = filterNode(d, term);
+    if (sub.files.length > 0 || sub.dirs.length > 0) dirs.push(Object.assign({}, d, { dirs: sub.dirs, files: sub.files }));
+  }
+  return { dirs, files };
+}
 
 function fileRow(f, depth) {
   const row = document.createElement('div');
@@ -243,7 +279,14 @@ function fileRow(f, depth) {
   const p = activePane();
   if (p && f.path === p.path) row.classList.add('active');
   // Ctrl+clique abre num pane novo ao lado, clique simples abre no pane ativo.
-  row.addEventListener('click', (e) => openPath(f.path, e.ctrlKey));
+  row.addEventListener('click', (e) => {
+    selectedDir = dirName(f.path);
+    openPath(f.path, e.ctrlKey);
+  });
+  row.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    showFileContextMenu(e, f.path);
+  });
   return row;
 }
 
@@ -265,15 +308,22 @@ function renderTreeLevel(container, node, depth) {
     row.appendChild(name);
     const children = document.createElement('div');
     children.className = 'tree-children';
-    const open = expandedDirs.has(d.path);
+    // Com filtro ativo, tudo que sobrou fica aberto pra mostrar os matches.
+    const open = treeFilter ? true : expandedDirs.has(d.path);
     row.classList.toggle('open', open);
     children.style.display = open ? '' : 'none';
     row.addEventListener('click', () => {
+      selectedDir = d.path;
+      if (treeFilter) return; // durante a busca a árvore fica toda aberta
       if (expandedDirs.has(d.path)) expandedDirs.delete(d.path);
       else expandedDirs.add(d.path);
       const nowOpen = expandedDirs.has(d.path);
       row.classList.toggle('open', nowOpen);
       children.style.display = nowOpen ? '' : 'none';
+    });
+    row.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showFolderContextMenu(e, d.path);
     });
     container.appendChild(row);
     renderTreeLevel(children, d, depth + 1);
@@ -288,31 +338,52 @@ function flattenTree(node, out) {
   return out;
 }
 
-async function refreshSidebar() {
+// Desenha a árvore já em memória (ordenada e filtrada), sem novo IPC.
+function renderTree() {
   fileTreeEl.innerHTML = '';
+  if (!lastTree) {
+    sidebarEmpty.style.display = 'block';
+    return;
+  }
+  const sorted = sortNode({ dirs: lastTree.dirs.slice(), files: lastTree.files.slice() });
+  const term = treeFilter.trim().toLowerCase();
+  const view = term ? filterNode(sorted, term) : sorted;
+  if (view.dirs.length === 0 && view.files.length === 0) {
+    sidebarEmpty.textContent = term ? 'nada encontrado' : 'nenhuma pasta aberta';
+    sidebarEmpty.style.display = 'block';
+    return;
+  }
+  sidebarEmpty.style.display = 'none';
+  renderTreeLevel(fileTreeEl, view, 0);
+}
+
+async function refreshSidebar() {
   renderRecents();
   const p = activePane();
   const cur = p ? p.path : null;
   if (!cur) {
-    sidebarEmpty.style.display = 'block';
+    lastTree = null;
+    sidebarRootName.textContent = 'sem pasta';
+    sidebarRootName.title = '';
+    renderTree();
     return;
   }
   const dir = dirName(cur);
   if (dir !== treeRoot) {
     treeRoot = dir;
     expandedDirs.clear();
+    selectedDir = null;
     // Subpastas nascem fechadas quando a raiz muda; abrir é um clique.
     window.wired.watchDir(dir);
   }
+  // Cabeçalho: nome da pasta raiz, com o path completo no tooltip.
+  sidebarRootName.textContent = baseName(dir);
+  sidebarRootName.title = dir;
   const res = await window.wired.dirTree(dir);
   const tree = res.tree || { dirs: [], files: [] };
   treeFiles = flattenTree(tree, []);
-  if (!res.ok || (tree.dirs.length === 0 && tree.files.length === 0)) {
-    sidebarEmpty.style.display = 'block';
-    return;
-  }
-  sidebarEmpty.style.display = 'none';
-  renderTreeLevel(fileTreeEl, tree, 0);
+  lastTree = res.ok ? tree : null;
+  renderTree();
 }
 
 window.wired.onDirChanged(() => {
@@ -340,9 +411,330 @@ function renderRecents() {
     li.title = p;
     if (ap && p === ap.path) li.classList.add('active');
     li.addEventListener('click', (e) => openPath(p, e.ctrlKey));
+    li.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showRecentContextMenu(e, p);
+    });
     recentListEl.appendChild(li);
   }
 }
+
+// ---------------------------------------------------------------------------
+// dialog de input (nome de arquivo, pasta, renomear): prompt() não existe no
+// Electron, então o app tem o seu, na paleta do tema.
+// ---------------------------------------------------------------------------
+
+const inputOverlay = document.getElementById('input-overlay');
+const inputTitle = document.getElementById('input-title');
+const inputField = document.getElementById('input-field');
+const inputOk = document.getElementById('input-ok');
+const inputCancel = document.getElementById('input-cancel');
+let inputResolve = null;
+
+function askInput(title, value, okLabel) {
+  return new Promise((resolve) => {
+    inputResolve = resolve;
+    inputTitle.textContent = title;
+    inputOk.textContent = okLabel || 'ok';
+    inputField.value = value || '';
+    inputOverlay.classList.remove('hidden');
+    inputField.focus();
+    // Pré-seleciona o nome sem a extensão, como o Explorer faz no renomear.
+    const dot = inputField.value.lastIndexOf('.');
+    inputField.setSelectionRange(0, dot > 0 ? dot : inputField.value.length);
+  });
+}
+
+function closeInput(result) {
+  inputOverlay.classList.add('hidden');
+  const r = inputResolve;
+  inputResolve = null;
+  if (r) r(result);
+}
+
+inputOk.addEventListener('click', () => closeInput(inputField.value.trim() || null));
+inputCancel.addEventListener('click', () => closeInput(null));
+inputOverlay.addEventListener('mousedown', (e) => {
+  if (e.target === inputOverlay) closeInput(null);
+});
+inputField.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    closeInput(inputField.value.trim() || null);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeInput(null);
+  }
+  e.stopPropagation();
+});
+
+// ---------------------------------------------------------------------------
+// menu de contexto custom (HTML, na paleta do app; Esc ou clique fora fecha)
+// ---------------------------------------------------------------------------
+
+function hideCtxMenu() {
+  ctxMenuEl.classList.add('hidden');
+}
+
+function showCtxMenu(x, y, items) {
+  ctxMenuEl.innerHTML = '';
+  for (const it of items) {
+    if (it.sep) {
+      const sep = document.createElement('div');
+      sep.className = 'ctx-sep';
+      ctxMenuEl.appendChild(sep);
+      continue;
+    }
+    const row = document.createElement('div');
+    row.className = 'ctx-item' + (it.danger ? ' danger' : '') + (it.checked ? ' checked' : '');
+    row.textContent = it.label;
+    row.addEventListener('click', () => {
+      hideCtxMenu();
+      it.run();
+    });
+    ctxMenuEl.appendChild(row);
+  }
+  ctxMenuEl.classList.remove('hidden');
+  // Reinicia a animação de entrada e posiciona sem sair da janela.
+  ctxMenuEl.style.animation = 'none';
+  void ctxMenuEl.offsetHeight;
+  ctxMenuEl.style.animation = '';
+  const r = ctxMenuEl.getBoundingClientRect();
+  ctxMenuEl.style.left = Math.min(x, window.innerWidth - r.width - 6) + 'px';
+  ctxMenuEl.style.top = Math.min(y, window.innerHeight - r.height - 6) + 'px';
+}
+
+window.addEventListener(
+  'mousedown',
+  (e) => {
+    if (!ctxMenuEl.classList.contains('hidden') && !ctxMenuEl.contains(e.target)) hideCtxMenu();
+  },
+  true
+);
+
+// ---------------------------------------------------------------------------
+// operações de arquivo (toolbar da tree e menu de contexto)
+// ---------------------------------------------------------------------------
+
+// Pane aberto com esse path, se houver.
+function paneWithPath(p) {
+  return panes.find((x) => x.path === p) || null;
+}
+
+// Depois de renomear (ou mover), corrige panes e recentes que apontavam pro path antigo.
+function pathRenamed(from, to) {
+  const pane = paneWithPath(from);
+  if (pane) {
+    pane.path = to;
+    updatePaneHeader(pane);
+    if (pane.id === activePaneId) updateChrome();
+  }
+  const isDir = !/\.(md|markdown)$/i.test(from);
+  config.recentFiles = (config.recentFiles || []).map((r) => {
+    if (r === from) return to;
+    if (isDir && r.startsWith(from + '\\')) return to + r.slice(from.length);
+    return r;
+  });
+  saveConfig();
+  refreshSidebar();
+}
+
+function forgetPath(p) {
+  const pane = paneWithPath(p);
+  if (pane) {
+    setPaneDirty(pane, false);
+    closePane(pane);
+  }
+  config.recentFiles = (config.recentFiles || []).filter((r) => r !== p && !r.startsWith(p + '\\'));
+  saveConfig();
+  refreshSidebar();
+}
+
+async function createNewMd(targetDir) {
+  const dir = targetDir || selectedDir || treeRoot;
+  if (!dir) {
+    newFile();
+    return;
+  }
+  let name = await askInput('novo arquivo em ' + baseName(dir), 'sem-titulo.md', 'criar');
+  if (!name) return;
+  if (!/\.(md|markdown)$/i.test(name)) name += '.md';
+  const res = await window.wired.createFile(dir + '\\' + name);
+  if (!res.ok) {
+    alert('Não deu pra criar o arquivo: ' + res.error);
+    return;
+  }
+  await openPath(res.path, false);
+}
+
+async function createNewFolder(targetDir) {
+  const dir = targetDir || selectedDir || treeRoot;
+  if (!dir) return;
+  const name = await askInput('nova pasta em ' + baseName(dir), 'nova pasta', 'criar');
+  if (!name) return;
+  const res = await window.wired.createDir(dir + '\\' + name);
+  if (!res.ok) {
+    alert('Não deu pra criar a pasta: ' + res.error);
+    return;
+  }
+  expandedDirs.add(res.path);
+  refreshSidebar();
+}
+
+async function renameItem(p) {
+  const oldName = baseName(p);
+  let name = await askInput('renomear ' + oldName, oldName, 'renomear');
+  if (!name || name === oldName) return;
+  if (/\.(md|markdown)$/i.test(oldName) && !/\.(md|markdown)$/i.test(name)) name += '.md';
+  const to = dirName(p) + '\\' + name;
+  const res = await window.wired.renamePath(p, to);
+  if (!res.ok) {
+    alert('Não deu pra renomear: ' + res.error);
+    return;
+  }
+  if (expandedDirs.has(p)) {
+    expandedDirs.delete(p);
+    expandedDirs.add(to);
+  }
+  pathRenamed(p, to);
+}
+
+async function trashItem(p) {
+  const isDir = !/\.(md|markdown)$/i.test(p);
+  if (!confirm('Mandar "' + baseName(p) + '" pra lixeira' + (isDir ? ' (a pasta inteira)' : '') + '?')) return;
+  const res = await window.wired.trashPath(p);
+  if (!res.ok) {
+    alert('Não deu pra excluir: ' + res.error);
+    return;
+  }
+  forgetPath(p);
+}
+
+async function duplicateItem(p) {
+  const res = await window.wired.duplicateFile(p);
+  if (!res.ok) {
+    alert('Não deu pra duplicar: ' + res.error);
+    return;
+  }
+  refreshSidebar();
+}
+
+function copyPathToClipboard(p) {
+  navigator.clipboard.writeText(p).catch(() => {});
+}
+
+async function exportItem(p) {
+  const res = await window.wired.exportFile(p);
+  if (!res.ok && !res.canceled) alert('Não deu pra exportar: ' + res.error);
+}
+
+function showFileContextMenu(e, p) {
+  showCtxMenu(e.clientX, e.clientY, [
+    { label: 'abrir', run: () => openPath(p, false) },
+    { label: 'abrir ao lado', run: () => openPath(p, true) },
+    { sep: true },
+    { label: 'renomear', run: () => renameItem(p) },
+    { label: 'duplicar', run: () => duplicateItem(p) },
+    { sep: true },
+    { label: 'copiar caminho', run: () => copyPathToClipboard(p) },
+    { label: 'exportar...', run: () => exportItem(p) },
+    { label: 'abrir no Explorer', run: () => window.wired.showInFolder(p) },
+    { sep: true },
+    { label: 'excluir (lixeira)', danger: true, run: () => trashItem(p) }
+  ]);
+}
+
+function showFolderContextMenu(e, p) {
+  showCtxMenu(e.clientX, e.clientY, [
+    { label: 'novo arquivo .md aqui', run: () => createNewMd(p) },
+    { label: 'nova pasta aqui', run: () => createNewFolder(p) },
+    { sep: true },
+    { label: 'renomear', run: () => renameItem(p) },
+    { label: 'abrir no Explorer', run: () => window.wired.showInFolder(p) },
+    { sep: true },
+    { label: 'excluir (lixeira)', danger: true, run: () => trashItem(p) }
+  ]);
+}
+
+function showRecentContextMenu(e, p) {
+  showCtxMenu(e.clientX, e.clientY, [
+    { label: 'abrir', run: () => openPath(p, false) },
+    { label: 'abrir ao lado', run: () => openPath(p, true) },
+    { sep: true },
+    { label: 'copiar caminho', run: () => copyPathToClipboard(p) },
+    { label: 'abrir no Explorer', run: () => window.wired.showInFolder(p) },
+    { sep: true },
+    {
+      label: 'remover dos recentes',
+      run: () => {
+        config.recentFiles = (config.recentFiles || []).filter((r) => r !== p);
+        saveConfig();
+        renderRecents();
+      }
+    }
+  ]);
+}
+
+// --- toolbar da tree (estilo Obsidian) ---
+
+const SORT_LABELS = { az: 'nome A a Z', za: 'nome Z a A', recente: 'modificado primeiro' };
+
+function setTreeSort(mode) {
+  config.treeSort = mode;
+  saveConfig();
+  renderTree();
+  updateSortTooltip();
+}
+
+function updateSortTooltip() {
+  const btn = document.getElementById('btn-tree-sort');
+  btn.title = 'Ordenação: ' + (SORT_LABELS[config.treeSort] || SORT_LABELS.az);
+}
+
+document.getElementById('btn-tree-new-file').addEventListener('click', () => createNewMd());
+document.getElementById('btn-tree-new-folder').addEventListener('click', () => createNewFolder());
+document.getElementById('btn-tree-collapse').addEventListener('click', () => {
+  expandedDirs.clear();
+  renderTree();
+});
+document.getElementById('btn-tree-sort').addEventListener('click', (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  showCtxMenu(r.left, r.bottom + 4, ['az', 'za', 'recente'].map((m) => ({
+    label: SORT_LABELS[m],
+    checked: (config.treeSort || 'az') === m,
+    run: () => setTreeSort(m)
+  })));
+});
+
+function toggleTreeSearch(forceOpen) {
+  const isHidden = treeSearchWrap.classList.contains('hidden');
+  const open = forceOpen === undefined ? isHidden : forceOpen;
+  treeSearchWrap.classList.toggle('hidden', !open);
+  if (open) {
+    treeSearchInput.focus();
+  } else {
+    treeSearchInput.value = '';
+    treeFilter = '';
+    renderTree();
+  }
+}
+
+document.getElementById('btn-tree-search').addEventListener('click', () => toggleTreeSearch());
+document.getElementById('btn-root-explorer').addEventListener('click', () => {
+  if (treeRoot) window.wired.showInFolder(treeRoot);
+});
+
+treeSearchInput.addEventListener('input', () => {
+  treeFilter = treeSearchInput.value;
+  renderTree();
+});
+treeSearchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    toggleTreeSearch(false);
+  }
+  e.stopPropagation();
+});
 
 // Abre o arquivo num pane. Com side=true, abre num pane novo à direita
 // (respeitando o teto de 4); se o arquivo já está aberto em algum pane,
@@ -1102,10 +1494,6 @@ window.addEventListener('mouseup', () => {
 // ---------------------------------------------------------------------------
 
 document.getElementById('btn-toggle-sidebar').addEventListener('click', toggleSidebar);
-document.getElementById('btn-new').addEventListener('click', () => newFile());
-document.getElementById('btn-open').addEventListener('click', () => openViaDialog(false));
-document.getElementById('btn-open-side').addEventListener('click', () => openViaDialog(true));
-document.getElementById('btn-save').addEventListener('click', () => save());
 document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
 document.getElementById('btn-claude-file').addEventListener('click', () => sendFileToClaude());
 document.getElementById('btn-claude-sel').addEventListener('click', () => sendSelectionToClaude());
@@ -1164,7 +1552,8 @@ window.addEventListener('keydown', (e) => {
     toggleTerminal();
   }
   if (e.key === 'Escape') {
-    if (!paletteOverlay.classList.contains('hidden')) closePalette();
+    if (!ctxMenuEl.classList.contains('hidden')) hideCtxMenu();
+    else if (!paletteOverlay.classList.contains('hidden')) closePalette();
     else if (!settingsOverlay.classList.contains('hidden')) closeSettings();
   }
 }, true);
@@ -1185,5 +1574,6 @@ firstPane.el.classList.add('active');
   await applySnippets();
   applySidebarState();
   renderRecents();
+  updateSortTooltip();
   updateChrome();
 })();

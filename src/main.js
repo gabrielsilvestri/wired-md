@@ -24,7 +24,8 @@ const DEFAULT_CONFIG = {
   snippets: [],
   sidebarWidth: 240,
   sidebarVisible: true,
-  recentFiles: []
+  recentFiles: [],
+  treeSort: 'az'
 };
 
 function ensureUserDirs() {
@@ -251,7 +252,11 @@ function buildTree(dir, depth) {
         dirs.push({ name: e.name, path: full, dirs: sub.dirs, files: sub.files });
       }
     } else if (e.isFile() && /\.(md|markdown)$/i.test(e.name)) {
-      files.push({ name: e.name, path: full });
+      let mtime = 0;
+      try {
+        mtime = fs.statSync(full).mtimeMs;
+      } catch {}
+      files.push({ name: e.name, path: full, mtime });
     }
   }
   const cmp = (a, b) => a.name.localeCompare(b.name, 'pt-BR');
@@ -293,6 +298,92 @@ ipcMain.handle('dir:watch', (_ev, root) => {
       dirWatchTimer = setTimeout(() => sendWin('dir:changed', root), 350);
     });
     return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+// --- operações de arquivo da sidebar (toolbar e menu de contexto) ---
+
+ipcMain.handle('fs:showInFolder', (_ev, p) => {
+  try {
+    if (fs.statSync(p).isDirectory()) shell.openPath(p);
+    else shell.showItemInFolder(p);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('fs:createFile', (_ev, p) => {
+  try {
+    fs.writeFileSync(p, '', { flag: 'wx' });
+    return { ok: true, path: p };
+  } catch (err) {
+    return { ok: false, error: err.code === 'EEXIST' ? 'já existe um arquivo com esse nome' : String(err.message || err) };
+  }
+});
+
+ipcMain.handle('fs:createDir', (_ev, p) => {
+  try {
+    if (fs.existsSync(p)) return { ok: false, error: 'já existe uma pasta com esse nome' };
+    fs.mkdirSync(p);
+    return { ok: true, path: p };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('fs:rename', (_ev, from, to) => {
+  try {
+    if (fs.existsSync(to)) return { ok: false, error: 'já existe um item com esse nome' };
+    fs.renameSync(from, to);
+    return { ok: true, path: to };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+// Excluir manda pra lixeira do sistema (shell.trashItem), nunca unlink direto.
+ipcMain.handle('fs:trash', async (_ev, p) => {
+  try {
+    await shell.trashItem(p);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+// Duplica o arquivo ao lado do original, com sufixo "copia" (numera se precisar).
+ipcMain.handle('fs:duplicate', (_ev, p) => {
+  try {
+    const dir = path.dirname(p);
+    const ext = path.extname(p);
+    const base = path.basename(p, ext);
+    let target = path.join(dir, base + ' copia' + ext);
+    let n = 2;
+    while (fs.existsSync(target)) {
+      target = path.join(dir, base + ' copia ' + n + ext);
+      n++;
+    }
+    fs.copyFileSync(p, target);
+    return { ok: true, path: target };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+// Exportar: dialog de salvar como e cópia do arquivo pra fora.
+ipcMain.handle('fs:export', async (_ev, p) => {
+  try {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar arquivo',
+      defaultPath: path.basename(p),
+      filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    });
+    if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+    fs.copyFileSync(p, result.filePath);
+    return { ok: true, path: result.filePath };
   } catch (err) {
     return { ok: false, error: String(err.message || err) };
   }
@@ -569,8 +660,8 @@ async function runE2eTest() {
 
     // 9. janela frameless com barra só de ícones
     const noMenu = Menu.getApplicationMenu() === null;
-    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-new','btn-open','btn-open-side','btn-save','btn-terminal','btn-claude-file','btn-claude-sel','btn-config'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0;}),menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
-    check('janela frameless: sem menu nativo, barra arrastável, controles e botões de ícone com tooltip', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
+    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;var enxuta=['btn-new','btn-open','btn-open-side','btn-save'].every(function(id){return !document.getElementById(id);});return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),icones:['btn-toggle-sidebar','btn-terminal','btn-claude-file','btn-claude-sel'].every(function(id){var b=document.getElementById(id);return !!b && !!b.querySelector('svg') && (b.title||'').length>0 && t.contains(b);}),config:(function(){var b=document.getElementById('btn-config');return !!b && !t.contains(b);})(),enxuta:enxuta,menusTexto:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
+    check('janela frameless: barra enxuta (sidebar, terminal, claude), config no rodapé, sem botões novo/abrir/salvar', noMenu && !!bar && bar.drag && bar.controles && bar.icones && bar.config && bar.enxuta && bar.menusTexto === 0 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
 
     // 10. controles custom respondem: maximizar e restaurar via clique
     await js(`document.getElementById('win-max').click()`);
@@ -677,8 +768,70 @@ async function runE2eTest() {
     await sleep(800);
 
     // 20. ponte claude: botões de ícone e ações na palette existem
-    const ponte = await js(`(function(){var f=document.getElementById('btn-claude-file');var s=document.getElementById('btn-claude-sel');var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {btnFile:!!f&&!!f.querySelector('svg')&&(f.title||'').length>0,btnSel:!!s&&!!s.querySelector('svg')&&(s.title||'').length>0,acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,ladoBtn:!!document.getElementById('btn-open-side')};})()`);
-    check('ponte claude: botões e ações na palette', !!ponte && ponte.btnFile && ponte.btnSel && ponte.acaoFile && ponte.acaoSel && ponte.ladoBtn, JSON.stringify(ponte));
+    const ponte = await js(`(function(){var f=document.getElementById('btn-claude-file');var s=document.getElementById('btn-claude-sel');var acoes=PALETTE_ACTIONS.map(function(a){return a.label;});return {btnFile:!!f&&!!f.querySelector('svg')&&(f.title||'').length>0,btnSel:!!s&&!!s.querySelector('svg')&&(s.title||'').length>0,acaoFile:acoes.indexOf('mandar arquivo pro claude')!==-1,acaoSel:acoes.indexOf('mandar seleção pro claude')!==-1,acaoLado:acoes.indexOf('abrir arquivo ao lado')!==-1};})()`);
+    check('ponte claude: botões e ações na palette', !!ponte && ponte.btnFile && ponte.btnSel && ponte.acaoFile && ponte.acaoSel && ponte.acaoLado, JSON.stringify(ponte));
+
+    // 22. cabeçalho da tree: nome da pasta raiz, tooltip com o path e botão do Explorer
+    const rootDir = path.dirname(demoPath);
+    const cab = await js(`(function(){var n=document.getElementById('sidebar-root-name');var b=document.getElementById('btn-root-explorer');return {nome:n?n.textContent:null,tip:n?n.title:null,btn:!!b&&!!b.querySelector('svg')&&(b.title||'').length>0};})()`);
+    check('cabeçalho da sidebar: nome da raiz, tooltip e botão Explorer', !!cab && cab.nome === path.basename(rootDir) && cab.tip === rootDir && cab.btn, JSON.stringify(cab));
+
+    // 23. toolbar da tree: os cinco botões de ícone com tooltip
+    const tb = await js(`(function(){return ['btn-tree-new-file','btn-tree-new-folder','btn-tree-sort','btn-tree-collapse','btn-tree-search'].every(function(id){var b=document.getElementById(id);return !!b&&!!b.querySelector('svg')&&(b.title||'').length>0;});})()`);
+    check('toolbar da tree: novo .md, nova pasta, ordenação, colapsar, busca', tb === true, String(tb));
+
+    // 24. busca da tree: filtra por nome conforme digita e Esc limpa
+    await js(`(function(){toggleTreeSearch(true);var i=document.getElementById('tree-search');i.value='anotac';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(250);
+    const filtrado = await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.file .tree-name')].map(function(n){return n.textContent;});return {rows:rows,soAnotacoes:rows.length>=1&&rows.every(function(n){return n.toLowerCase().indexOf('anotac')!==-1;})};})()`);
+    await js(`document.getElementById('tree-search').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+    await sleep(250);
+    const limpou2 = await js(`(function(){var rows=document.querySelectorAll('#file-tree .tree-row.file').length;return {oculto:document.getElementById('tree-search-wrap').classList.contains('hidden'),rows:rows};})()`);
+    check('busca da tree filtra e Esc limpa', !!filtrado && filtrado.soAnotacoes && !!limpou2 && limpou2.oculto && limpou2.rows > filtrado.rows.length, JSON.stringify({ filtrado, limpou2 }));
+
+    // 25. criar .md pela toolbar (dialog de nome do app) e abrir na hora
+    const novoPath = path.join(rootDir, 'novo-e2e.md');
+    await js('selectedDir = null'); // clique anterior apontava pra pasta já apagada
+    await js(`document.getElementById('btn-tree-new-file').click()`);
+    await sleep(300);
+    const dlg = await js(`(function(){return !document.getElementById('input-overlay').classList.contains('hidden');})()`);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='novo-e2e.md';document.getElementById('input-ok').click();})()`);
+    await sleep(900);
+    const novoOk = await js('currentPath');
+    check('toolbar cria .md e abre', dlg === true && fs.existsSync(novoPath) && novoOk === novoPath, JSON.stringify({ dlg, novoOk }));
+
+    // 26. menu de contexto no arquivo da tree: abre e renomeia via dialog
+    await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.file')];var r=rows.find(function(x){return x.querySelector('.tree-name').textContent==='novo-e2e.md';});if(r)r.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:200}));})()`);
+    await sleep(250);
+    const menu = await js(`(function(){var m=document.getElementById('ctx-menu');if(m.classList.contains('hidden'))return null;return [...m.querySelectorAll('.ctx-item')].map(function(i){return i.textContent;});})()`);
+    await js(`(function(){var it=[...document.querySelectorAll('#ctx-menu .ctx-item')].find(function(i){return i.textContent==='renomear';});if(it)it.click();})()`);
+    await sleep(300);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='renomeado-e2e.md';document.getElementById('input-ok').click();})()`);
+    await sleep(900);
+    const renPath = path.join(rootDir, 'renomeado-e2e.md');
+    const renomeou = fs.existsSync(renPath) && !fs.existsSync(novoPath);
+    const renPane = await js('currentPath');
+    check('menu de contexto abre e renomeia arquivo', Array.isArray(menu) && menu.includes('renomear') && menu.includes('excluir (lixeira)') && renomeou && renPane === renPath, JSON.stringify({ menu, renomeou, renPane }));
+    // limpa o artefato e volta pro demo
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(renPath, { force: true });
+    await js(`(function(){var p=activePane();var morto=panes.find(function(x){return x.path&&x.path.indexOf('renomeado-e2e')!==-1;});if(morto){setPaneDirty(morto,false);closePane(morto);}config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('novo-e2e')===-1&&r.indexOf('renomeado-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(800);
+
+    // 27. ordenação: muda pelo menu do botão e persiste no config.json
+    await js(`(function(){var b=document.getElementById('btn-tree-sort');b.click();})()`);
+    await sleep(250);
+    await js(`(function(){var it=[...document.querySelectorAll('#ctx-menu .ctx-item')].find(function(i){return i.textContent==='modificado primeiro';});if(it)it.click();})()`);
+    await sleep(500);
+    let cfgDisk = null;
+    try {
+      cfgDisk = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    const sortCfg = await js('config.treeSort');
+    await js(`setTreeSort('az')`);
+    await sleep(300);
+    check('ordenação muda pelo menu e persiste no config.json', sortCfg === 'recente' && !!cfgDisk && cfgDisk.treeSort === 'recente', JSON.stringify({ sortCfg, disk: cfgDisk && cfgDisk.treeSort }));
 
     // 21. screenshot final: janela larga, sidebar visível e dois panes abertos
     await js('toggleTerminal(false)');
