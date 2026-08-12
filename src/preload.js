@@ -4,6 +4,15 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('wired', {
   openDialog: () => ipcRenderer.invoke('dialog:open'),
+  saveAsDialog: (suggested) => ipcRenderer.invoke('dialog:saveAs', suggested),
+
+  // janela (barra de título custom)
+  winMinimize: () => ipcRenderer.send('window:minimize'),
+  winMaximizeToggle: () => ipcRenderer.send('window:maximize-toggle'),
+  winClose: () => ipcRenderer.send('window:close'),
+  winIsMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+  onMaximized: (cb) => ipcRenderer.on('window:maximized', (_ev, v) => cb(v)),
+
   readFile: (p) => ipcRenderer.invoke('file:read', p),
   writeFile: (p, content) => ipcRenderer.invoke('file:write', p, content),
   listMd: (dir) => ipcRenderer.invoke('dir:listMd', dir),

@@ -31,6 +31,14 @@ npm start
 - Teste ponta a ponta (fase 3): `WIRED_E2E=1 npx electron . exemplos/demo.md` dirige o renderer de verdade (teclado real via sendInputEvent, Ctrl+S, troca de tema, accent, snippet, terminal com dir) e imprime PASS/FAIL por fluxo; exit code 0 só com tudo verde. Salva screenshot em docs/screenshot.png e restaura o demo.md ao final.
 - Atalhos globais do renderer ficam em listener de keydown na FASE DE CAPTURA: o Vditor consome keydown dentro do editor, então sem captura o Ctrl+S digitando no texto não chega ao handler.
 
+## Janela custom e tipografia (fase 4, implementada)
+
+- Janela frameless (`frame: false`, `Menu.setApplicationMenu(null)`): barra de título desenhada pelo app em `#titlebar` (região de arrasto via `-webkit-app-region: drag`, no-drag nos controles). Menus custom em HTML (Arquivo: novo/abrir/salvar/salvar como; Exibir: sidebar/terminal/configurações), título do arquivo no centro (bolinha âmbar quando sujo) e controles minimizar/maximizar-restaurar/fechar no canto direito (fechar fica com fundo `--red` no hover). Duplo clique na barra maximiza; o ícone restaurar troca via IPC `window:maximized`.
+- Tamanho padrão: bloquinho vertical 700x840 (estilo Notepad), minWidth 420. Tamanho, posição e estado maximizado persistem em `%APPDATA%\wired-md\window-state.json` (salvos com debounce em resize/move e no close, restaurados no boot).
+- Fontes empacotadas em `src/renderer/fonts/` (offline, licenças em `fonts/LICENSES/`): Geist e Geist Mono (npm `geist`, OFL), Mona Sans (release do github/mona-sans, OFL), Inter e Inter Display (release do rsms/inter, OFL), Satoshi (Fontshare, FFL). Registradas em `fonts/fonts.css`. UI usa Geist, código e terminal Geist Mono, corpo do documento Mona Sans por padrão. O painel de configurações lista as empacotadas primeiro (`BUNDLED_FONTS` no renderer).
+- Capricho: `-webkit-font-smoothing: antialiased`, tabular nums no terminal e nos campos numéricos, letter-spacing positivo em labels pequenos, line-height do documento 1.65.
+- O E2E cobre a fase 4: frameless sem menu nativo, barra arrastável, controles respondendo (maximizar/restaurar), menu abrindo e fechando e window-state.json persistido (15 checks no total).
+
 ## Armadilhas
 
 - Windows: node-pty precisa de build tools; se a build falhar, o fallback é um pseudo-terminal via child_process (spawn powershell, stdin/stdout pipe) com xterm.js só como render.

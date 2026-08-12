@@ -17,8 +17,7 @@ let config = {
   snippets: []
 };
 
-const fileLabel = document.getElementById('file-label');
-const dirtyDot = document.getElementById('dirty-dot');
+const titlebarTitle = document.getElementById('titlebar-title');
 const sidebar = document.getElementById('sidebar');
 const fileListEl = document.getElementById('file-list');
 const sidebarEmpty = document.getElementById('sidebar-empty');
@@ -36,9 +35,9 @@ function dirName(p) {
 
 function updateChrome() {
   const name = currentPath ? baseName(currentPath) : 'nenhum arquivo';
-  fileLabel.textContent = name;
-  fileLabel.title = currentPath || '';
-  dirtyDot.style.visibility = dirty ? 'visible' : 'hidden';
+  titlebarTitle.textContent = (dirty ? '● ' : '') + name;
+  titlebarTitle.title = currentPath || '';
+  titlebarTitle.classList.toggle('dirty', dirty);
   window.wired.setTitle((dirty ? '● ' : '') + name + ' | wired-md');
 }
 
@@ -91,13 +90,42 @@ async function openPath(p) {
 }
 
 async function save() {
-  if (!currentPath || !vditor) return;
+  if (!vditor) return;
+  if (!currentPath) {
+    saveAs();
+    return;
+  }
   const res = await window.wired.writeFile(currentPath, vditor.getValue());
   if (!res.ok) {
     alert('Falha ao salvar: ' + res.error);
     return;
   }
   setDirty(false);
+}
+
+async function saveAs() {
+  if (!vditor) return;
+  const p = await window.wired.saveAsDialog(currentPath);
+  if (!p) return;
+  const res = await window.wired.writeFile(p, vditor.getValue());
+  if (!res.ok) {
+    alert('Falha ao salvar: ' + res.error);
+    return;
+  }
+  currentPath = p;
+  setDirty(false);
+  updateChrome();
+  refreshSidebar();
+}
+
+function newFile() {
+  if (!vditor) return;
+  if (dirty && !confirm('Há alterações não salvas. Descartar e criar um novo arquivo?')) return;
+  currentPath = null;
+  vditor.setValue('');
+  setDirty(false);
+  updateChrome();
+  refreshSidebar();
 }
 
 async function openViaDialog() {
@@ -192,24 +220,28 @@ const inpFontCode = document.getElementById('inp-font-code');
 const inpFontSize = document.getElementById('inp-font-size');
 const snippetListEl = document.getElementById('snippet-list');
 
+// Fontes que viajam com o app (src/renderer/fonts): aparecem primeiro na lista.
+const BUNDLED_FONTS = ['Geist', 'Geist Mono', 'Mona Sans', 'Inter', 'Inter Display', 'Satoshi'];
+
 const FALLBACK_FONTS = [
   'Segoe UI', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Tahoma', 'Arial',
   'Times New Roman', 'JetBrains Mono', 'Cascadia Mono', 'Cascadia Code',
-  'Consolas', 'Courier New', 'Fira Code', 'Iosevka', 'Inter', 'Roboto'
+  'Consolas', 'Courier New', 'Fira Code', 'Iosevka', 'Roboto'
 ];
 
 async function fillFontOptions() {
   const datalist = document.getElementById('font-options');
-  let names = FALLBACK_FONTS;
+  let systemNames = FALLBACK_FONTS;
   try {
     if (window.queryLocalFonts) {
       const fonts = await window.queryLocalFonts();
       const set = new Set(fonts.map((f) => f.family));
-      if (set.size > 0) names = [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+      if (set.size > 0) systemNames = [...set].sort((a, b) => a.localeCompare(b, 'pt-BR'));
     }
   } catch {
     // sem permissão para listar fontes do sistema; fica a lista fixa
   }
+  const names = [...BUNDLED_FONTS, ...systemNames.filter((n) => !BUNDLED_FONTS.includes(n))];
   datalist.innerHTML = '';
   for (const n of names) {
     const opt = document.createElement('option');
@@ -282,7 +314,6 @@ function closeSettings() {
   settingsOverlay.classList.add('hidden');
 }
 
-document.getElementById('btn-settings').addEventListener('click', openSettings);
 document.getElementById('btn-settings-close').addEventListener('click', closeSettings);
 settingsOverlay.addEventListener('click', (e) => {
   if (e.target === settingsOverlay) closeSettings();
@@ -468,7 +499,6 @@ function toggleTerminal(forceOpen) {
   }
 }
 
-document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
 document.getElementById('btn-term-close').addEventListener('click', () => toggleTerminal(false));
 
 // Digita o comando claude no shell, já com Enter.
@@ -520,9 +550,85 @@ vditor = new Vditor('editor', {
 // eventos globais
 // ---------------------------------------------------------------------------
 
-document.getElementById('btn-open').addEventListener('click', openViaDialog);
 document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
   sidebar.classList.toggle('collapsed');
+});
+
+// ---------------------------------------------------------------------------
+// barra de título custom: menus, controles de janela e estado maximizado
+// ---------------------------------------------------------------------------
+
+const menuRoots = [...document.querySelectorAll('#titlebar .menu-root')];
+
+function closeMenus() {
+  for (const m of menuRoots) {
+    m.querySelector('.menu-drop').classList.add('hidden');
+    m.classList.remove('open');
+  }
+}
+
+function anyMenuOpen() {
+  return menuRoots.some((m) => m.classList.contains('open'));
+}
+
+for (const root of menuRoots) {
+  const label = root.querySelector('.menu-label');
+  label.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const drop = root.querySelector('.menu-drop');
+    const willOpen = drop.classList.contains('hidden');
+    closeMenus();
+    if (willOpen) {
+      drop.classList.remove('hidden');
+      root.classList.add('open');
+    }
+  });
+  // Com um menu aberto, passar o mouse troca de menu, como no menu nativo.
+  label.addEventListener('mouseenter', () => {
+    if (anyMenuOpen() && !root.classList.contains('open')) label.click();
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.menu-root')) closeMenus();
+});
+
+const MENU_ACTIONS = {
+  novo: () => newFile(),
+  abrir: () => openViaDialog(),
+  salvar: () => save(),
+  'salvar-como': () => saveAs(),
+  sidebar: () => sidebar.classList.toggle('collapsed'),
+  terminal: () => toggleTerminal(),
+  config: () => openSettings()
+};
+
+for (const btn of document.querySelectorAll('.menu-drop button')) {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeMenus();
+    const fn = MENU_ACTIONS[btn.dataset.action];
+    if (fn) fn();
+  });
+}
+
+const winMaxBtn = document.getElementById('win-max');
+
+function setMaxState(isMax) {
+  winMaxBtn.classList.toggle('is-max', isMax);
+  winMaxBtn.title = isMax ? 'Restaurar' : 'Maximizar';
+}
+
+document.getElementById('win-min').addEventListener('click', () => window.wired.winMinimize());
+winMaxBtn.addEventListener('click', () => window.wired.winMaximizeToggle());
+document.getElementById('win-close').addEventListener('click', () => window.wired.winClose());
+window.wired.onMaximized((v) => setMaxState(v));
+window.wired.winIsMaximized().then(setMaxState);
+
+// Duplo clique na área de arrasto maximiza ou restaura, como no Windows.
+document.getElementById('titlebar').addEventListener('dblclick', (e) => {
+  if (e.target.closest('button, .menu-root, #titlebar-controls')) return;
+  window.wired.winMaximizeToggle();
 });
 
 // Fase de captura: o Vditor consome keydown dentro do editor, então sem
@@ -532,9 +638,20 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     save();
   }
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    saveAs();
+  }
+  if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+    e.preventDefault();
+    newFile();
+  }
   if (e.ctrlKey && e.key.toLowerCase() === 'o') {
     e.preventDefault();
     openViaDialog();
+  }
+  if (e.key === 'Escape' && anyMenuOpen()) {
+    closeMenus();
   }
   // Ctrl+` abre e fecha o terminal (em teclado ABNT pode chegar como aspas).
   if (e.ctrlKey && (e.key === '`' || e.key === "'" || e.code === 'Backquote')) {

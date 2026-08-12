@@ -2,7 +2,7 @@
 // Cria a janela, resolve arquivo passado por linha de comando, expõe IPC de
 // arquivo, de configuração (temas, snippets, config.json) e do terminal embutido.
 
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
@@ -67,13 +67,44 @@ function fileFromArgv(argv) {
   return null;
 }
 
+// --- estado da janela (tamanho e posição persistem entre sessões) ---
+// Padrão: bloquinho de texto vertical, 700x840, como o Notepad.
+
+const DEFAULT_WIN = { width: 700, height: 840 };
+
+function readWindowState() {
+  try {
+    const s = JSON.parse(fs.readFileSync(userDir('window-state.json'), 'utf8'));
+    if (typeof s.width === 'number' && typeof s.height === 'number') return s;
+  } catch {}
+  return Object.assign({}, DEFAULT_WIN);
+}
+
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const maximized = mainWindow.isMaximized();
+    // Com a janela maximizada, guarda o tamanho normal (de restauração).
+    const b = maximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+    fs.writeFileSync(
+      userDir('window-state.json'),
+      JSON.stringify({ x: b.x, y: b.y, width: b.width, height: b.height, maximized }, null, 2),
+      'utf8'
+    );
+  } catch {}
+}
+
 function createWindow() {
+  const state = readWindowState();
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 640,
+    width: state.width,
+    height: state.height,
+    x: typeof state.x === 'number' ? state.x : undefined,
+    y: typeof state.y === 'number' ? state.y : undefined,
+    minWidth: 420,
     minHeight: 400,
     backgroundColor: '#101216',
+    frame: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -83,7 +114,26 @@ function createWindow() {
     }
   });
 
+  if (state.maximized) mainWindow.maximize();
+
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  // Persiste tamanho e posição (debounce nos eventos contínuos).
+  let saveTimer = null;
+  const scheduleSave = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveWindowState, 400);
+  };
+  mainWindow.on('resize', scheduleSave);
+  mainWindow.on('move', scheduleSave);
+  mainWindow.on('close', () => {
+    clearTimeout(saveTimer);
+    saveWindowState();
+  });
+
+  // Estado maximizado vai pro renderer trocar o ícone maximizar/restaurar.
+  mainWindow.on('maximize', () => sendWin('window:maximized', true));
+  mainWindow.on('unmaximize', () => sendWin('window:maximized', false));
 
   mainWindow.webContents.on('did-finish-load', () => {
     const initial = fileFromArgv(process.argv);
@@ -101,9 +151,33 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Janela 100% custom: nenhum menu nativo residual.
+  Menu.setApplicationMenu(null);
   ensureUserDirs();
   createWindow();
 });
+
+// --- IPC de janela (barra de título custom) ---
+
+function sendWin(channel, data) {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, data);
+}
+
+ipcMain.on('window:minimize', () => {
+  if (mainWindow) mainWindow.minimize();
+});
+
+ipcMain.on('window:maximize-toggle', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
+});
+
+ipcMain.on('window:close', () => {
+  if (mainWindow) mainWindow.close();
+});
+
+ipcMain.handle('window:isMaximized', () => (mainWindow ? mainWindow.isMaximized() : false));
 
 app.on('window-all-closed', () => {
   killTerminal();
@@ -120,6 +194,16 @@ ipcMain.handle('dialog:open', async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0];
+});
+
+ipcMain.handle('dialog:saveAs', async (_ev, suggestedPath) => {
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Salvar como',
+    defaultPath: suggestedPath || 'sem-titulo.md',
+    filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+  });
+  if (result.canceled || !result.filePath) return null;
+  return result.filePath;
 });
 
 ipcMain.handle('file:read', async (_ev, filePath) => {
@@ -356,6 +440,7 @@ async function runE2eTest() {
 
     // 3. editar com teclado de verdade e ver o estado sujo
     const original = fs.readFileSync(demoPath, 'utf8');
+    mainWindow.focus();
     await js('vditor.focus()');
     await sleep(300);
     for (const ch of 'zeta42') {
@@ -409,7 +494,40 @@ async function runE2eTest() {
     const buf = await js(`(function(){var out=[];for(var i=0;i<xterm.buffer.active.length;i++){var l=xterm.buffer.active.getLine(i);if(l)out.push(l.translateToString(true));}return out.join('\\n');})()`);
     check('terminal (' + (term ? term.kind : 'nenhum') + ') rodou dir e listou demo.md', /demo\.md/.test(buf), (buf.match(/demo\.md.*/) || ['sem match'])[0].trim());
 
-    // 9. screenshot final
+    // 9. janela frameless com barra de título custom
+    const noMenu = Menu.getApplicationMenu() === null;
+    const bar = await js(`(function(){var t=document.getElementById('titlebar');if(!t)return null;return {drag:getComputedStyle(t).webkitAppRegion==='drag',controles:['win-min','win-max','win-close'].every(function(id){return !!document.getElementById(id);}),menus:document.querySelectorAll('#titlebar .menu-root').length,titulo:(document.getElementById('titlebar-title')||{}).textContent||''};})()`);
+    check('janela frameless: sem menu nativo, barra arrastável, controles e menus custom', noMenu && !!bar && bar.drag && bar.controles && bar.menus === 2 && bar.titulo.includes('demo.md'), JSON.stringify(bar));
+
+    // 10. controles custom respondem: maximizar e restaurar via clique
+    await js(`document.getElementById('win-max').click()`);
+    await sleep(600);
+    const maxOn = mainWindow.isMaximized();
+    const iconRestaura = await js(`document.getElementById('win-max').classList.contains('is-max')`);
+    await js(`document.getElementById('win-max').click()`);
+    await sleep(600);
+    const maxOff = mainWindow.isMaximized();
+    check('controles custom: maximizar e restaurar respondem', maxOn && iconRestaura && !maxOff, 'max=' + maxOn + ' restaurado=' + !maxOff);
+
+    // 10b. estado da janela persistido no userData
+    await sleep(700);
+    let winState = null;
+    try {
+      winState = JSON.parse(fs.readFileSync(userDir('window-state.json'), 'utf8'));
+    } catch {}
+    check('estado da janela salvo (window-state.json)', !!winState && typeof winState.width === 'number' && typeof winState.height === 'number', JSON.stringify(winState));
+
+    // 11. menu Arquivo abre por clique e fecha no Escape
+    await js(`document.querySelector('#menu-arquivo > button').click()`);
+    await sleep(200);
+    const menuAberto = await js(`!document.querySelector('#menu-arquivo .menu-drop').classList.contains('hidden')`);
+    mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    mainWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+    await sleep(200);
+    const menuFechado = await js(`document.querySelector('#menu-arquivo .menu-drop').classList.contains('hidden')`);
+    check('menu Arquivo abre e fecha', menuAberto && menuFechado, 'aberto=' + menuAberto + ' fechado=' + menuFechado);
+
+    // 12. screenshot final
     await js('toggleTerminal(false)');
     await sleep(400);
     const img = await mainWindow.webContents.capturePage();

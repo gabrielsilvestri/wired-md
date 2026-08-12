@@ -1,0 +1,97 @@
+/* Fontes empacotadas com o app (offline). Licenças em LICENSES/. */
+
+/* Geist (Vercel, OFL) */
+@font-face {
+  font-family: "Geist";
+  src: url("GeistVF.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Geist Mono (Vercel, OFL) */
+@font-face {
+  font-family: "Geist Mono";
+  src: url("GeistMonoVF.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Mona Sans (GitHub, OFL) */
+@font-face {
+  font-family: "Mona Sans";
+  src: url("MonaSansVF.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Mona Sans";
+  src: url("MonaSansVF-Italic.woff2") format("woff2");
+  font-weight: 200 900;
+  font-style: italic;
+  font-display: block;
+}
+
+/* Inter (rsms, OFL) */
+@font-face {
+  font-family: "Inter";
+  src: url("InterVariable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("InterVariable-Italic.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: block;
+}
+
+/* Inter Display (rsms, OFL), pesos usados */
+@font-face {
+  font-family: "Inter Display";
+  src: url("InterDisplay-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Inter Display";
+  src: url("InterDisplay-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Inter Display";
+  src: url("InterDisplay-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Inter Display";
+  src: url("InterDisplay-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Satoshi (Indian Type Foundry via Fontshare, FFL) */
+@font-face {
+  font-family: "Satoshi";
+  src: url("Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("Satoshi-VariableItalic.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: block;
+}
