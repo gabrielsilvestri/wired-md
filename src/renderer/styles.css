@@ -611,7 +611,13 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 }
 
 .vditor-ir { background: var(--bg); }
-.vditor-ir pre.vditor-reset { background: var(--bg) !important; }
+/* O Vditor manda `.vditor-ir pre.vditor-reset { margin: 0 }`, que sobrepõe o
+   `margin: 0 auto` do `.vditor-reset` (mais específico) e cola a coluna de
+   texto na esquerda, deixando o vão morto à direita em janela larga. Como este
+   styles.css carrega depois do CSS do Vditor, repetir o seletor com `0 auto`
+   devolve a centralização; o `max-width: 860px` do `.vditor-reset` continua
+   valendo, então a coluna reflui (encolhe) quando o pane é mais estreito. */
+.vditor-ir pre.vditor-reset { background: var(--bg) !important; margin: 0 auto; }
 
 /* --- modo foco: o bloco onde o caret está fica com a tinta cheia, o resto
    esmaece. A opacidade NÃO é chute, é medida: o texto esmaecido tem que ficar
