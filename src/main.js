@@ -36,7 +36,8 @@ const DEFAULT_CONFIG = {
   sidebarVisible: true,
   recentFiles: [],
   treeSort: 'az',
-  terminalHeight: 260
+  terminalHeight: 260,
+  frontmatterPanel: true
 };
 
 function ensureUserDirs() {
@@ -1145,16 +1146,132 @@ async function runE2eTest() {
     fs.rmSync(buscaB, { force: true });
     await sleep(800);
 
+    // --- fase 8: painel de propriedades (frontmatter) ---
+
+    // 38. painel aparece no arquivo com frontmatter (linhas certas, mapa
+    // aninhado como preservado) e some no arquivo sem frontmatter
+    const fmPath = path.join(path.dirname(demoPath), 'exemplo-skill.md');
+    const fmOriginal = fs.readFileSync(fmPath, 'utf8');
+    await js(`openPath(${JSON.stringify(fmPath)})`);
+    await sleep(1200);
+    const fmVisto = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');if(!p)return null;var linhas=[...p.querySelectorAll('.fm-row')].map(function(r){var i=r.querySelector('.fm-val');return {k:r.querySelector('.fm-key').textContent,tipo:i?i.className:null,v:i&&i.type==='checkbox'?i.checked:(i&&i.value!==undefined?i.value:(i?i.textContent:null))};});return {oculto:p.classList.contains('hidden'),schema:(p.querySelector('.fm-schema')||{}).textContent,linhas:linhas,avisos:p.querySelectorAll('.fm-warn').length};})()`);
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(900);
+    const fmSemFm = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');return {oculto:!p||p.classList.contains('hidden')};})()`);
+    const fmChaves = (fmVisto && fmVisto.linhas || []).map((l) => l.k).join(',');
+    const fmTools = (fmVisto && fmVisto.linhas || []).find((l) => l.k === 'tools');
+    const fmBool = (fmVisto && fmVisto.linhas || []).find((l) => l.k === 'publicado');
+    const fmMeta = (fmVisto && fmVisto.linhas || []).find((l) => l.k === 'meta');
+    check(
+      'propriedades: painel abre no arquivo com frontmatter (lista, booleano, mapa preservado) e some no arquivo sem',
+      !!fmVisto && !fmVisto.oculto && fmChaves === 'name,description,tools,model,publicado,meta' && fmVisto.schema === 'subagent' &&
+        !!fmTools && fmTools.v === 'Read, Write, Bash' && !!fmBool && fmBool.v === false && !!fmMeta && /fm-other/.test(fmMeta.tipo) &&
+        fmVisto.avisos === 0 && fmSemFm.oculto,
+      JSON.stringify({ fmChaves, schema: fmVisto && fmVisto.schema, semFm: fmSemFm })
+    );
+
+    // 39. editar no painel marca sujo e Ctrl+S grava o bloco reescrito em disco
+    await js(`openPath(${JSON.stringify(fmPath)})`);
+    await sleep(1000);
+    await js(`(function(){var i=[...document.querySelectorAll('#panes .pane.active .fm-row input.fm-val')].find(function(x){return x.dataset.key==='description';});i.value='descrição trocada pelo e2e';i.dispatchEvent(new Event('change'));})()`);
+    await sleep(700);
+    const fmSujo = await js('dirty');
+    mainWindow.focus();
+    mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'S', modifiers: ['control'] });
+    mainWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'S', modifiers: ['control'] });
+    await sleep(1000);
+    const fmDisco = fs.readFileSync(fmPath, 'utf8');
+    const fmLimpo = await js('dirty');
+    check(
+      'propriedades: editar valor marca sujo e Ctrl+S grava o frontmatter em disco',
+      fmSujo === true && fmLimpo === false && /description: descrição trocada pelo e2e/.test(fmDisco),
+      'sujo=' + fmSujo + ' limpo=' + fmLimpo
+    );
+
+    // 40. round trip: chave aninhada desconhecida, comentário, ordem e corpo intactos
+    check(
+      'propriedades: round trip preserva mapa aninhado, comentário, ordem e corpo',
+      /meta:\r?\n {2}autor: biel\r?\n {2}versao: 2/.test(fmDisco) &&
+        /# comentário preservado no round trip/.test(fmDisco) &&
+        /name: exemplo-skill[\s\S]*description:[\s\S]*tools:[\s\S]*model: sonnet/.test(fmDisco) &&
+        /## quando usar/.test(fmDisco) && /- Read\r?\n {2}- Write\r?\n {2}- Bash/.test(fmDisco),
+      JSON.stringify(fmDisco.slice(0, 260))
+    );
+    // restaura o fixture e o pane
+    fs.writeFileSync(fmPath, fmOriginal, 'utf8');
+    await js(`(function(){vditor.setValue(${JSON.stringify(fmOriginal)});setDirty(false);refreshFmPanel(activePane());})()`);
+    await sleep(600);
+
+    // 41. schema skill (arquivo SKILL.md): acusa description faltando e typo
+    const skillDir = path.join(path.dirname(demoPath), 'skill-e2e');
+    const skillPath = path.join(skillDir, 'SKILL.md');
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(skillPath, '---\nname: skill-e2e\ndescribe: isto deveria ser description\n---\n# skill e2e\n', 'utf8');
+    await sleep(1200);
+    await js(`openPath(${JSON.stringify(skillPath)})`);
+    await sleep(1200);
+    const fmSkill = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');if(!p)return null;return {schema:(p.querySelector('.fm-schema')||{}).textContent,avisos:[...p.querySelectorAll('.fm-warn')].map(function(w){return w.textContent;})};})()`);
+    const avisosSkill = (fmSkill && fmSkill.avisos) || [];
+    check(
+      'propriedades: schema skill acusa description faltando e chave parecida (describe)',
+      !!fmSkill && fmSkill.schema === 'skill' && avisosSkill.some((a) => /falta a chave description/.test(a)) && avisosSkill.some((a) => /describe.*typo.*description/.test(a)),
+      JSON.stringify(fmSkill)
+    );
+
+    // 42. YAML inválido: painel cai em leitura crua com o erro do parser
+    const yamlRuim = path.join(skillDir, 'quebrado-e2e.md');
+    fs.writeFileSync(yamlRuim, '---\nname: [isto nunca fecha\ndescription: oi\n---\n# quebrado\n', 'utf8');
+    await sleep(1200);
+    await js(`openPath(${JSON.stringify(yamlRuim)})`);
+    await sleep(1200);
+    const fmRuim = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');if(!p)return null;return {oculto:p.classList.contains('hidden'),raw:!!p.querySelector('.fm-raw'),campos:p.querySelectorAll('.fm-row input').length,avisos:[...p.querySelectorAll('.fm-warn')].map(function(w){return w.textContent;})};})()`);
+    check(
+      'propriedades: YAML inválido vira leitura crua com o erro do parser, sem campos editáveis',
+      !!fmRuim && !fmRuim.oculto && fmRuim.raw && fmRuim.campos === 0 && (fmRuim.avisos || []).some((a) => /YAML inválido/.test(a)),
+      JSON.stringify(fmRuim)
+    );
+
+    // 43. toggle pela palette oculta o painel e persiste no config.json
+    await js(`openPath(${JSON.stringify(fmPath)})`);
+    await sleep(1000);
+    await js(`(function(){openPalette('commands');var i=document.getElementById('palette-input');i.value='propriedades';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(250);
+    const fmSelPal = await js(`(function(){var r=document.querySelector('#palette-list .palette-row.selected .palette-label');return r?r.textContent:null;})()`);
+    await js(`document.getElementById('palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(700);
+    const fmDepoisToggle = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');return {oculto:!p||p.classList.contains('hidden'),cfg:config.frontmatterPanel};})()`);
+    let cfgFm = null;
+    try {
+      cfgFm = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    await js('toggleFrontmatterPanel(true)');
+    await sleep(600);
+    const fmVoltou = await js(`(function(){var p=document.querySelector('#panes .pane.active .fm-panel');return !!p && !p.classList.contains('hidden');})()`);
+    check(
+      'propriedades: ação da palette oculta o painel, persiste no config.json e volta',
+      fmSelPal === 'propriedades: mostrar/ocultar' && !!fmDepoisToggle && fmDepoisToggle.oculto && fmDepoisToggle.cfg === false && !!cfgFm && cfgFm.frontmatterPanel === false && fmVoltou === true,
+      JSON.stringify({ fmSelPal, fmDepoisToggle, disk: cfgFm && cfgFm.frontmatterPanel, fmVoltou })
+    );
+    // limpa os artefatos da fase 8 e volta pro demo
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    await js(`(function(){['skill-e2e','quebrado-e2e','exemplo-skill'].forEach(function(k){var p=panes.find(function(x){return x.path&&x.path.indexOf(k)!==-1;});if(p){setPaneDirty(p,false);closePane(p);}});config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('skill-e2e')===-1&&r.indexOf('quebrado-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(500);
+    fs.rmSync(skillDir, { recursive: true, force: true });
+    fs.writeFileSync(fmPath, fmOriginal, 'utf8');
+    await sleep(800);
+
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)
     await js('toggleTerminal(false)');
     mainWindow.setSize(1360, 840);
     mainWindow.center();
     const notasPath = path.join(path.dirname(demoPath), 'anotacoes.md');
-    const guiaPath = path.join(path.dirname(demoPath), 'guia.md');
+    // o terceiro pane é o exemplo com frontmatter, pra o painel de propriedades
+    // aparecer no screenshot
     await js(`openPath(${JSON.stringify(notasPath)}, true)`);
     await sleep(1000);
-    await js(`openPath(${JSON.stringify(guiaPath)}, true)`);
+    await js(`openPath(${JSON.stringify(fmPath)}, true)`);
     await sleep(1500);
     const img = await mainWindow.webContents.capturePage();
     const docsDir = path.join(__dirname, '..', 'docs');

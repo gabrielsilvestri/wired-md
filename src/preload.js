@@ -1,6 +1,84 @@
 // Ponte segura entre renderer e main. Só expõe o que o editor precisa.
 
 const { contextBridge, ipcRenderer } = require('electron');
+const YAML = require('yaml');
+
+// --- frontmatter: parse e edição do bloco YAML ---
+// O parser roda aqui, no preload, porque o renderer é isolado (sem require) e
+// mandar isso pro main seria um round trip de IPC a cada tecla. O que atravessa
+// a ponte é sempre objeto simples: o Document do yaml nunca sai daqui.
+
+// Classifica o valor pra decidir o controle da linha no painel.
+function classificar(v) {
+  if (typeof v === 'boolean') return 'bool';
+  if (typeof v === 'number') return 'number';
+  if (v === null || v === undefined) return 'string';
+  if (typeof v === 'string') return 'string';
+  if (Array.isArray(v) && v.every((x) => x === null || ['string', 'number', 'boolean'].includes(typeof x))) return 'list';
+  return 'other';
+}
+
+function previa(v) {
+  try {
+    return YAML.stringify(v).trim().replace(/\s+/g, ' ').slice(0, 80);
+  } catch {
+    return '';
+  }
+}
+
+function fmParse(raw) {
+  let doc;
+  try {
+    doc = YAML.parseDocument(String(raw == null ? '' : raw));
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+  if (doc.errors && doc.errors.length > 0) {
+    const e = doc.errors[0];
+    return { ok: false, error: String(e.message || e) };
+  }
+  let js;
+  try {
+    js = doc.toJS();
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+  if (js === null || js === undefined) return { ok: true, mapa: true, entries: [] };
+  if (typeof js !== 'object' || Array.isArray(js)) return { ok: true, mapa: false, entries: [] };
+  const entries = [];
+  for (const [key, value] of Object.entries(js)) {
+    const kind = classificar(value);
+    entries.push({
+      key,
+      kind,
+      value: kind === 'other' ? null : value === undefined ? null : value,
+      preview: kind === 'other' ? previa(value) : ''
+    });
+  }
+  return { ok: true, mapa: true, entries };
+}
+
+// Escreve uma chave no bloco e devolve o YAML re-emitido. O Document do yaml
+// preserva ordem, comentários, chaves desconhecidas e mapas aninhados; só o
+// valor mexido é reescrito.
+function fmSet(raw, key, kind, value) {
+  let doc;
+  try {
+    doc = YAML.parseDocument(String(raw == null ? '' : raw));
+    if (doc.errors && doc.errors.length > 0) return { ok: false, error: String(doc.errors[0].message) };
+    let v = value;
+    if (kind === 'list') v = Array.isArray(value) ? value : [];
+    if (kind === 'bool') v = !!value;
+    if (kind === 'number') {
+      const n = Number(value);
+      v = Number.isFinite(n) ? n : String(value);
+    }
+    doc.set(key, v);
+    return { ok: true, raw: doc.toString().replace(/\n+$/, '') };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+}
 
 contextBridge.exposeInMainWorld('wired', {
   openDialog: () => ipcRenderer.invoke('dialog:open'),
@@ -48,5 +126,9 @@ contextBridge.exposeInMainWorld('wired', {
   termResize: (cols, rows) => ipcRenderer.send('term:resize', cols, rows),
   termKill: () => ipcRenderer.invoke('term:kill'),
   onTermData: (cb) => ipcRenderer.on('term:data', (_ev, d) => cb(d)),
-  onTermExit: (cb) => ipcRenderer.on('term:exit', (_ev, c) => cb(c))
+  onTermExit: (cb) => ipcRenderer.on('term:exit', (_ev, c) => cb(c)),
+
+  // frontmatter (painel de propriedades)
+  fmParse: (raw) => fmParse(raw),
+  fmSet: (raw, key, kind, value) => fmSet(raw, key, kind, value)
 });

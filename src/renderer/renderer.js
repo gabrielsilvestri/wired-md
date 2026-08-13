@@ -14,7 +14,8 @@ let config = {
   sidebarVisible: true,
   recentFiles: [],
   treeSort: 'az',
-  terminalHeight: 260
+  terminalHeight: 260,
+  frontmatterPanel: true
 };
 
 function sleep(ms) {
@@ -107,7 +108,12 @@ function vditorOptions(pane) {
       markdown: { toc: true, mark: true }
     },
     placeholder: 'abra um arquivo .md ou comece a escrever...',
-    input: () => setPaneDirty(pane, true),
+    input: () => {
+      setPaneDirty(pane, true);
+      // Edição no documento refaz o painel de propriedades (debounce), porque o
+      // frontmatter pode ter sido mexido na mão dentro do editor.
+      scheduleFmRefresh(pane);
+    },
     after: () => {
       pane.ready = true;
       if (pane.pendingPath) {
@@ -220,16 +226,22 @@ function createPane() {
   spine.appendChild(spineDotEl);
   spine.appendChild(spineTitleEl);
 
+  // Painel de propriedades (frontmatter YAML): entre o cabeçalho e o editor,
+  // por pane, porque cada pane é um arquivo diferente.
+  const fmEl = document.createElement('div');
+  fmEl.className = 'fm-panel hidden';
+
   const edEl = document.createElement('div');
   edEl.className = 'pane-editor';
   edEl.id = 'pane-ed-' + id;
 
   el.appendChild(spine);
   el.appendChild(header);
+  el.appendChild(fmEl);
   el.appendChild(edEl);
   panesEl.appendChild(el);
 
-  const pane = { id, el, titleEl, spineTitleEl, spineDotEl, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
+  const pane = { id, el, titleEl, spineTitleEl, spineDotEl, fmEl, fmTimer: null, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
   pane.vditor = new Vditor(edEl.id, vditorOptions(pane));
 
   el.addEventListener('mousedown', () => setActivePane(pane));
@@ -868,6 +880,7 @@ async function openInPane(pane, p) {
   pane.path = p;
   pane.vditor.setValue(res.content);
   setPaneDirty(pane, false);
+  refreshFmPanel(pane);
   updatePaneHeader(pane);
   if (pane.id === activePaneId) updateChrome();
   pushRecent(p);
@@ -901,6 +914,7 @@ async function saveAs() {
   }
   pane.path = p;
   setPaneDirty(pane, false);
+  refreshFmPanel(pane); // o nome do arquivo decide o schema (SKILL.md, agents/)
   updatePaneHeader(pane);
   updateChrome();
   pushRecent(p);
@@ -914,6 +928,7 @@ function newFile() {
   pane.path = null;
   pane.vditor.setValue('');
   setPaneDirty(pane, false);
+  refreshFmPanel(pane);
   updatePaneHeader(pane);
   updateChrome();
   refreshSidebar();
@@ -1464,6 +1479,277 @@ function sendSelectionToClaude() {
 }
 
 // ---------------------------------------------------------------------------
+// painel de propriedades (frontmatter YAML), por pane
+//
+// O que foi entregue: VISTA DUPLA SINCRONIZADA. O bloco --- continua visível no
+// documento (o Vditor IR tem nó próprio pra yaml-front-matter e faz round trip
+// exato dele) e o painel é a vista estruturada em cima. Esconder o nó dentro do
+// editor foi descartado: ele é contenteditable, então display:none deixa o
+// cursor entrar nele por Ctrl+Home, seta pra cima ou Ctrl+A e a pessoa digitaria
+// no escuro. Sincronização: editar no painel reescreve o bloco no documento;
+// editar no documento refaz o painel (debounce).
+// ---------------------------------------------------------------------------
+
+// Frontmatter só conta no começo do arquivo, entre uma linha --- e a próxima.
+const FM_RE = /^---[ \t]*\r?\n([\s\S]*?)(?:\r?\n)?---[ \t]*(?:\r?\n|$)/;
+
+function splitFrontmatter(text) {
+  if (!text || !text.startsWith('---')) return null;
+  const m = FM_RE.exec(text);
+  if (!m) return null;
+  return { raw: m[1], bloco: m[0], corpo: text.slice(m[0].length) };
+}
+
+const MODELOS_COMUNS = ['sonnet', 'opus', 'haiku', 'inherit'];
+
+// Chaves parecidas com as que valem: typo silencioso é o que quebra agente.
+const FM_LOOKALIKES = {
+  Name: 'name', NAME: 'name', nome: 'name', naem: 'name',
+  Description: 'description', describe: 'description', desc: 'description',
+  descricao: 'description', 'descrição': 'description', descript: 'description',
+  Tools: 'tools', tool: 'tools', ferramentas: 'tools',
+  Model: 'model', modelo: 'model', models: 'model'
+};
+
+// skill: SKILL.md. subagent: arquivo dentro de uma pasta agents, ou com name
+// junto de tools/model. O resto é genérico (só a validade do YAML).
+function fmSchema(p, keys) {
+  const base = p ? baseName(p).toLowerCase() : '';
+  const pasta = p ? baseName(dirName(p)).toLowerCase() : '';
+  if (base === 'skill.md') return 'skill';
+  if (pasta === 'agents') return 'subagent';
+  if (keys.includes('name') && (keys.includes('tools') || keys.includes('model'))) return 'subagent';
+  return 'generico';
+}
+
+function fmEntry(entries, key) {
+  return entries.find((e) => e.key === key) || null;
+}
+
+// Devolve a lista de avisos (string curta em pt-BR). Nunca bloqueia nada.
+function fmValidate(schema, entries) {
+  const avisos = [];
+  const keys = entries.map((e) => e.key);
+  if (schema === 'generico') return avisos;
+
+  const nome = fmEntry(entries, 'name');
+  if (!nome) avisos.push('falta a chave name');
+  else if (typeof nome.value !== 'string' || nome.value.trim() === '') avisos.push('name está vazio');
+  else if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(nome.value.trim())) avisos.push('name deve ser kebab-case: minúsculas, números e hífen, sem espaços');
+
+  const desc = fmEntry(entries, 'description');
+  if (!desc) avisos.push('falta a chave description');
+  else if (typeof desc.value !== 'string' || desc.value.trim() === '') avisos.push('description está vazia');
+
+  const tools = fmEntry(entries, 'tools');
+  if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') avisos.push('tools deve ser uma lista ou um texto separado por vírgula');
+
+  const model = fmEntry(entries, 'model');
+  if (model && typeof model.value === 'string' && model.value.trim() && !MODELOS_COMUNS.includes(model.value.trim().toLowerCase())) {
+    avisos.push('model "' + model.value.trim() + '" não é um dos comuns (' + MODELOS_COMUNS.join(', ') + ')');
+  }
+
+  for (const k of keys) {
+    const certa = FM_LOOKALIKES[k];
+    if (certa && !keys.includes(certa)) avisos.push('"' + k + '" parece typo de "' + certa + '"');
+    else if (certa) avisos.push('"' + k + '" está sobrando ao lado de "' + certa + '"');
+  }
+  return avisos;
+}
+
+const FM_SCHEMA_LABEL = { skill: 'skill', subagent: 'subagent', generico: 'genérico' };
+
+const ICON_ALERTA = ['M12 9v4', 'M12 17h.01', 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'];
+
+function fmWarnRow(msg) {
+  const row = document.createElement('div');
+  row.className = 'fm-warn';
+  const ico = svgIcon(12, ICON_ALERTA);
+  ico.classList.add('fm-warn-ico');
+  const txt = document.createElement('span');
+  txt.textContent = msg;
+  row.appendChild(ico);
+  row.appendChild(txt);
+  return row;
+}
+
+// Valor do controle da linha, na forma que o fmSet espera.
+function fmControlValue(input, kind) {
+  if (kind === 'bool') return input.checked;
+  if (kind === 'list') {
+    return input.value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+  }
+  return input.value;
+}
+
+// Reescreve a chave no bloco do documento. O bloco inteiro é re-emitido pelo
+// serializador do yaml, mas ordem, comentários, chaves desconhecidas e mapas
+// aninhados vêm do Document original: só o valor mexido muda.
+function fmCommit(pane, key, kind, input) {
+  if (!pane.vditor || !pane.ready) return;
+  const texto = pane.vditor.getValue();
+  const split = splitFrontmatter(texto);
+  if (!split) return;
+  const res = window.wired.fmSet(split.raw, key, kind, fmControlValue(input, kind));
+  if (!res.ok) {
+    renderFmWarnings(pane, ['não deu pra escrever no frontmatter: ' + res.error]);
+    return;
+  }
+  const novo = '---\n' + res.raw + '\n---\n' + split.corpo;
+  if (novo === texto) return;
+  pane.fmQuiet = true; // a própria edição não deve refazer o painel
+  pane.vditor.setValue(novo);
+  setPaneDirty(pane, true);
+  // Revalida sem redesenhar as linhas (o foco fica onde a pessoa está digitando).
+  const parsed = window.wired.fmParse(res.raw);
+  if (parsed.ok) renderFmWarnings(pane, fmValidate(fmSchema(pane.path, parsed.entries.map((e) => e.key)), parsed.entries));
+  setTimeout(() => {
+    pane.fmQuiet = false;
+  }, 500);
+}
+
+function renderFmWarnings(pane, avisos) {
+  const box = pane.fmEl.querySelector('.fm-warns');
+  if (!box) return;
+  box.innerHTML = '';
+  for (const a of avisos) box.appendChild(fmWarnRow(a));
+}
+
+function fmRow(pane, entry) {
+  const row = document.createElement('div');
+  row.className = 'fm-row';
+  const label = document.createElement('label');
+  label.className = 'fm-key';
+  label.textContent = entry.key;
+  label.title = entry.key;
+  row.appendChild(label);
+
+  if (entry.kind === 'other') {
+    // Mapa aninhado ou estrutura que o painel não representa: fica visível como
+    // leitura e intocada no arquivo.
+    const val = document.createElement('div');
+    val.className = 'fm-val fm-other';
+    val.textContent = entry.preview || '(estrutura preservada)';
+    val.title = 'estrutura preservada como está no arquivo';
+    row.appendChild(val);
+    return row;
+  }
+
+  if (entry.kind === 'bool') {
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'fm-val fm-bool';
+    cb.checked = !!entry.value;
+    cb.addEventListener('change', () => fmCommit(pane, entry.key, 'bool', cb));
+    row.appendChild(cb);
+    return row;
+  }
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'fm-val';
+  inp.spellcheck = false;
+  if (entry.kind === 'list') {
+    inp.value = (entry.value || []).map((v) => (v === null ? '' : String(v))).join(', ');
+    inp.placeholder = 'itens separados por vírgula';
+  } else {
+    inp.value = entry.value === null || entry.value === undefined ? '' : String(entry.value);
+  }
+  inp.dataset.key = entry.key;
+  inp.addEventListener('change', () => fmCommit(pane, entry.key, entry.kind, inp));
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      fmCommit(pane, entry.key, entry.kind, inp);
+    }
+    e.stopPropagation();
+  });
+  row.appendChild(inp);
+  return row;
+}
+
+function refreshFmPanel(pane) {
+  if (!pane || !pane.fmEl) return;
+  const el = pane.fmEl;
+  el.innerHTML = '';
+  const texto = pane.vditor && pane.ready ? pane.vditor.getValue() : '';
+  const split = splitFrontmatter(texto);
+  if (!split || config.frontmatterPanel === false) {
+    el.classList.add('hidden');
+    return;
+  }
+  el.classList.remove('hidden');
+
+  const parsed = window.wired.fmParse(split.raw);
+  const entries = parsed.ok ? parsed.entries : [];
+  const schema = fmSchema(pane.path, entries.map((e) => e.key));
+
+  const head = document.createElement('div');
+  head.className = 'fm-head';
+  const titulo = document.createElement('span');
+  titulo.className = 'fm-title';
+  titulo.textContent = 'propriedades';
+  const tag = document.createElement('span');
+  tag.className = 'fm-schema';
+  tag.textContent = FM_SCHEMA_LABEL[schema];
+  tag.title = 'schema aplicado a este arquivo';
+  head.appendChild(titulo);
+  head.appendChild(tag);
+  el.appendChild(head);
+
+  const rows = document.createElement('div');
+  rows.className = 'fm-rows';
+  el.appendChild(rows);
+
+  const warns = document.createElement('div');
+  warns.className = 'fm-warns';
+  el.appendChild(warns);
+
+  // YAML inválido: o painel vira leitura crua com o erro do parser em cima.
+  if (!parsed.ok || parsed.mapa === false) {
+    const pre = document.createElement('pre');
+    pre.className = 'fm-raw';
+    pre.textContent = split.raw;
+    rows.appendChild(pre);
+    renderFmWarnings(pane, [parsed.ok ? 'o frontmatter não é um mapa de chaves; painel só de leitura' : 'YAML inválido: ' + parsed.error]);
+    return;
+  }
+
+  if (entries.length === 0) {
+    const vazio = document.createElement('div');
+    vazio.className = 'fm-empty';
+    vazio.textContent = 'frontmatter vazio';
+    rows.appendChild(vazio);
+  }
+  for (const e of entries) rows.appendChild(fmRow(pane, e));
+  renderFmWarnings(pane, fmValidate(schema, entries));
+}
+
+function scheduleFmRefresh(pane) {
+  if (pane.fmQuiet) return;
+  clearTimeout(pane.fmTimer);
+  pane.fmTimer = setTimeout(() => {
+    // Não redesenha por baixo dos dedos de quem está digitando no painel.
+    if (pane.fmEl && pane.fmEl.contains(document.activeElement)) return;
+    refreshFmPanel(pane);
+  }, 450);
+}
+
+function refreshAllFmPanels() {
+  for (const p of panes) refreshFmPanel(p);
+}
+
+function toggleFrontmatterPanel(forceOn) {
+  const on = forceOn === undefined ? config.frontmatterPanel === false : !!forceOn;
+  config.frontmatterPanel = on;
+  saveConfig();
+  refreshAllFmPanels();
+}
+
+// ---------------------------------------------------------------------------
 // command palette (Ctrl+Shift+P) e quick switcher (Ctrl+P)
 // ---------------------------------------------------------------------------
 
@@ -1483,6 +1769,7 @@ const PALETTE_ACTIONS = [
   { label: 'salvar', hint: 'Ctrl+S', run: () => save() },
   { label: 'salvar como', hint: 'Ctrl+Shift+S', run: () => saveAs() },
   { label: 'buscar na pasta', hint: 'Ctrl+Shift+F', run: () => openSearch() },
+  { label: 'propriedades: mostrar/ocultar', run: () => toggleFrontmatterPanel() },
   { label: 'fechar painel atual', run: () => closeActivePane() },
   { label: 'alternar terminal', hint: 'Ctrl+`', run: () => toggleTerminal() },
   { label: 'terminal: ir pra pasta da nota (cd)', run: () => { toggleTerminal(true); setTimeout(cdTerminalToNote, 300); } },
@@ -2007,4 +2294,5 @@ firstPane.el.classList.add('active');
   renderRecents();
   updateSortTooltip();
   updateChrome();
+  refreshAllFmPanels();
 })();

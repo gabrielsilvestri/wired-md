@@ -367,6 +367,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 }
 
 .pane.collapsed .pane-header,
+.pane.collapsed .fm-panel,
 .pane.collapsed .pane-editor { display: none; }
 
 /* --- lombada do pane encolhido: X no topo, bolinha de sujo, título vertical --- */
@@ -452,6 +453,134 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .pane-close:hover { background: var(--bg-3); color: var(--ink); }
 .pane-claude:hover { background: var(--bg-3); color: var(--accent-soft); }
+
+/* --- painel de propriedades (frontmatter YAML), no topo de cada pane --- */
+
+.fm-panel {
+  flex: 0 0 auto;
+  max-height: 36%;
+  overflow-y: auto;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 6px 12px 8px;
+  animation: overlay-fade 0.13s ease;
+}
+
+.fm-panel.hidden { display: none; }
+
+.fm-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 5px;
+}
+
+.fm-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  user-select: none;
+}
+
+.fm-schema {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  font-family: var(--font-code);
+  color: var(--accent-soft);
+  background: var(--bg-3);
+  border-radius: 3px;
+  padding: 1px 6px;
+  user-select: none;
+}
+
+.fm-rows { display: flex; flex-direction: column; gap: 3px; }
+
+.fm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fm-key {
+  flex: 0 0 108px;
+  font-size: 11px;
+  font-family: var(--font-code);
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.fm-row input.fm-val[type="text"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--rule-soft);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+.fm-row input.fm-val[type="text"]:focus { border-color: var(--accent-dim); }
+.fm-row input.fm-val[type="text"]::placeholder { color: var(--ink-faint); }
+
+.fm-row input.fm-bool { accent-color: var(--accent); margin: 0; }
+
+.fm-other {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  font-family: var(--font-code);
+  color: var(--ink-dim);
+  background: var(--bg-3);
+  border: 1px dashed var(--rule-soft);
+  border-radius: 4px;
+  padding: 3px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fm-raw {
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+  background: var(--bg-3);
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.fm-empty {
+  font-size: 11px;
+  color: var(--ink-faint);
+  padding: 2px 0;
+}
+
+/* Aviso do schema: linha compacta, âmbar (o mesmo da bolinha de não salvo,
+   ~7,8:1 sobre o bg-2, dentro da faixa 4.5:1 a 11:1). Nunca popup, nunca trava. */
+.fm-warns { display: flex; flex-direction: column; gap: 2px; }
+
+.fm-warn {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--amber);
+}
+
+.fm-warn-ico { flex: 0 0 auto; align-self: center; }
 
 .pane-editor {
   flex: 1;
