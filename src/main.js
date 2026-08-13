@@ -43,17 +43,22 @@ const DEFAULT_CONFIG = {
 function ensureUserDirs() {
   const themesDir = userDir('themes');
   const snippetsDir = userDir('snippets');
+  const templatesDir = userDir('templates');
   fs.mkdirSync(themesDir, { recursive: true });
   fs.mkdirSync(snippetsDir, { recursive: true });
-  // Copia os temas padrão empacotados com o app se ainda não existirem no userData.
+  fs.mkdirSync(templatesDir, { recursive: true });
+  // Copia o que vem empacotado com o app (temas, snippets, templates) se ainda
+  // não existir no userData. Arquivo já existente nunca é sobrescrito: o que o
+  // usuário editou ou apagou é decisão dele.
   const pairs = [
-    [path.join(__dirname, '..', 'themes'), themesDir],
-    [path.join(__dirname, '..', 'snippets'), snippetsDir]
+    [path.join(__dirname, '..', 'themes'), themesDir, /\.css$/i],
+    [path.join(__dirname, '..', 'snippets'), snippetsDir, /\.css$/i],
+    [path.join(__dirname, '..', 'templates'), templatesDir, /\.(md|markdown)$/i]
   ];
-  for (const [src, dest] of pairs) {
+  for (const [src, dest, ext] of pairs) {
     if (!fs.existsSync(src)) continue;
     for (const f of fs.readdirSync(src)) {
-      if (!f.endsWith('.css')) continue;
+      if (!ext.test(f)) continue;
       const target = path.join(dest, f);
       if (!fs.existsSync(target)) fs.copyFileSync(path.join(src, f), target);
     }
@@ -636,6 +641,37 @@ ipcMain.handle('snippets:read', (_ev, file) => {
 ipcMain.handle('snippets:openFolder', () => shell.openPath(userDir('snippets')));
 ipcMain.handle('themes:openFolder', () => shell.openPath(userDir('themes')));
 
+// --- templates (novo arquivo a partir de template, com variáveis) ---
+// A pasta é relida a cada chamada de propósito: template que a pessoa larga em
+// %APPDATA%\wired-md\templates\ com o app aberto aparece na próxima abertura do
+// seletor, sem watcher e sem reiniciar.
+
+const TEMPLATE_NAME_RE = /^[^\\/:*?"<>|]+\.(md|markdown)$/i;
+
+ipcMain.handle('templates:list', () => {
+  try {
+    return fs
+      .readdirSync(userDir('templates'))
+      .filter((f) => /\.(md|markdown)$/i.test(f))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR'))
+      .map((f) => ({ file: f, name: f.replace(/\.(md|markdown)$/i, '') }));
+  } catch {
+    return [];
+  }
+});
+
+ipcMain.handle('templates:read', (_ev, file) => {
+  try {
+    if (!TEMPLATE_NAME_RE.test(String(file || ''))) return { ok: false, error: 'nome inválido' };
+    const content = fs.readFileSync(userDir('templates', file), 'utf8');
+    return { ok: true, content };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+});
+
+ipcMain.handle('templates:openFolder', () => shell.openPath(userDir('templates')));
+
 // --- terminal embutido ---
 // Backend preferido: node-pty (terminal de verdade). Se a build nativa não
 // carregar neste Electron, cai para child_process spawn do powershell com
@@ -967,8 +1003,8 @@ async function runE2eTest() {
     check('cabeçalho da sidebar: nome da raiz, tooltip e botão Explorer', !!cab && cab.nome === path.basename(rootDir) && cab.tip === rootDir && cab.btn, JSON.stringify(cab));
 
     // 23. toolbar da tree: os cinco botões de ícone com tooltip
-    const tb = await js(`(function(){return ['btn-tree-new-file','btn-tree-new-folder','btn-tree-sort','btn-tree-collapse','btn-tree-search'].every(function(id){var b=document.getElementById(id);return !!b&&!!b.querySelector('svg')&&(b.title||'').length>0;});})()`);
-    check('toolbar da tree: novo .md, nova pasta, ordenação, colapsar, busca', tb === true, String(tb));
+    const tb = await js(`(function(){return ['btn-tree-new-file','btn-tree-template','btn-tree-new-folder','btn-tree-sort','btn-tree-collapse','btn-tree-search'].every(function(id){var b=document.getElementById(id);return !!b&&!!b.querySelector('svg')&&(b.title||'').length>0;});})()`);
+    check('toolbar da tree: novo .md, template, nova pasta, ordenação, colapsar, busca', tb === true, String(tb));
 
     // 24. busca da tree: filtra por nome conforme digita e Esc limpa
     await js(`(function(){toggleTreeSearch(true);var i=document.getElementById('tree-search');i.value='anotac';i.dispatchEvent(new Event('input'));})()`);
@@ -1260,6 +1296,137 @@ async function runE2eTest() {
     fs.rmSync(skillDir, { recursive: true, force: true });
     fs.writeFileSync(fmPath, fmOriginal, 'utf8');
     await sleep(800);
+
+    // --- fase 9: novo arquivo a partir de template (com variáveis) ---
+
+    const tplDir = userDir('templates');
+    const rootTpl = path.dirname(demoPath);
+    await js('selectedDir = null'); // cliques anteriores apontavam pra pasta já apagada
+
+    // 44. seletor abre pela ação da palette, lista os quatro templates semeados
+    // e as setas andam na lista
+    await js(`(function(){openPalette('commands');var i=document.getElementById('palette-input');i.value='template';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(250);
+    const tplAcao = await js(`(function(){var r=document.querySelector('#palette-list .palette-row.selected .palette-label');return r?r.textContent:null;})()`);
+    await js(`document.getElementById('palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(600);
+    const tplLista = await js(`(function(){var o=document.getElementById('template-overlay');return {aberto:!o.classList.contains('hidden'),itens:[...document.querySelectorAll('#template-list .palette-row .palette-label')].map(function(l){return l.textContent;}),sel:(document.querySelector('#template-list .palette-row.selected .palette-label')||{}).textContent};})()`);
+    await js(`(function(){window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown'}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown'}));})()`);
+    await sleep(200);
+    const tplSel2 = await js(`(document.querySelector('#template-list .palette-row.selected .palette-label')||{}).textContent`);
+    const tplNomes = ((tplLista && tplLista.itens) || []).slice().sort().join(',');
+    check(
+      'template: ação da palette abre o seletor com os quatro templates semeados e as setas navegam',
+      tplAcao === 'novo a partir de template' && !!tplLista && tplLista.aberto && tplNomes === 'claude-md,nota,skill,subagent' && tplSel2 === 'skill',
+      JSON.stringify({ tplAcao, tplLista, tplSel2 })
+    );
+
+    // 45. criar a partir de nota.md: variáveis resolvidas em disco, marcador de
+    // cursor ausente e o arquivo aberto no pane ativo
+    const notaTpl = path.join(rootTpl, 'nota-tpl-e2e.md');
+    await js(`(function(){var rows=[...document.querySelectorAll('#template-list .palette-row')];var i=rows.findIndex(function(r){return r.querySelector('.palette-label').textContent==='nota';});templateSel=i;window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+    await sleep(500);
+    const tplPediuNome = await js(`(function(){return {aberto:!document.getElementById('input-overlay').classList.contains('hidden'),titulo:document.getElementById('input-title').textContent};})()`);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='nota-tpl-e2e.md';document.getElementById('input-ok').click();})()`);
+    await sleep(1800);
+    const notaDisco = fs.existsSync(notaTpl) ? fs.readFileSync(notaTpl, 'utf8') : '';
+    const hojeE2e = new Date();
+    const doisE2e = (n) => String(n).padStart(2, '0');
+    const dataHojeE2e = hojeE2e.getFullYear() + '-' + doisE2e(hojeE2e.getMonth() + 1) + '-' + doisE2e(hojeE2e.getDate());
+    const notaAberta = await js('currentPath');
+    const caret = await js(`(function(){var ed=document.querySelector('#panes .pane.active .vditor-ir');var s=window.getSelection();return {dentro:!!ed&&!!s.anchorNode&&ed.contains(s.anchorNode),colapsado:s.isCollapsed};})()`);
+    check(
+      'template: nota.md resolve {{data}}, {{titulo}} e {{pasta}}, apaga o {{cursor}} e abre no pane ativo',
+      notaDisco.indexOf('# nota-tpl-e2e') === 0 &&
+        notaDisco.includes(dataHojeE2e) &&
+        notaDisco.includes('em ' + path.basename(rootTpl) + '.') &&
+        !/\{\{/.test(notaDisco) &&
+        notaDisco.indexOf(String.fromCharCode(0xe000)) === -1 &&
+        notaAberta === notaTpl &&
+        !!tplPediuNome && tplPediuNome.aberto && /novo a partir de nota/.test(tplPediuNome.titulo) &&
+        !!caret && caret.dentro,
+      JSON.stringify({ notaDisco: notaDisco.slice(0, 120), notaAberta, caret, tplPediuNome })
+    );
+
+    // 46. template largado na pasta com o app aberto aparece no seletor, a
+    // {{pergunta:...}} é feita no dialog do app e o marcador desconhecido sobra intacto
+    const tplE2ePath = path.join(tplDir, 'e2e-template.md');
+    fs.writeFileSync(
+      tplE2ePath,
+      '# {{titulo}}\n\nautor: {{pergunta:quem escreve}}\nrevisor: {{pergunta:quem escreve}}\nmarcador: {{coisa-que-o-app-nao-conhece}}\n\n{{cursor}}\n',
+      'utf8'
+    );
+    const pergTpl = path.join(rootTpl, 'pergunta-tpl-e2e.md');
+    await js(`void newFromTemplate()`);
+    await sleep(700);
+    const tplRelida = await js(`[...document.querySelectorAll('#template-list .palette-row .palette-label')].map(function(l){return l.textContent;})`);
+    await js(`(function(){var rows=[...document.querySelectorAll('#template-list .palette-row')];var i=rows.findIndex(function(r){return r.querySelector('.palette-label').textContent==='e2e-template';});templateSel=i;window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+    await sleep(500);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='pergunta-tpl-e2e.md';document.getElementById('input-ok').click();})()`);
+    await sleep(600);
+    const perguntou = await js(`(function(){return {aberto:!document.getElementById('input-overlay').classList.contains('hidden'),titulo:document.getElementById('input-title').textContent};})()`);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='fulano do e2e';document.getElementById('input-ok').click();})()`);
+    await sleep(1800);
+    const pergDisco = fs.existsSync(pergTpl) ? fs.readFileSync(pergTpl, 'utf8') : '';
+    check(
+      'template: pasta relida a quente, {{pergunta:...}} perguntada uma vez e substituída, marcador desconhecido intacto',
+      Array.isArray(tplRelida) && tplRelida.indexOf('e2e-template') !== -1 &&
+        !!perguntou && perguntou.aberto && perguntou.titulo === 'quem escreve' &&
+        /autor: fulano do e2e/.test(pergDisco) && /revisor: fulano do e2e/.test(pergDisco) &&
+        pergDisco.includes('{{coisa-que-o-app-nao-conhece}}') && !/\{\{cursor\}\}/.test(pergDisco),
+      JSON.stringify({ tplRelida, perguntou, pergDisco: pergDisco.slice(0, 160) })
+    );
+
+    // 47. Esc no meio do fluxo (na pergunta) não deixa arquivo pela metade
+    const abortTpl = path.join(rootTpl, 'abortado-tpl-e2e.md');
+    await js(`void newFromTemplate()`);
+    await sleep(700);
+    await js(`(function(){var rows=[...document.querySelectorAll('#template-list .palette-row')];var i=rows.findIndex(function(r){return r.querySelector('.palette-label').textContent==='e2e-template';});templateSel=i;window.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter'}));})()`);
+    await sleep(500);
+    await js(`(function(){var i=document.getElementById('input-field');i.value='abortado-tpl-e2e.md';document.getElementById('input-ok').click();})()`);
+    await sleep(600);
+    await js(`document.getElementById('input-field').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+    await sleep(900);
+    const abortou = !fs.existsSync(abortTpl);
+    const dialogoFechou = await js(`document.getElementById('input-overlay').classList.contains('hidden')`);
+    // Esc no próprio seletor também cancela sem pedir nome
+    await js(`void newFromTemplate()`);
+    await sleep(700);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))`);
+    await sleep(500);
+    const seletorFechou = await js(`(function(){return {tpl:document.getElementById('template-overlay').classList.contains('hidden'),nome:document.getElementById('input-overlay').classList.contains('hidden')};})()`);
+    check(
+      'template: Esc na pergunta não cria arquivo nenhum e Esc no seletor cancela o fluxo',
+      abortou && dialogoFechou === true && !!seletorFechou && seletorFechou.tpl && seletorFechou.nome,
+      JSON.stringify({ abortou, dialogoFechou, seletorFechou })
+    );
+
+    // 48. entradas do fluxo: botão na toolbar da sidebar e item no menu de
+    // contexto de pasta, vizinho do "novo arquivo .md aqui"
+    const subTpl = path.join(rootTpl, 'sub-tpl-e2e');
+    fs.mkdirSync(subTpl, { recursive: true });
+    fs.writeFileSync(path.join(subTpl, 'nota.md'), '# sub tpl\n', 'utf8');
+    await sleep(1400);
+    await js(`(function(){var rows=[...document.querySelectorAll('#file-tree .tree-row.folder')];var r=rows.find(function(x){return x.querySelector('.tree-name').textContent==='sub-tpl-e2e';});if(r)r.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,clientX:200,clientY:200}));})()`);
+    await sleep(300);
+    const menuPasta = await js(`(function(){var m=document.getElementById('ctx-menu');if(m.classList.contains('hidden'))return null;return [...m.querySelectorAll('.ctx-item')].map(function(i){return i.textContent;});})()`);
+    await js(`hideCtxMenu()`);
+    const btnTpl = await js(`(function(){var b=document.getElementById('btn-tree-template');return !!b&&!!b.querySelector('svg')&&(b.title||'').length>0&&!!document.getElementById('tree-toolbar')&&document.getElementById('tree-toolbar').contains(b);})()`);
+    check(
+      'template: botão na toolbar da sidebar e item "novo a partir de template aqui" no menu de pasta',
+      btnTpl === true && Array.isArray(menuPasta) && menuPasta.indexOf('novo a partir de template aqui') === menuPasta.indexOf('novo arquivo .md aqui') + 1,
+      JSON.stringify({ btnTpl, menuPasta })
+    );
+    // limpa os artefatos da fase 9 e devolve a pasta de templates ao estado semeado
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    await js(`(function(){['nota-tpl-e2e','pergunta-tpl-e2e'].forEach(function(k){var p=panes.find(function(x){return x.path&&x.path.indexOf(k)!==-1;});if(p){setPaneDirty(p,false);closePane(p);}});config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('-tpl-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(400);
+    fs.rmSync(notaTpl, { force: true });
+    fs.rmSync(pergTpl, { force: true });
+    fs.rmSync(tplE2ePath, { force: true });
+    fs.rmSync(subTpl, { recursive: true, force: true });
+    await sleep(900);
 
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)

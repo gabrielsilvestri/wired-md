@@ -688,6 +688,254 @@ async function createNewFolder(targetDir) {
   refreshSidebar();
 }
 
+// ---------------------------------------------------------------------------
+// novo arquivo a partir de template (com variáveis)
+// Templates são .md em %APPDATA%\wired-md\templates (semeados de templates\ do
+// repo no primeiro boot). A pasta é relida toda vez que o seletor abre, então
+// template largado ali com o app aberto aparece sem reiniciar.
+// ---------------------------------------------------------------------------
+
+const templateOverlay = document.getElementById('template-overlay');
+const templateListEl = document.getElementById('template-list');
+
+let templateItems = []; // [{ file, name }] na tela
+let templateSel = 0;
+let templateResolve = null;
+
+// Sugestão de nome pra quem tem convenção fixa; o resto cai no padrão.
+const TEMPLATE_SUGESTAO = { 'skill.md': 'SKILL.md', 'claude-md.md': 'CLAUDE.md' };
+
+// Marcador de caret. O arquivo em disco nunca vê isto: ele é gravado já sem o
+// {{cursor}}. O token só existe dentro do editor por um instante, pra achar o
+// ponto no DOM renderizado, e sai do texto assim que o caret é posto lá.
+const CURSOR_TOKEN = String.fromCharCode(0xe000); // caractere de uso privado do Unicode, invisível
+
+const RE_VAR = /\{\{\s*([^{}]+?)\s*\}\}/g;
+
+function dataDeHoje() {
+  const d = new Date();
+  const dois = (n) => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + dois(d.getMonth() + 1) + '-' + dois(d.getDate());
+}
+
+function horaDeAgora() {
+  const d = new Date();
+  const dois = (n) => String(n).padStart(2, '0');
+  return dois(d.getHours()) + ':' + dois(d.getMinutes());
+}
+
+// Labels de {{pergunta:...}} na ordem em que aparecem, sem repetir: o mesmo
+// label perguntado uma vez só e substituído em todas as ocorrências.
+function templatePerguntas(texto) {
+  const labels = [];
+  const re = new RegExp(RE_VAR.source, 'g');
+  let m;
+  while ((m = re.exec(texto))) {
+    const chave = m[1].trim();
+    if (!/^pergunta\s*:/i.test(chave)) continue;
+    const label = chave.slice(chave.indexOf(':') + 1).trim();
+    if (label && labels.indexOf(label) === -1) labels.push(label);
+  }
+  return labels;
+}
+
+// Marcador que o app não conhece fica INTACTO no texto, nunca vira erro.
+function aplicarVariaveis(texto, ctx) {
+  return texto.replace(new RegExp(RE_VAR.source, 'g'), (todo, bruto) => {
+    const chave = bruto.trim();
+    const low = chave.toLowerCase();
+    if (low === 'data') return ctx.data;
+    if (low === 'hora') return ctx.hora;
+    if (low === 'titulo' || low === 'título') return ctx.titulo;
+    if (low === 'pasta') return ctx.pasta;
+    if (low === 'cursor') return ctx.cursor;
+    if (/^pergunta\s*:/i.test(chave)) {
+      const label = chave.slice(chave.indexOf(':') + 1).trim();
+      return Object.prototype.hasOwnProperty.call(ctx.respostas, label) ? ctx.respostas[label] : todo;
+    }
+    return todo;
+  });
+}
+
+function markTemplateSel() {
+  const rows = templateListEl.querySelectorAll('.palette-row');
+  rows.forEach((r, i) => r.classList.toggle('selected', i === templateSel));
+  const sel = rows[templateSel];
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function moveTemplateSel(delta) {
+  if (templateItems.length === 0) return;
+  templateSel = (templateSel + delta + templateItems.length) % templateItems.length;
+  markTemplateSel();
+}
+
+function closeTemplatePicker(item) {
+  if (templateOverlay.classList.contains('hidden')) return;
+  templateOverlay.classList.add('hidden');
+  window.removeEventListener('keydown', templateKeydown, true);
+  const r = templateResolve;
+  templateResolve = null;
+  if (r) r(item || null);
+}
+
+function templateKeydown(e) {
+  if (templateOverlay.classList.contains('hidden')) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    moveTemplateSel(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    moveTemplateSel(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    closeTemplatePicker(templateItems[templateSel]);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeTemplatePicker(null);
+  } else {
+    return;
+  }
+  e.stopPropagation();
+}
+
+async function pickTemplate() {
+  const lista = await window.wired.listTemplates();
+  templateItems = Array.isArray(lista) ? lista : [];
+  templateSel = 0;
+  templateListEl.innerHTML = '';
+  if (templateItems.length === 0) {
+    const vazio = document.createElement('div');
+    vazio.className = 'palette-empty';
+    vazio.textContent = 'nenhum template na pasta';
+    templateListEl.appendChild(vazio);
+  }
+  templateItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'palette-row' + (i === 0 ? ' selected' : '');
+    const label = document.createElement('span');
+    label.className = 'palette-label';
+    label.textContent = item.name;
+    const hint = document.createElement('span');
+    hint.className = 'palette-hint';
+    hint.textContent = item.file;
+    row.appendChild(label);
+    row.appendChild(hint);
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      closeTemplatePicker(item);
+    });
+    templateListEl.appendChild(row);
+  });
+  templateOverlay.classList.remove('hidden');
+  window.addEventListener('keydown', templateKeydown, true);
+  return new Promise((resolve) => {
+    templateResolve = resolve;
+  });
+}
+
+templateOverlay.addEventListener('mousedown', (e) => {
+  if (e.target === templateOverlay) closeTemplatePicker(null);
+});
+
+document.getElementById('btn-template-folder').addEventListener('click', () => window.wired.openTemplatesFolder());
+
+// Coloca o caret onde estava o {{cursor}}. O truque: reabrir o conteúdo com um
+// token invisível, achar o token no DOM renderizado, tirar ele do nó de texto e
+// deixar o caret exatamente ali. Se o token não sobreviver ao render, volta pro
+// conteúdo limpo e o caret fica no fim (melhor esforço declarado).
+function colocarCursorNoMarcador(pane, comMarca, limpo) {
+  if (!pane || !pane.vditor) return;
+  if (comMarca === limpo) {
+    pane.vditor.focus();
+    return;
+  }
+  pane.vditor.setValue(comMarca);
+  setTimeout(() => {
+    const raiz = pane.el.querySelector('.vditor-ir .vditor-reset');
+    let achou = false;
+    if (raiz) {
+      const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.nodeValue.indexOf(CURSOR_TOKEN);
+        if (i === -1) continue;
+        node.nodeValue = node.nodeValue.slice(0, i) + node.nodeValue.slice(i + CURSOR_TOKEN.length);
+        try {
+          const range = document.createRange();
+          range.setStart(node, i);
+          range.collapse(true);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          if (node.parentElement) node.parentElement.scrollIntoView({ block: 'center' });
+          achou = true;
+        } catch {}
+        break;
+      }
+    }
+    if (!achou) pane.vditor.setValue(limpo);
+    setPaneDirty(pane, false);
+    refreshFmPanel(pane);
+  }, 120);
+}
+
+// Fluxo: escolher template, nome do arquivo, responder as perguntas e só então
+// criar. Cancelar (Esc ou campo vazio) em qualquer passo não deixa nada em
+// disco, porque o arquivo só nasce depois da última resposta.
+async function newFromTemplate(targetDir) {
+  const dir = targetDir || selectedDir || treeRoot;
+  const tpl = await pickTemplate();
+  if (!tpl) return;
+  const lido = await window.wired.readTemplate(tpl.file);
+  if (!lido.ok) {
+    alert('Não deu pra ler o template: ' + lido.error);
+    return;
+  }
+  const sugestao = TEMPLATE_SUGESTAO[tpl.file.toLowerCase()] || 'sem-título.md';
+  let nome = await askInput('novo a partir de ' + tpl.name + (dir ? ' em ' + baseName(dir) : ''), sugestao, 'criar');
+  if (!nome) return;
+  if (!/\.(md|markdown)$/i.test(nome)) nome += '.md';
+  const respostas = {};
+  for (const label of templatePerguntas(lido.content)) {
+    const resposta = await askInput(label, '', 'ok');
+    if (resposta === null) return;
+    respostas[label] = resposta;
+  }
+  const base = {
+    data: dataDeHoje(),
+    hora: horaDeAgora(),
+    titulo: nome.replace(/\.(md|markdown)$/i, ''),
+    pasta: dir ? baseName(dir) : '',
+    respostas
+  };
+  const comMarca = aplicarVariaveis(lido.content, Object.assign({ cursor: CURSOR_TOKEN }, base));
+  const limpo = comMarca.split(CURSOR_TOKEN).join('');
+  // Sem pasta aberta: o texto vai pro buffer sem título, igual ao "novo arquivo".
+  if (!dir) {
+    newFile();
+    const pane = activePane();
+    if (pane && pane.vditor) {
+      colocarCursorNoMarcador(pane, comMarca, limpo);
+      setPaneDirty(pane, true);
+    }
+    return;
+  }
+  const alvo = dir + '\\' + nome;
+  const criado = await window.wired.createFile(alvo);
+  if (!criado.ok) {
+    alert('Não deu pra criar o arquivo: ' + criado.error);
+    return;
+  }
+  const gravado = await window.wired.writeFile(alvo, limpo);
+  if (!gravado.ok) {
+    alert('Não deu pra escrever o template no arquivo: ' + gravado.error);
+    return;
+  }
+  await openPath(alvo, false);
+  colocarCursorNoMarcador(activePane(), comMarca, limpo);
+}
+
 async function renameItem(p) {
   const oldName = baseName(p);
   let name = await askInput('renomear ' + oldName, oldName, 'renomear');
@@ -754,6 +1002,7 @@ function showFileContextMenu(e, p) {
 function showFolderContextMenu(e, p) {
   showCtxMenu(e.clientX, e.clientY, [
     { label: 'novo arquivo .md aqui', run: () => createNewMd(p) },
+    { label: 'novo a partir de template aqui', run: () => newFromTemplate(p) },
     { label: 'nova pasta aqui', run: () => createNewFolder(p) },
     { sep: true },
     { label: 'renomear', run: () => renameItem(p) },
@@ -799,6 +1048,7 @@ function updateSortTooltip() {
 }
 
 document.getElementById('btn-tree-new-file').addEventListener('click', () => createNewMd());
+document.getElementById('btn-tree-template').addEventListener('click', () => newFromTemplate());
 document.getElementById('btn-tree-new-folder').addEventListener('click', () => createNewFolder());
 document.getElementById('btn-tree-collapse').addEventListener('click', () => {
   expandedDirs.clear();
@@ -1764,6 +2014,7 @@ let paletteSel = 0;
 const PALETTE_ACTIONS = [
   { label: 'alternar barra lateral', run: () => toggleSidebar() },
   { label: 'novo arquivo', hint: 'Ctrl+N', run: () => newFile() },
+  { label: 'novo a partir de template', run: () => newFromTemplate() },
   { label: 'abrir arquivo', hint: 'Ctrl+O', run: () => openViaDialog(false) },
   { label: 'abrir arquivo ao lado', run: () => openViaDialog(true) },
   { label: 'salvar', hint: 'Ctrl+S', run: () => save() },
@@ -2244,6 +2495,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     if (!ctxMenuEl.classList.contains('hidden')) hideCtxMenu();
+    else if (!templateOverlay.classList.contains('hidden')) closeTemplatePicker(null);
     else if (!searchOverlay.classList.contains('hidden')) closeSearch();
     else if (!paletteOverlay.classList.contains('hidden')) closePalette();
     else if (!settingsOverlay.classList.contains('hidden')) closeSettings();

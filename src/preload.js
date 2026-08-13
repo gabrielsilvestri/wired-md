@@ -119,6 +119,11 @@ contextBridge.exposeInMainWorld('wired', {
   openSnippetsFolder: () => ipcRenderer.invoke('snippets:openFolder'),
   openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
 
+  // templates (novo arquivo a partir de template)
+  listTemplates: () => ipcRenderer.invoke('templates:list'),
+  readTemplate: (file) => ipcRenderer.invoke('templates:read', file),
+  openTemplatesFolder: () => ipcRenderer.invoke('templates:openFolder'),
+
   // terminal
   termStart: (cwd, cols, rows) => ipcRenderer.invoke('term:start', cwd, cols, rows),
   termInput: (data) => ipcRenderer.send('term:input', data),
