@@ -1,6 +1,6 @@
 ---
 name: {{pergunta:nome do subagente em kebab-case}}
-description: "{{pergunta:o que o subagente faz e quando delegar pra ele}}"
+description: {{pergunta:o que o subagente faz e quando delegar pra ele}}
 tools: Read, Grep, Glob
 model: sonnet
 ---

@@ -9,6 +9,7 @@
   /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
   --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
+  --search-hit-ink:#83cdc6; --warn-ink:#d5a95a;
   --font-ui:"Geist","Segoe UI",system-ui,sans-serif;
   --font-body-default:"Mona Sans","Segoe UI",system-ui,sans-serif;
   --font-code-default:"Geist Mono","JetBrains Mono","Cascadia Mono",ui-monospace,Consolas,monospace;
@@ -568,8 +569,10 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 2px 0;
 }
 
-/* Aviso do schema: linha compacta, âmbar (o mesmo da bolinha de não salvo,
-   ~7,8:1 sobre o bg-2, dentro da faixa 4.5:1 a 11:1). Nunca popup, nunca trava. */
+/* Aviso do schema: linha compacta, tinta de aviso da família âmbar
+   (--warn-ink, com fallback pro --amber de temas de terceiro). Fica sobre o
+   bg-2 do painel, dentro da faixa 4.5:1 a 11:1: wired 7,78:1, claro 5,19:1.
+   O --amber da bolinha de não salvo continua intocado. Nunca popup, nunca trava. */
 .fm-warns { display: flex; flex-direction: column; gap: 2px; }
 
 .fm-warn {
@@ -579,7 +582,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   margin-top: 5px;
   font-size: 11px;
   line-height: 1.4;
-  color: var(--amber);
+  color: var(--warn-ink, var(--amber));
 }
 
 .fm-warn-ico { flex: 0 0 auto; align-self: center; }
@@ -1047,11 +1050,14 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   white-space: nowrap;
 }
 
-/* Destaque do trecho: accent do tema, sem cor nova (accent-soft sobre bg-3
-   fica em ~8:1, dentro da faixa 4.5:1 a 11:1 que o dono precisa). */
+/* Destaque do trecho: tinta da família accent do tema (--search-hit-ink, com
+   fallback pro accent-soft de temas de terceiro). O fundo é o accent a 0.18
+   compondo sobre a linha (bg-2, ou bg-3 quando selecionada). Medido em ambos os
+   temas dentro da faixa 4.5:1 a 11:1 que o dono precisa: wired 6,47:1 (bg-2) e
+   5,70:1 (bg-3); claro 5,78:1 (bg-2) e 5,23:1 (bg-3). */
 .search-hit {
   background: rgba(var(--accent-rgb), 0.18);
-  color: var(--accent-soft);
+  color: var(--search-hit-ink, var(--accent-soft));
   border-radius: 2px;
   padding: 0 1px;
 }

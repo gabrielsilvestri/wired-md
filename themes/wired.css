@@ -10,4 +10,6 @@
   /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
   --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
+  /* tinta do destaque de busca e do aviso de schema, medidas na faixa 4.5:1 a 11:1 */
+  --search-hit-ink:#83cdc6; --warn-ink:#d5a95a;
 }

@@ -10,4 +10,9 @@
   /* fundo claro perde contraste mais rápido: 0.76 dá 4,66:1 no texto esmaecido */
   --focus-dim:0.76;
   --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
+  /* fundo claro perde contraste rápido: tinta do destaque de busca e do aviso
+     de schema escurecidas pra ficar acima de 4.5:1 (astigmatismo do dono).
+     search-hit #1d514c: 5,78:1 sobre bg-2, 5,23:1 sobre bg-3.
+     warn #78591c: 5,19:1 sobre bg-2. Ambas continuam na família accent/âmbar. */
+  --search-hit-ink:#1d514c; --warn-ink:#78591c;
 }

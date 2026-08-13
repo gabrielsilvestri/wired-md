@@ -1,6 +1,6 @@
 ---
 name: {{pergunta:nome da skill em kebab-case}}
-description: "{{pergunta:o que a skill faz e quando usar (frase única, com os gatilhos de invocação)}}"
+description: {{pergunta:o que a skill faz e quando usar (frase única, com os gatilhos de invocação)}}
 ---
 
 # {{pergunta:nome da skill em kebab-case}}

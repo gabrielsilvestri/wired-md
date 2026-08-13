@@ -761,21 +761,68 @@ function templatePerguntas(texto) {
   return labels;
 }
 
+// Índice do início do `---` de fechamento do frontmatter, ou 0 se o texto não
+// abre com um bloco YAML. Serve pra saber se um marcador cai DENTRO do
+// frontmatter (onde o valor tem que ser YAML válido) ou no corpo (texto livre).
+function fimDoFrontmatter(texto) {
+  const abre = /^---[ \t]*\r?\n/.exec(texto);
+  if (!abre) return 0;
+  const fecha = /\r?\n---[ \t]*(\r?\n|$)/.exec(texto.slice(abre[0].length));
+  if (!fecha) return 0;
+  return abre[0].length + fecha.index;
+}
+
+// O marcador ocupa o valor INTEIRO de uma chave YAML (`chave: {{...}}`, nada
+// depois na linha)? Só nesse caso dá pra substituir por um escalar entre aspas
+// sem quebrar formatação em volta.
+function valorInteiroDeChaveYaml(texto, offset, len) {
+  const iniLinha = texto.lastIndexOf('\n', offset - 1) + 1;
+  let fimLinha = texto.indexOf('\n', offset);
+  if (fimLinha === -1) fimLinha = texto.length;
+  const antes = texto.slice(iniLinha, offset);
+  const depois = texto.slice(offset + len, fimLinha);
+  return /^[ \t]*[^:#\s][^:]*:[ \t]+$/.test(antes) && /^[ \t]*$/.test(depois);
+}
+
+// Envolve a resposta num escalar YAML entre aspas duplas com escape. Aspas
+// duplas literais permitem qualquer conteúdo (aspa simples, dois-pontos, #),
+// bastando escapar a barra invertida e a própria aspa dupla (mais os controles).
+function yamlEscalarAspas(s) {
+  const esc = String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r/g, '\\r')
+    .replace(/\n/g, '\\n')
+    .replace(/\t/g, '\\t');
+  return '"' + esc + '"';
+}
+
 // Marcador que o app não conhece fica INTACTO no texto, nunca vira erro.
 function aplicarVariaveis(texto, ctx) {
-  return texto.replace(new RegExp(RE_VAR.source, 'g'), (todo, bruto) => {
+  const fmEnd = fimDoFrontmatter(texto);
+  return texto.replace(new RegExp(RE_VAR.source, 'g'), (todo, bruto, offset) => {
     const chave = bruto.trim();
     const low = chave.toLowerCase();
-    if (low === 'data') return ctx.data;
-    if (low === 'hora') return ctx.hora;
-    if (low === 'titulo' || low === 'título') return ctx.titulo;
-    if (low === 'pasta') return ctx.pasta;
-    if (low === 'cursor') return ctx.cursor;
-    if (/^pergunta\s*:/i.test(chave)) {
+    let valor;
+    if (low === 'data') valor = ctx.data;
+    else if (low === 'hora') valor = ctx.hora;
+    else if (low === 'titulo' || low === 'título') valor = ctx.titulo;
+    else if (low === 'pasta') valor = ctx.pasta;
+    else if (low === 'cursor') return ctx.cursor; // token invisível do caret, nunca YAML
+    else if (/^pergunta\s*:/i.test(chave)) {
       const label = chave.slice(chave.indexOf(':') + 1).trim();
-      return Object.prototype.hasOwnProperty.call(ctx.respostas, label) ? ctx.respostas[label] : todo;
+      if (!Object.prototype.hasOwnProperty.call(ctx.respostas, label)) return todo;
+      valor = ctx.respostas[label];
+    } else {
+      return todo;
     }
-    return todo;
+    // Dentro do frontmatter, valor inteiro de chave vira escalar entre aspas: sem
+    // isso, resposta com aspa, dois-pontos ou # quebra o YAML e o painel de
+    // propriedades abre o arquivo recém-criado acusando "YAML inválido".
+    if (offset < fmEnd && valorInteiroDeChaveYaml(texto, offset, todo.length)) {
+      return yamlEscalarAspas(valor);
+    }
+    return valor;
   });
 }
 

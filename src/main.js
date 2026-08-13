@@ -1575,6 +1575,37 @@ async function runE2eTest() {
     fs.rmSync(dinheiroPath, { force: true });
     await sleep(700);
 
+    // 56. contraste do destaque de busca e do aviso de schema fica na faixa
+    // 4.5:1 a 11:1 nos DOIS temas (piso do astigmatismo do dono). Conta pura
+    // sobre os arquivos de tema do repo, com composição de alpha no destaque
+    // (accent a 0.18 sobre a linha); sem troca de tema ao vivo, que era flaky.
+    const contraste = (function () {
+      const lum = (r, g, b) => {
+        const c = [r, g, b].map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      };
+      const rat = (a, b) => { const la = lum.apply(null, a), lb = lum.apply(null, b); return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05); };
+      const hex = (s) => { const n = parseInt(s.replace('#', ''), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+      const comp = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a));
+      const leVars = (txt) => { const o = {}; const re = /--([\w-]+)\s*:\s*([^;]+);/g; let m; while ((m = re.exec(txt))) o[m[1]] = m[2].trim(); return o; };
+      const medir = (file) => {
+        const v = leVars(fs.readFileSync(path.join(__dirname, '..', 'themes', file), 'utf8'));
+        const rgb = v['accent-rgb'].split(',').map(Number);
+        const ink = hex(v['search-hit-ink']);
+        const bg2 = hex(v['bg-2']);
+        const bg3 = hex(v['bg-3']);
+        return { shBg2: rat(ink, comp(rgb, 0.18, bg2)), shBg3: rat(ink, comp(rgb, 0.18, bg3)), warn: rat(hex(v['warn-ink']), bg2) };
+      };
+      return { wired: medir('wired.css'), claro: medir('claro.css') };
+    })();
+    const naFaixa = (x) => x >= 4.5 && x <= 11;
+    const todosContraste = [contraste.wired.shBg2, contraste.wired.shBg3, contraste.wired.warn, contraste.claro.shBg2, contraste.claro.shBg3, contraste.claro.warn];
+    check(
+      'contraste do destaque de busca e do aviso de schema fica em 4.5:1 a 11:1 nos dois temas',
+      todosContraste.every(naFaixa),
+      JSON.stringify(contraste)
+    );
+
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)
     await js('toggleTerminal(false)');
