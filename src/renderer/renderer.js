@@ -1482,6 +1482,7 @@ const PALETTE_ACTIONS = [
   { label: 'abrir arquivo ao lado', run: () => openViaDialog(true) },
   { label: 'salvar', hint: 'Ctrl+S', run: () => save() },
   { label: 'salvar como', hint: 'Ctrl+Shift+S', run: () => saveAs() },
+  { label: 'buscar na pasta', hint: 'Ctrl+Shift+F', run: () => openSearch() },
   { label: 'fechar painel atual', run: () => closeActivePane() },
   { label: 'alternar terminal', hint: 'Ctrl+`', run: () => toggleTerminal() },
   { label: 'terminal: ir pra pasta da nota (cd)', run: () => { toggleTerminal(true); setTimeout(cdTerminalToNote, 300); } },
@@ -1621,6 +1622,212 @@ paletteOverlay.addEventListener('mousedown', (e) => {
 });
 
 // ---------------------------------------------------------------------------
+// busca full-text na pasta da nota (Ctrl+Shift+F): o quick switcher acha por
+// NOME, esta acha por CONTEÚDO. Resultados agrupados por arquivo; setas andam
+// por todos os matches, Enter abre no pane ativo, Ctrl+Enter abre ao lado.
+// ---------------------------------------------------------------------------
+
+const searchOverlay = document.getElementById('search-overlay');
+const searchInput = document.getElementById('search-input');
+const searchStatus = document.getElementById('search-status');
+const searchResults = document.getElementById('search-results');
+
+const SEARCH_MIN_CHARS = 2;
+let searchHits = []; // lista achatada dos matches na tela: { path, line, text, start, end }
+let searchSel = 0;
+let searchTimer = null;
+let searchSeq = 0; // descarta resposta de busca velha que chega depois da nova
+
+function openSearch() {
+  if (!paletteOverlay.classList.contains('hidden')) closePalette();
+  searchOverlay.classList.remove('hidden');
+  searchInput.focus();
+  searchInput.select();
+  if (searchInput.value.trim().length >= SEARCH_MIN_CHARS) runSearch();
+  else {
+    searchStatus.textContent = 'digite pelo menos ' + SEARCH_MIN_CHARS + ' caracteres';
+    searchResults.innerHTML = '';
+    searchHits = [];
+  }
+}
+
+function closeSearch() {
+  searchOverlay.classList.add('hidden');
+  clearTimeout(searchTimer);
+}
+
+async function runSearch() {
+  const q = searchInput.value.trim();
+  if (q.length < SEARCH_MIN_CHARS) {
+    searchHits = [];
+    searchResults.innerHTML = '';
+    searchStatus.textContent = 'digite pelo menos ' + SEARCH_MIN_CHARS + ' caracteres';
+    return;
+  }
+  if (!treeRoot) {
+    searchStatus.textContent = 'nenhuma pasta aberta';
+    return;
+  }
+  const seq = ++searchSeq;
+  searchStatus.textContent = 'buscando em ' + baseName(treeRoot) + '...';
+  const res = await window.wired.searchFolder(treeRoot, q);
+  if (seq !== searchSeq) return; // chegou fora de ordem
+  if (!res.ok) {
+    searchStatus.textContent = 'a busca falhou: ' + (res.error || 'erro desconhecido');
+    searchResults.innerHTML = '';
+    searchHits = [];
+    return;
+  }
+  renderSearch(res);
+}
+
+function renderSearch(res) {
+  searchResults.innerHTML = '';
+  searchHits = [];
+  const files = res.files || [];
+  const total = res.total || 0;
+  if (files.length === 0) {
+    searchStatus.textContent = 'nada encontrado em ' + baseName(treeRoot);
+    const empty = document.createElement('div');
+    empty.className = 'search-empty';
+    empty.textContent = 'nada encontrado';
+    searchResults.appendChild(empty);
+    return;
+  }
+  searchStatus.textContent =
+    total + (total === 1 ? ' resultado' : ' resultados') + ' em ' + files.length + (files.length === 1 ? ' arquivo' : ' arquivos') + (res.truncated ? ' (lista truncada)' : '');
+  for (const f of files) {
+    const head = document.createElement('div');
+    head.className = 'search-file';
+    head.title = f.path;
+    const ico = svgIcon(12, ICON_FILE);
+    ico.classList.add('tree-ico');
+    const nome = document.createElement('span');
+    nome.textContent = f.name;
+    const cont = document.createElement('span');
+    cont.className = 'search-file-count';
+    cont.textContent = f.matches.length;
+    head.appendChild(ico);
+    head.appendChild(nome);
+    head.appendChild(cont);
+    searchResults.appendChild(head);
+    for (const m of f.matches) {
+      const hit = { path: f.path, line: m.line, text: m.text, start: m.start, end: m.end };
+      const idx = searchHits.length;
+      searchHits.push(hit);
+      const row = document.createElement('div');
+      row.className = 'search-line';
+      const no = document.createElement('span');
+      no.className = 'search-lineno';
+      no.textContent = m.line;
+      const txt = document.createElement('span');
+      txt.className = 'search-text';
+      txt.appendChild(document.createTextNode(m.text.slice(0, m.start)));
+      const mark = document.createElement('mark');
+      mark.className = 'search-hit';
+      mark.textContent = m.text.slice(m.start, m.end);
+      txt.appendChild(mark);
+      txt.appendChild(document.createTextNode(m.text.slice(m.end)));
+      row.appendChild(no);
+      row.appendChild(txt);
+      row.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        searchSel = idx;
+        openSearchHit(hit, e.ctrlKey);
+      });
+      searchResults.appendChild(row);
+    }
+  }
+  searchSel = 0;
+  markSearchSel();
+}
+
+function searchRows() {
+  return searchResults.querySelectorAll('.search-line');
+}
+
+function markSearchSel() {
+  const rows = searchRows();
+  rows.forEach((r, i) => r.classList.toggle('selected', i === searchSel));
+  const sel = rows[searchSel];
+  if (sel) sel.scrollIntoView({ block: 'nearest' });
+}
+
+function moveSearchSel(delta) {
+  if (searchHits.length === 0) return;
+  searchSel = (searchSel + delta + searchHits.length) % searchHits.length;
+  markSearchSel();
+}
+
+async function openSearchHit(hit, side) {
+  closeSearch();
+  await openPath(hit.path, !!side);
+  jumpToText(hit.text.slice(hit.start, hit.end));
+}
+
+// Pulo até o trecho: MELHOR ESFORÇO, e a limitação é real. O Vditor em modo IR
+// é WYSIWYG, então o que está na tela não é a linha do arquivo: sintaxe de
+// tabela, link, título e código vira DOM diferente do texto bruto, e nem todo
+// match do disco existe como texto contínuo no documento renderizado. Quando o
+// trecho é achado, ele é selecionado e rolado até ficar visível; quando não é
+// (ou quando cai dentro de marcação transformada), o arquivo simplesmente abre
+// no topo, sem erro. Não existe API de "ir pra linha N" no Vditor IR.
+function jumpToText(trecho) {
+  const alvo = (trecho || '').trim();
+  if (!alvo) return;
+  setTimeout(() => {
+    const pane = activePane();
+    if (!pane || !pane.el) return;
+    const raiz = pane.el.querySelector('.vditor-ir .vditor-reset');
+    if (!raiz) return;
+    const walker = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      const i = node.nodeValue.indexOf(alvo);
+      if (i === -1) continue;
+      try {
+        const range = document.createRange();
+        range.setStart(node, i);
+        range.setEnd(node, i + alvo.length);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        const el = node.parentElement;
+        if (el) el.scrollIntoView({ block: 'center' });
+      } catch {}
+      return;
+    }
+  }, 260);
+}
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(runSearch, 200);
+});
+
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    moveSearchSel(1);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    moveSearchSel(-1);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    const hit = searchHits[searchSel];
+    if (hit) openSearchHit(hit, e.ctrlKey);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    closeSearch();
+  }
+  e.stopPropagation();
+});
+
+searchOverlay.addEventListener('mousedown', (e) => {
+  if (e.target === searchOverlay) closeSearch();
+});
+
+// ---------------------------------------------------------------------------
 // eventos globais
 // ---------------------------------------------------------------------------
 
@@ -1724,6 +1931,11 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     openPalette('commands');
   }
+  // Ctrl+Shift+F: busca full-text na pasta da nota (conteúdo, não nome).
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
+    e.preventDefault();
+    openSearch();
+  }
   // Zoom da fonte do documento: Ctrl+= (ou Ctrl+Shift+=, que chega como +),
   // Ctrl+- diminui e Ctrl+0 volta ao padrão.
   if (e.ctrlKey && (e.key === '=' || e.key === '+')) {
@@ -1745,6 +1957,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (e.key === 'Escape') {
     if (!ctxMenuEl.classList.contains('hidden')) hideCtxMenu();
+    else if (!searchOverlay.classList.contains('hidden')) closeSearch();
     else if (!paletteOverlay.classList.contains('hidden')) closePalette();
     else if (!settingsOverlay.classList.contains('hidden')) closeSettings();
   }

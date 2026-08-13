@@ -9,6 +9,16 @@ const { spawn } = require('child_process');
 
 let mainWindow = null;
 
+// Nos modos de teste a janela costuma ficar COBERTA por outra (o terminal que
+// dispara o teste), e aí o Chromium marca a janela como ocluída no Windows e
+// para de renderizar: o viewport congela na última largura, as transições de
+// CSS não avançam e qualquer medida de layout mente. Desligar a detecção de
+// oclusão só nos testes deixa o app rodando de verdade mesmo atrás de outra
+// janela. Em uso normal a detecção fica ligada (ela economiza bateria).
+if (process.env.WIRED_E2E === '1' || process.env.WIRED_SMOKE === '1') {
+  app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+}
+
 // --- pastas de dados do usuário (userData/themes, userData/snippets, config.json) ---
 
 function userDir(...parts) {
@@ -301,6 +311,184 @@ ipcMain.handle('dir:watch', (_ev, root) => {
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String(err.message || err) };
+  }
+});
+
+// --- busca full-text na pasta da nota (Ctrl+Shift+F no renderer) ---
+// Motor preferido: o binário do ripgrep que vem no pacote @vscode/ripgrep
+// (offline, sem depender de rg instalado na máquina). O pacote em si é ESM e
+// o main é CJS, então o binário é resolvido direto no subpacote da plataforma.
+// Se ele não existir, cai num scan recursivo em Node puro (as pastas de notas
+// aqui são pequenas, o custo é irrelevante).
+
+const SEARCH_MAX = 200; // teto de matches devolvidos; acima disso vem truncado
+const SEARCH_LINE_MAX = 240; // teto de caracteres da linha mostrada no resultado
+
+// WIRED_SEARCH_ENGINE=node força o fallback (serve pra testar o caminho sem rg).
+let rgPath = null;
+try {
+  if (process.env.WIRED_SEARCH_ENGINE === 'node') throw new Error('fallback forçado');
+  const bin = process.platform === 'win32' ? 'rg.exe' : 'rg';
+  rgPath = require.resolve('@vscode/ripgrep-' + process.platform + '-' + process.arch + '/bin/' + bin);
+  if (!fs.existsSync(rgPath)) rgPath = null;
+} catch {
+  rgPath = null;
+}
+console.log('[wired-md] busca full-text: ' + (rgPath ? 'ripgrep (' + rgPath + ')' : 'scan em Node puro'));
+
+// Recorta a linha em volta do match quando ela é longa demais pra caber na
+// lista, mantendo o trecho destacado visível.
+function windowLine(text, start, end) {
+  if (text.length <= SEARCH_LINE_MAX) return { text, start, end };
+  const folga = Math.max(0, Math.floor((SEARCH_LINE_MAX - (end - start)) / 2));
+  let ini = Math.max(0, start - folga);
+  let fim = Math.min(text.length, ini + SEARCH_LINE_MAX);
+  ini = Math.max(0, fim - SEARCH_LINE_MAX);
+  const prefixo = ini > 0 ? '...' : '';
+  const sufixo = fim < text.length ? '...' : '';
+  return {
+    text: prefixo + text.slice(ini, fim) + sufixo,
+    start: start - ini + prefixo.length,
+    end: Math.min(end, fim) - ini + prefixo.length
+  };
+}
+
+// Agrupa matches soltos por arquivo, na ordem em que apareceram.
+function groupMatches(matches) {
+  const byFile = new Map();
+  for (const m of matches) {
+    if (!byFile.has(m.path)) byFile.set(m.path, { path: m.path, name: path.basename(m.path), matches: [] });
+    byFile.get(m.path).matches.push({ line: m.line, text: m.text, start: m.start, end: m.end });
+  }
+  // Ordem alfabética por caminho: o ripgrep varre em paralelo e devolve os
+  // arquivos em ordem imprevisível, e lista que dança a cada busca confunde.
+  return [...byFile.values()].sort((a, b) => a.path.localeCompare(b.path, 'pt-BR'));
+}
+
+const SEARCH_GLOBS = ['-g', '*.md', '-g', '*.markdown', '-g', '!node_modules/**', '-g', '!.git/**', '-g', '!.obsidian/**', '-g', '!.trash/**'];
+
+function searchWithRipgrep(root, query) {
+  return new Promise((resolve) => {
+    const args = ['--json', '--smart-case', '--fixed-strings', '--no-ignore', ...SEARCH_GLOBS, '--', query, '.'];
+    const proc = spawn(rgPath, args, { cwd: root, windowsHide: true });
+    const matches = [];
+    let truncated = false;
+    let resto = '';
+    let morto = false;
+    const finish = () => {
+      if (morto) return;
+      morto = true;
+      resolve({ matches, truncated });
+    };
+    proc.stdout.on('data', (chunk) => {
+      resto += chunk.toString('utf8');
+      const linhas = resto.split('\n');
+      resto = linhas.pop();
+      for (const linha of linhas) {
+        if (!linha.trim()) continue;
+        let ev;
+        try {
+          ev = JSON.parse(linha);
+        } catch {
+          continue;
+        }
+        if (ev.type !== 'match') continue;
+        const abs = path.resolve(root, ev.data.path.text || '');
+        const bruto = (ev.data.lines.text || '').replace(/\r?\n$/, '');
+        const buf = Buffer.from(bruto, 'utf8');
+        for (const sub of ev.data.submatches || []) {
+          if (matches.length >= SEARCH_MAX) {
+            truncated = true;
+            try {
+              proc.kill();
+            } catch {}
+            finish();
+            return;
+          }
+          // rg dá offset em BYTES; a lista mostra caracteres, então converte
+          // (linha em pt-BR com acento tem byte e caractere em contagens diferentes).
+          const start = buf.slice(0, sub.start).toString('utf8').length;
+          const end = buf.slice(0, sub.end).toString('utf8').length;
+          const w = windowLine(bruto, start, end);
+          matches.push({ path: abs, line: ev.data.line_number, text: w.text, start: w.start, end: w.end });
+        }
+      }
+    });
+    proc.on('error', () => {
+      if (morto) return;
+      morto = true;
+      resolve(null); // motor quebrou: quem chamou cai no fallback
+    });
+    proc.on('close', finish);
+  });
+}
+
+// Fallback em Node puro: mesma poda de pastas do file tree, busca literal
+// sem diferenciar maiúscula de minúscula quando a query é toda minúscula.
+function searchWithNode(root, query) {
+  const matches = [];
+  let truncated = false;
+  const insensivel = query === query.toLowerCase();
+  const alvo = insensivel ? query.toLowerCase() : query;
+  const walk = (dir, depth) => {
+    if (truncated || depth > 8) return;
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (truncated) return;
+      if (e.name.startsWith('.') || TREE_IGNORE.has(e.name)) continue;
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        walk(full, depth + 1);
+        continue;
+      }
+      if (!/\.(md|markdown)$/i.test(e.name)) continue;
+      let conteudo;
+      try {
+        conteudo = fs.readFileSync(full, 'utf8');
+      } catch {
+        continue;
+      }
+      const linhas = conteudo.split(/\r?\n/);
+      for (let i = 0; i < linhas.length; i++) {
+        const bruto = linhas[i];
+        const agulha = insensivel ? bruto.toLowerCase() : bruto;
+        let de = agulha.indexOf(alvo);
+        while (de !== -1) {
+          if (matches.length >= SEARCH_MAX) {
+            truncated = true;
+            return;
+          }
+          const w = windowLine(bruto, de, de + query.length);
+          matches.push({ path: full, line: i + 1, text: w.text, start: w.start, end: w.end });
+          de = agulha.indexOf(alvo, de + query.length);
+        }
+      }
+    }
+  };
+  walk(root, 0);
+  return { matches, truncated };
+}
+
+ipcMain.handle('search:folder', async (_ev, root, query) => {
+  try {
+    const termo = String(query || '');
+    if (!root || !fs.existsSync(root)) return { ok: false, error: 'pasta inexistente', files: [], total: 0 };
+    if (termo.length < 2) return { ok: true, engine: 'nenhum', files: [], total: 0, truncated: false };
+    let res = null;
+    let engine = 'node';
+    if (rgPath) {
+      res = await searchWithRipgrep(root, termo);
+      if (res) engine = 'ripgrep';
+    }
+    if (!res) res = searchWithNode(root, termo);
+    return { ok: true, engine, files: groupMatches(res.matches), total: res.matches.length, truncated: res.truncated };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err), files: [], total: 0 };
   }
 });
 
@@ -901,6 +1089,61 @@ async function runE2eTest() {
     await sleep(400);
     const zoomReset = await js('config.fontSize');
     check('zoom: Ctrl+= sobe a fonte pra 17 (persistida) e Ctrl+0 volta pra 15', !!zoomUp && zoomUp.cfg === 17 && zoomUp.css === '17px' && !!cfgZoom && cfgZoom.fontSize === 17 && zoomReset === 15, JSON.stringify({ zoomUp, disk: cfgZoom && cfgZoom.fontSize, zoomReset }));
+
+    // 33. busca full-text: Ctrl+Shift+F de verdade abre o overlay
+    const buscaA = path.join(path.dirname(demoPath), 'busca-a-e2e.md');
+    const buscaB = path.join(path.dirname(demoPath), 'busca-b-e2e.md');
+    fs.writeFileSync(buscaA, '# busca a\n\numa linha com zebrafone aqui\n\noutra com zebrafone de novo\n', 'utf8');
+    fs.writeFileSync(buscaB, '# busca b\n\nsó uma zebrafone nesta\n', 'utf8');
+    await sleep(1200); // fs.watch atualiza a árvore
+    mainWindow.focus();
+    mainWindow.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'F', modifiers: ['control', 'shift'] });
+    mainWindow.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'F', modifiers: ['control', 'shift'] });
+    await sleep(500);
+    const buscaAberta = await js(`(function(){var o=document.getElementById('search-overlay');return {aberto:!o.classList.contains('hidden'),foco:document.activeElement&&document.activeElement.id==='search-input'};})()`);
+    check('busca full-text: Ctrl+Shift+F abre o overlay com o campo focado', !!buscaAberta && buscaAberta.aberto && buscaAberta.foco, JSON.stringify(buscaAberta));
+
+    // 34. digitar a query acha o termo nos dois arquivos, agrupado e contado
+    await js(`(function(){var i=document.getElementById('search-input');i.value='zebrafone';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(1200);
+    const buscaRes = await js(`(function(){var arquivos=[...document.querySelectorAll('#search-results .search-file')].map(function(f){return {nome:f.querySelector('span').textContent,n:f.querySelector('.search-file-count').textContent};});return {arquivos:arquivos,linhas:document.querySelectorAll('#search-results .search-line').length,status:document.getElementById('search-status').textContent,hits:searchHits.length};})()`);
+    const nomesBusca = (buscaRes.arquivos || []).map((a) => a.nome).sort().join(',');
+    check(
+      'busca full-text acha o termo nos dois arquivos com a contagem certa (3 linhas)',
+      !!buscaRes && buscaRes.linhas === 3 && buscaRes.hits === 3 && nomesBusca === 'busca-a-e2e.md,busca-b-e2e.md' && /3 resultados em 2 arquivos/.test(buscaRes.status),
+      JSON.stringify(buscaRes)
+    );
+
+    // 35. o trecho encontrado sai destacado com o accent do tema
+    const destaque = await js(`(function(){var m=document.querySelector('#search-results .search-line .search-hit');if(!m)return null;var c=getComputedStyle(m);return {texto:m.textContent,cor:c.color};})()`);
+    check('busca full-text destaca o trecho na linha', !!destaque && destaque.texto === 'zebrafone', JSON.stringify(destaque));
+
+    // 36. setas navegam entre os matches e Enter abre o arquivo do selecionado
+    await js(`(function(){var i=document.getElementById('search-input');i.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));i.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));})()`);
+    await sleep(200);
+    const sel = await js(`(function(){return {idx:searchSel,path:searchHits[searchSel]?searchHits[searchSel].path:null};})()`);
+    await js(`document.getElementById('search-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(1200);
+    const abriuBusca = await js('currentPath');
+    check('busca full-text: setas andam nos matches e Enter abre o arquivo certo', !!sel && sel.idx === 2 && sel.path === buscaB && abriuBusca === buscaB, JSON.stringify({ sel, abriuBusca }));
+
+    // 37. Esc fecha o overlay da busca
+    await js(`openSearch()`);
+    await sleep(300);
+    const antesEsc = await js(`!document.getElementById('search-overlay').classList.contains('hidden')`);
+    await js(`document.getElementById('search-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))`);
+    await sleep(300);
+    const depoisEsc = await js(`document.getElementById('search-overlay').classList.contains('hidden')`);
+    const acaoBusca = await js(`PALETTE_ACTIONS.map(function(a){return a.label;}).indexOf('buscar na pasta')!==-1`);
+    check('busca full-text: Esc fecha e a palette tem a ação "buscar na pasta"', antesEsc === true && depoisEsc === true && acaoBusca === true, JSON.stringify({ antesEsc, depoisEsc, acaoBusca }));
+    // limpa os artefatos da busca e volta pro demo
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    await js(`(function(){['busca-a-e2e','busca-b-e2e'].forEach(function(k){var p=panes.find(function(x){return x.path&&x.path.indexOf(k)!==-1;});if(p){setPaneDirty(p,false);closePane(p);}});config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('busca-')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(400);
+    fs.rmSync(buscaA, { force: true });
+    fs.rmSync(buscaB, { force: true });
+    await sleep(800);
 
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)

@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('wired', {
   dirTree: (root) => ipcRenderer.invoke('dir:tree', root),
   watchDir: (root) => ipcRenderer.invoke('dir:watch', root),
   onDirChanged: (cb) => ipcRenderer.on('dir:changed', (_ev, root) => cb(root)),
+  searchFolder: (root, query) => ipcRenderer.invoke('search:folder', root, query),
   setTitle: (t) => ipcRenderer.send('window:setTitle', t),
 
   // operações de arquivo da sidebar (toolbar e menu de contexto)
