@@ -1428,6 +1428,153 @@ async function runE2eTest() {
     fs.rmSync(subTpl, { recursive: true, force: true });
     await sleep(900);
 
+    // --- fase 10: modo foco e modo typewriter ---
+
+    const rootFoco = path.dirname(demoPath);
+    const selEditor = '#panes .pane.active .vditor-ir .vditor-reset';
+
+    // 49. ação da palette liga o modo foco, com o rótulo mostrando o estado
+    // atual, e o config.json registra. Os dois modos são zerados antes: o
+    // config real do usuário pode ter qualquer um deles ligado, e aí o rótulo
+    // viria "desligar" e o Enter desligaria em vez de ligar (mesma razão do
+    // setFontZoom(15) no check do zoom).
+    await js('toggleFocusMode(false)');
+    await js('toggleTypewriterMode(false)');
+    await sleep(300);
+    await js(`(function(){openPalette('commands');var i=document.getElementById('palette-input');i.value='modo foco';i.dispatchEvent(new Event('input'));})()`);
+    await sleep(250);
+    const focoLabel = await js(`(function(){var r=document.querySelector('#palette-list .palette-row.selected .palette-label');return r?r.textContent:null;})()`);
+    await js(`document.getElementById('palette-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
+    await sleep(700);
+    let cfgFoco = null;
+    try {
+      cfgFoco = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    const focoEstado = await js(`(function(){var p=document.querySelector('#panes .pane.active');return {cfg:config.focusMode,classe:!!p&&p.classList.contains('focus-mode')};})()`);
+    check(
+      'foco: ação da palette liga o modo (rótulo com o estado) e o config.json registra',
+      focoLabel === 'modo foco: ligar' && !!focoEstado && focoEstado.cfg === true && focoEstado.classe && !!cfgFoco && cfgFoco.focusMode === true,
+      JSON.stringify({ focoLabel, focoEstado, disk: cfgFoco && cfgFoco.focusMode })
+    );
+
+    // 50. o bloco do caret ganha a marca e os irmãos esmaecem na opacidade
+    // medida do tema (0.62 no wired, 4,66:1 de contraste no texto esmaecido)
+    await js(`(function(){var root=document.querySelector('${selEditor}');var kids=[...root.children];var r=document.createRange();r.selectNodeContents(kids[1]);r.collapse(true);var s=getSelection();s.removeAllRanges();s.addRange(r);document.dispatchEvent(new Event('selectionchange'));})()`);
+    await sleep(600);
+    const focoMarca = await js(`(function(){var root=document.querySelector('${selEditor}');var kids=[...root.children];var idx=kids.findIndex(function(k){return k.classList.contains('focus-current');});var marcados=kids.filter(function(k){return k.classList.contains('focus-current');}).length;var outro=kids[idx===0?1:0];return {n:kids.length,idx:idx,marcados:marcados,opAtual:getComputedStyle(kids[idx]).opacity,opOutro:getComputedStyle(outro).opacity,varTema:getComputedStyle(document.documentElement).getPropertyValue('--focus-dim').trim()};})()`);
+    // a opacidade é MEDIDA por tema, não chutada: focusDimFor devolve a menor
+    // opacidade que ainda deixa a tinta esmaecida acima do piso de contraste.
+    // A conta é pura, então roda direto na paleta do tema claro (bg #f2f0ea,
+    // ink #3c424a), sem trocar o tema ativo (troca ao vivo aqui era flaky).
+    const dimClaro = await js(`String(focusDimFor('#f2f0ea','#3c424a'))`);
+    check(
+      'foco: o bloco do caret é o único marcado, os irmãos ficam na opacidade medida (0.62 no wired, 0.76 no claro)',
+      !!focoMarca && focoMarca.n > 2 && focoMarca.idx === 1 && focoMarca.marcados === 1 && focoMarca.opAtual === '1' && Math.abs(Number(focoMarca.opOutro) - 0.62) < 0.02 && focoMarca.varTema === '0.62' && dimClaro === '0.76',
+      JSON.stringify({ focoMarca, dimClaro })
+    );
+
+    // 51. mover o caret pra outro bloco move a marca junto
+    await js(`(function(){var root=document.querySelector('${selEditor}');var kids=[...root.children];var r=document.createRange();r.selectNodeContents(kids[2]);r.collapse(true);var s=getSelection();s.removeAllRanges();s.addRange(r);document.dispatchEvent(new Event('selectionchange'));})()`);
+    await sleep(500);
+    const focoMoveu = await js(`(function(){var root=document.querySelector('${selEditor}');var kids=[...root.children];return {idx:kids.findIndex(function(k){return k.classList.contains('focus-current');}),marcados:kids.filter(function(k){return k.classList.contains('focus-current');}).length,opAntigo:getComputedStyle(kids[1]).opacity};})()`);
+    check(
+      'foco: o caret em outro bloco leva a marca junto e o anterior esmaece',
+      !!focoMoveu && focoMoveu.idx === 2 && focoMoveu.marcados === 1 && Math.abs(Number(focoMoveu.opAntigo) - 0.62) < 0.02,
+      JSON.stringify(focoMoveu)
+    );
+
+    // 52. typewriter: digitando na última linha de um arquivo longo, o bloco do
+    // caret fica no centro vertical do container que rola. O arquivo abre num
+    // pane novo, o que também prova que o pane INATIVO não esmaece nem centra.
+    const longoPath = path.join(rootFoco, 'foco-e2e.md');
+    const linhas = [];
+    for (let i = 1; i <= 90; i++) linhas.push('linha ' + i + ' do teste de typewriter.');
+    fs.writeFileSync(longoPath, '# foco e2e\n\n' + linhas.join('\n\n') + '\n', 'utf8');
+    await sleep(1300);
+    await js(`openPath(${JSON.stringify(longoPath)}, true)`);
+    await sleep(1600);
+    await js('toggleTypewriterMode(true)');
+    await sleep(400);
+    mainWindow.focus();
+    // vditor.focus() põe o caret no COMEÇO do documento: pra testar a última
+    // linha, a range vai pro fim do último bloco na mão.
+    await js('vditor.focus()');
+    await sleep(300);
+    await js(`(function(){var root=document.querySelector('${selEditor}');var kids=[...root.children];var r=document.createRange();r.selectNodeContents(kids[kids.length-1]);r.collapse(false);var s=getSelection();s.removeAllRanges();s.addRange(r);})()`);
+    await sleep(400);
+    for (const ch of 'zz') {
+      mainWindow.webContents.sendInputEvent({ type: 'char', keyCode: ch });
+      await sleep(80);
+    }
+    await sleep(1200);
+    const tw = await js(`(function(){var p=activePane();var b=caretBlock(p);if(!b)return {erro:'sem bloco'};var c=scrollContainerOf(b,p);if(!c)return {erro:'sem container'};var rb=b.getBoundingClientRect(),rc=c.getBoundingClientRect();var inativos=panes.filter(function(x){return x.id!==p.id;});return {delta:Math.round(Math.abs((rb.top+rb.height/2)-(rc.top+rc.height/2))),alturaCont:Math.round(rc.height),scroll:Math.round(c.scrollTop),classe:p.el.classList.contains('typewriter-mode'),nPanes:panes.length,inativoFoco:inativos.some(function(x){return x.el.classList.contains('focus-mode');}),inativoTw:inativos.some(function(x){return x.el.classList.contains('typewriter-mode');})};})()`);
+    check(
+      'typewriter: digitar na última linha mantém o bloco no centro vertical do pane, e o pane inativo fica normal',
+      !!tw && !tw.erro && tw.classe && tw.nPanes === 2 && tw.scroll > 0 && tw.delta <= 40 && !tw.inativoFoco && !tw.inativoTw,
+      JSON.stringify(tw)
+    );
+
+    // 53. os dois toggles são independentes, e os atalhos F8 e F9 respondem
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'F8'}))`);
+    await sleep(500);
+    const soTw = await js(`(function(){var p=document.querySelector('#panes .pane.active');return {foco:config.focusMode,tw:config.typewriterMode,cFoco:p.classList.contains('focus-mode'),cTw:p.classList.contains('typewriter-mode')};})()`);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'F9'}))`);
+    await sleep(300);
+    await js(`window.dispatchEvent(new KeyboardEvent('keydown',{key:'F8'}))`);
+    await sleep(500);
+    const soFoco = await js(`(function(){var p=document.querySelector('#panes .pane.active');return {foco:config.focusMode,tw:config.typewriterMode,cFoco:p.classList.contains('focus-mode'),cTw:p.classList.contains('typewriter-mode')};})()`);
+    check(
+      'foco e typewriter: independentes um do outro, e F8 e F9 ligam e desligam cada um',
+      !!soTw && soTw.foco === false && soTw.tw === true && !soTw.cFoco && soTw.cTw &&
+        !!soFoco && soFoco.foco === true && soFoco.tw === false && soFoco.cFoco && !soFoco.cTw,
+      JSON.stringify({ soTw, soFoco })
+    );
+
+    // 54. desligar os dois volta o documento ao normal (sem marca, opacidade
+    // cheia em todo bloco) e o config.json fica com os dois em false
+    await js('toggleFocusMode(false)');
+    await sleep(600);
+    let cfgDesligado = null;
+    try {
+      cfgDesligado = JSON.parse(fs.readFileSync(userDir('config.json'), 'utf8'));
+    } catch {}
+    const normal = await js(`(function(){var p=document.querySelector('#panes .pane.active');var root=document.querySelector('${selEditor}');var kids=[...root.children];return {marcados:kids.filter(function(k){return k.classList.contains('focus-current');}).length,opacidades:[...new Set(kids.map(function(k){return getComputedStyle(k).opacity;}))],cFoco:p.classList.contains('focus-mode'),cTw:p.classList.contains('typewriter-mode'),cfg:[config.focusMode,config.typewriterMode]};})()`);
+    check(
+      'foco e typewriter desligados: nenhuma marca, opacidade cheia em todo bloco e config.json com os dois em false',
+      !!normal && normal.marcados === 0 && normal.opacidades.length === 1 && normal.opacidades[0] === '1' && !normal.cFoco && !normal.cTw &&
+        normal.cfg[0] === false && normal.cfg[1] === false && !!cfgDesligado && cfgDesligado.focusMode === false && cfgDesligado.typewriterMode === false,
+      JSON.stringify({ normal, disk: cfgDesligado && [cfgDesligado.focusMode, cfgDesligado.typewriterMode] })
+    );
+    // limpa o artefato da fase 10 e volta pro demo
+    await js(`(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('foco-e2e')!==-1;});if(p){setPaneDirty(p,false);closePane(p);}config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('foco-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(500);
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(longoPath, { force: true });
+    await sleep(900);
+
+    // 55. dinheiro não vira fórmula: cifrão é cifrão, math inline está
+    // desligado no lute e o texto sobrevive ao round trip
+    const dinheiroPath = path.join(path.dirname(demoPath), 'dinheiro-e2e.md');
+    const dinheiroTxt = 'Preço de R$297 a R$ 397, e o plano B custa R$ 2.997.\n\nO Tabari cobra R$ 62 e o Biel R$ 1.200 por mês.\n';
+    fs.writeFileSync(dinheiroPath, dinheiroTxt, 'utf8');
+    await js(`openPath(${JSON.stringify(dinheiroPath)})`);
+    await sleep(1200);
+    const grana = await js(`(function(){var root=document.querySelector('${selEditor}');if(!root)return null;return {math:root.querySelectorAll('[data-type="math-inline"], code.language-math, .katex, .vditor-math').length,texto:root.textContent.replace(/\\s+/g,' ').trim(),valor:vditor.getValue()};})()`);
+    check(
+      'R$ não vira fórmula (math inline desligado) e o texto sobrevive ao round trip',
+      !!grana && grana.math === 0 &&
+        grana.texto.indexOf('R$297 a R$ 397') !== -1 && grana.texto.indexOf('R$ 2.997') !== -1 &&
+        grana.valor.replace(/\s+/g, ' ').trim() === dinheiroTxt.replace(/\s+/g, ' ').trim(),
+      JSON.stringify(grana)
+    );
+    await js(`(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('dinheiro-e2e')!==-1;});if(p){setPaneDirty(p,false);closePane(p);}config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('dinheiro-e2e')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(400);
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(dinheiroPath, { force: true });
+    await sleep(700);
+
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)
     await js('toggleTerminal(false)');

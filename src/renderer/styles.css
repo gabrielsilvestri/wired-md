@@ -6,6 +6,8 @@
   --ink:#bcc2c9; --ink-dim:#9fa6b0; --ink-faint:#9098a3;
   --accent:#4fc7bb; --accent-soft:#83cdc6; --accent-ink:#5bbcb2; --accent-dim:#3a8c85;
   --accent-rgb:79,199,187;
+  /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
+  --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
   --font-ui:"Geist","Segoe UI",system-ui,sans-serif;
   --font-body-default:"Mona Sans","Segoe UI",system-ui,sans-serif;
@@ -604,6 +606,29 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .vditor-ir { background: var(--bg); }
 .vditor-ir pre.vditor-reset { background: var(--bg) !important; }
+
+/* --- modo foco: o bloco onde o caret está fica com a tinta cheia, o resto
+   esmaece. A opacidade NÃO é chute, é medida: o texto esmaecido tem que ficar
+   acima de 4.5:1 contra o fundo (astigmatismo do dono).
+     tema wired: #bcc2c9 a 62% sobre #101216 = 4,66:1 (tinta cheia: 10,44:1)
+     tema claro: #3c424a a 76% sobre #f2f0ea = 4,66:1 (tinta cheia: 8,90:1)
+   Por isso cada tema carrega o seu --focus-dim, e o renderer ainda recalcula o
+   valor a cada troca de tema (focusDimFor), que é o que cobre tema de terceiro
+   e tema antigo já semeado em %APPDATA% sem a variável.
+   O esmaecimento vale pra qualquer bloco (parágrafo, tabela, imagem, código),
+   uniforme, e a transição de 150ms evita piscada enquanto se digita. --- */
+.pane.focus-mode .vditor-ir pre.vditor-reset > * {
+  opacity: var(--focus-dim, 0.62);
+  transition: opacity 0.15s ease;
+}
+
+.pane.focus-mode .vditor-ir pre.vditor-reset > .focus-current { opacity: 1; }
+
+/* --- modo typewriter: a linha em edição fica no centro vertical. O espaço em
+   cima e embaixo é o que permite centralizar a PRIMEIRA e a ÚLTIMA linha do
+   documento; sem ele o scroll acaba antes do meio da tela e as linhas das
+   pontas ficariam paradas fora do centro. --- */
+.pane.typewriter-mode .vditor-ir pre.vditor-reset { padding: 50vh 48px !important; }
 
 /* hierarquia por cor e peso, não por tamanho exagerado */
 .vditor-reset h1, .vditor-reset h2, .vditor-reset h3,

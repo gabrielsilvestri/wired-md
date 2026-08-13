@@ -15,7 +15,9 @@ let config = {
   recentFiles: [],
   treeSort: 'az',
   terminalHeight: 260,
-  frontmatterPanel: true
+  frontmatterPanel: true,
+  focusMode: false,
+  typewriterMode: false
 };
 
 function sleep(ms) {
@@ -92,6 +94,16 @@ const ICON_FILE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z',
 const ICON_X = ['M18 6 6 18', 'm6 6 12 12'];
 const ICON_SPARKLES = ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'];
 
+// Math inline ($...$) é ruído puro num editor de markdown pra IA: "R$ 300" e
+// "de R$ 297 a R$ 397" viram fórmula e a frase inteira quebra. O Lute (parser
+// do Vditor) aceita desligar isso em runtime, e não existe opção equivalente
+// no objeto de opções do Vditor, por isso o toque direto na instância assim
+// que ela nasce. Bloco de fórmula ($$...$$) continua funcionando.
+function disableInlineMath(vd) {
+  const lute = vd && vd.vditor && vd.vditor.lute;
+  if (lute && typeof lute.SetInlineMath === 'function') lute.SetInlineMath(false);
+}
+
 function vditorOptions(pane) {
   return {
     mode: 'ir',
@@ -105,7 +117,11 @@ function vditorOptions(pane) {
     preview: {
       theme: { current: 'dark', path: '../../node_modules/vditor/dist/css/content-theme' },
       hljs: { style: 'native', lineNumber: false },
-      markdown: { toc: true, mark: true }
+      markdown: { toc: true, mark: true },
+      // Dígito logo depois do marcador de abertura seria math ("$300$").
+      // Aqui isso é dinheiro, então fica desligado (o desligamento de verdade
+      // é o SetInlineMath abaixo; este é o cinto de segurança).
+      math: { inlineDigit: false }
     },
     placeholder: 'abra um arquivo .md ou comece a escrever...',
     input: () => {
@@ -113,9 +129,12 @@ function vditorOptions(pane) {
       // Edição no documento refaz o painel de propriedades (debounce), porque o
       // frontmatter pode ter sido mexido na mão dentro do editor.
       scheduleFmRefresh(pane);
+      // Digitar move o caret: modo foco remarca o bloco e o typewriter recentra.
+      caretMoved();
     },
     after: () => {
       pane.ready = true;
+      disableInlineMath(pane.vditor);
       if (pane.pendingPath) {
         const p = pane.pendingPath;
         pane.pendingPath = null;
@@ -276,6 +295,9 @@ function setActivePane(pane) {
   activePaneId = pane.id;
   for (const p of panes) p.el.classList.toggle('active', p.id === pane.id);
   relayoutPanes();
+  // Foco e typewriter valem só no pane ativo: trocar de pane move os dois.
+  applyFocusMode();
+  applyTypewriterMode();
   updateChrome();
   refreshSidebar();
 }
@@ -1131,6 +1153,8 @@ async function openInPane(pane, p) {
   pane.vditor.setValue(res.content);
   setPaneDirty(pane, false);
   refreshFmPanel(pane);
+  // setValue troca os blocos do DOM: o marcador de foco tem que ser refeito.
+  applyFocusMode();
   updatePaneHeader(pane);
   if (pane.id === activePaneId) updateChrome();
   pushRecent(p);
@@ -1225,6 +1249,38 @@ function accentCss(hex) {
   ].join('');
 }
 
+// --- contraste: o piso de 4.5:1 pro texto é regra dura aqui (astigmatismo do
+// dono), então a opacidade do modo foco é MEDIDA no tema ativo, nunca chutada.
+
+function relLuminance([r, g, b]) {
+  const c = [r, g, b].map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function contrastRatio(a, b) {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Menor opacidade que ainda deixa o texto esmaecido em 4.6:1 (uma casa acima do
+// piso) contra o fundo do tema ATIVO. No wired dá 0.62 (4,66:1); no claro, que
+// perde contraste bem mais rápido, dá 0.76 (também 4,66:1). Tema de terceiro entra na
+// mesma conta. Cor que não dá pra ler em hex devolve null e o valor do tema fica.
+function focusDimFor(bgHex, inkHex) {
+  const bg = hexToRgb(bgHex || '');
+  const ink = hexToRgb(inkHex || '');
+  if (!bg || !ink) return null;
+  for (let a = 0.4; a <= 0.95; a += 0.01) {
+    const comp = ink.map((v, i) => bg[i] + (v - bg[i]) * a);
+    if (contrastRatio(bg, comp) >= 4.6) return Math.round(a * 100) / 100;
+  }
+  return 0.95;
+}
+
 function cssFontValue(name) {
   const clean = name.trim().replace(/["';{}]/g, '');
   return clean ? '"' + clean + '",' : '';
@@ -1237,6 +1293,12 @@ function applyCustom() {
   if (config.fontBody) vars += '--font-body:' + cssFontValue(config.fontBody) + 'var(--font-body-default);';
   if (config.fontCode) vars += '--font-code:' + cssFontValue(config.fontCode) + 'var(--font-code-default);';
   if (config.fontSize) vars += '--font-size-body:' + Number(config.fontSize) + 'px;';
+  // A opacidade do modo foco é recalculada a cada troca de tema, pra o texto
+  // esmaecido nunca cair do piso de 4.5:1 em tema nenhum (inclusive nos temas
+  // já semeados em %APPDATA%, que não declaram a variável).
+  const cs = getComputedStyle(document.documentElement);
+  const dim = focusDimFor(cs.getPropertyValue('--bg').trim(), cs.getPropertyValue('--ink').trim());
+  if (dim !== null) vars += '--focus-dim:' + dim + ';';
   customStyle.textContent = vars ? ':root{' + vars + '}' : '';
   applyTerminalTheme();
 }
@@ -2000,6 +2062,165 @@ function toggleFrontmatterPanel(forceOn) {
 }
 
 // ---------------------------------------------------------------------------
+// modo foco e modo typewriter (a identidade de "editor pra escrever")
+//
+// FOCO: os blocos que não são o do caret esmaecem. A opacidade sai do
+// --focus-dim do tema, medida pra o texto esmaecido nunca cair abaixo de 4.5:1
+// (0.62 no wired = 4,66:1; 0.78 no claro = 4,91:1). Vale só no pane ATIVO: os
+// outros seguem normais, senão o app inteiro apagaria.
+//
+// TYPEWRITER: a linha em edição fica no centro vertical do editor. A rolagem é
+// atribuição direta de scrollTop no container do pane, com uma easing curta;
+// scrollIntoView foi descartado porque ele rola TODOS os ancestrais roláveis, e
+// aqui o ancestral é a tira horizontal dos panes (a tela andaria de lado).
+//
+// Os dois só reagem a caret e digitação (selectionchange e o input do Vditor).
+// Nada acontece na roda do mouse nem na barra de rolagem: quem rola na mão fica
+// onde parou até mexer o caret de novo.
+// ---------------------------------------------------------------------------
+
+function paneEditorRoot(pane) {
+  return pane && pane.el ? pane.el.querySelector('.vditor-ir .vditor-reset') : null;
+}
+
+// Sobe do nó do caret até o filho DIRETO do .vditor-reset (o bloco de topo:
+// parágrafo, título, lista inteira, tabela, imagem, cerca de código).
+function topBlockOf(root, node) {
+  let n = node;
+  if (n && n.nodeType === 3) n = n.parentElement;
+  while (n && n.parentElement && n.parentElement !== root) n = n.parentElement;
+  return n && n.parentElement === root ? n : null;
+}
+
+function caretBlock(pane) {
+  const root = paneEditorRoot(pane);
+  if (!root) return null;
+  const sel = window.getSelection ? window.getSelection() : null;
+  if (!sel || sel.rangeCount === 0 || !sel.anchorNode) return null;
+  if (!root.contains(sel.anchorNode)) return null;
+  return topBlockOf(root, sel.anchorNode);
+}
+
+// Container que rola dentro do pane (o Vditor decide onde fica o overflow).
+function scrollContainerOf(el, pane) {
+  let n = el;
+  while (n && n !== pane.el) {
+    const s = getComputedStyle(n);
+    if (/(auto|scroll)/.test(s.overflowY) && n.scrollHeight > n.clientHeight + 1) return n;
+    n = n.parentElement;
+  }
+  return null;
+}
+
+function clearFocusMarks(pane) {
+  const root = paneEditorRoot(pane);
+  if (!root) return;
+  for (const el of Array.from(root.children)) el.classList.remove('focus-current');
+}
+
+function updateFocusMarker() {
+  if (!config.focusMode) return;
+  const pane = activePane();
+  if (!pane) return;
+  const root = paneEditorRoot(pane);
+  if (!root) return;
+  const bloco = caretBlock(pane);
+  // Caret fora do editor (palette, painel de propriedades, terminal): o
+  // marcador anterior fica onde está, senão o documento inteiro apagaria.
+  if (!bloco) return;
+  for (const el of Array.from(root.children)) el.classList.toggle('focus-current', el === bloco);
+}
+
+let twAnim = null;
+
+// Easing curta (120ms) em cima de scrollTop: suave o bastante pra não pular,
+// barata o bastante pra não brigar com quem digita rápido.
+function easeScrollTop(cont, destino) {
+  if (twAnim) cancelAnimationFrame(twAnim);
+  const inicio = cont.scrollTop;
+  const dist = destino - inicio;
+  if (Math.abs(dist) < 1) {
+    cont.scrollTop = destino;
+    twAnim = null;
+    return;
+  }
+  const t0 = performance.now();
+  const passo = (t) => {
+    const k = Math.min(1, (t - t0) / 120);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    cont.scrollTop = inicio + dist * e;
+    twAnim = k < 1 ? requestAnimationFrame(passo) : null;
+  };
+  twAnim = requestAnimationFrame(passo);
+}
+
+function centerCaretLine() {
+  if (!config.typewriterMode) return;
+  const pane = activePane();
+  if (!pane) return;
+  const bloco = caretBlock(pane);
+  if (!bloco) return;
+  const cont = scrollContainerOf(bloco, pane);
+  if (!cont) return;
+  let alvo = null;
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const r = sel.getRangeAt(0).getBoundingClientRect();
+    // Linha vazia devolve rect zerado: aí o bloco serve de referência.
+    if (r && (r.height > 0 || r.top > 0)) alvo = r.top + r.height / 2;
+  }
+  if (alvo === null) {
+    const rb = bloco.getBoundingClientRect();
+    alvo = rb.top + rb.height / 2;
+  }
+  const rc = cont.getBoundingClientRect();
+  const delta = alvo - (rc.top + rc.height / 2);
+  if (Math.abs(delta) < 2) return;
+  const max = Math.max(0, cont.scrollHeight - cont.clientHeight);
+  easeScrollTop(cont, Math.max(0, Math.min(max, cont.scrollTop + delta)));
+}
+
+// Um quadro de espera junta a enxurrada de selectionchange que uma tecla gera.
+let caretTick = null;
+function caretMoved() {
+  if (!config.focusMode && !config.typewriterMode) return;
+  if (caretTick) return;
+  caretTick = requestAnimationFrame(() => {
+    caretTick = null;
+    updateFocusMarker();
+    centerCaretLine();
+  });
+}
+
+document.addEventListener('selectionchange', caretMoved);
+
+function applyFocusMode() {
+  for (const p of panes) {
+    const on = !!config.focusMode && p.id === activePaneId;
+    p.el.classList.toggle('focus-mode', on);
+    if (!on) clearFocusMarks(p);
+  }
+  updateFocusMarker();
+}
+
+function applyTypewriterMode() {
+  for (const p of panes) p.el.classList.toggle('typewriter-mode', !!config.typewriterMode && p.id === activePaneId);
+  centerCaretLine();
+}
+
+function toggleFocusMode(forceOn) {
+  config.focusMode = forceOn === undefined ? !config.focusMode : !!forceOn;
+  saveConfig();
+  applyFocusMode();
+}
+
+function toggleTypewriterMode(forceOn) {
+  config.typewriterMode = forceOn === undefined ? !config.typewriterMode : !!forceOn;
+  saveConfig();
+  applyTypewriterMode();
+}
+
+// ---------------------------------------------------------------------------
 // command palette (Ctrl+Shift+P) e quick switcher (Ctrl+P)
 // ---------------------------------------------------------------------------
 
@@ -2021,6 +2242,9 @@ const PALETTE_ACTIONS = [
   { label: 'salvar como', hint: 'Ctrl+Shift+S', run: () => saveAs() },
   { label: 'buscar na pasta', hint: 'Ctrl+Shift+F', run: () => openSearch() },
   { label: 'propriedades: mostrar/ocultar', run: () => toggleFrontmatterPanel() },
+  // Label como função: o rótulo diz o que o Enter vai fazer agora.
+  { label: () => 'modo foco: ' + (config.focusMode ? 'desligar' : 'ligar'), hint: 'F8', run: () => toggleFocusMode() },
+  { label: () => 'modo typewriter: ' + (config.typewriterMode ? 'desligar' : 'ligar'), hint: 'F9', run: () => toggleTypewriterMode() },
   { label: 'fechar painel atual', run: () => closeActivePane() },
   { label: 'alternar terminal', hint: 'Ctrl+`', run: () => toggleTerminal() },
   { label: 'terminal: ir pra pasta da nota (cd)', run: () => { toggleTerminal(true); setTimeout(cdTerminalToNote, 300); } },
@@ -2079,7 +2303,8 @@ function paletteSource() {
       run: (ctrl) => openPath(f.path, !!ctrl)
     }));
   }
-  return PALETTE_ACTIONS.map((a) => ({ label: a.label, hint: a.hint || '', run: () => a.run() }));
+  // O label pode ser função (ação de liga/desliga que mostra o estado atual).
+  return PALETTE_ACTIONS.map((a) => ({ label: typeof a.label === 'function' ? a.label() : a.label, hint: a.hint || '', run: () => a.run() }));
 }
 
 function renderPalette() {
@@ -2488,6 +2713,16 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     setFontZoom(15);
   }
+  // F8 e F9: modo foco e modo typewriter, os mesmos atalhos do Typora (e
+  // nenhum dos dois estava em uso aqui).
+  if (!e.ctrlKey && !e.altKey && e.key === 'F8') {
+    e.preventDefault();
+    toggleFocusMode();
+  }
+  if (!e.ctrlKey && !e.altKey && e.key === 'F9') {
+    e.preventDefault();
+    toggleTypewriterMode();
+  }
   // Ctrl+` abre e fecha o terminal (em teclado ABNT pode chegar como aspas).
   if (e.ctrlKey && (e.key === '`' || e.key === "'" || e.code === 'Backquote')) {
     e.preventDefault();
@@ -2547,4 +2782,6 @@ firstPane.el.classList.add('active');
   updateSortTooltip();
   updateChrome();
   refreshAllFmPanels();
+  applyFocusMode();
+  applyTypewriterMode();
 })();

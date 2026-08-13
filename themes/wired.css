@@ -7,5 +7,7 @@
   --ink:#bcc2c9; --ink-dim:#9fa6b0; --ink-faint:#9098a3;
   --accent:#4fc7bb; --accent-soft:#83cdc6; --accent-ink:#5bbcb2; --accent-dim:#3a8c85;
   --accent-rgb:79,199,187;
+  /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
+  --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
 }

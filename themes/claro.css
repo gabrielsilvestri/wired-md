@@ -7,5 +7,7 @@
   --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#6a7079;
   --accent:#1f7a72; --accent-soft:#2a6b64; --accent-ink:#22706a; --accent-dim:#5b9c96;
   --accent-rgb:31,122,114;
+  /* fundo claro perde contraste mais rápido: 0.76 dá 4,66:1 no texto esmaecido */
+  --focus-dim:0.76;
   --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
 }
