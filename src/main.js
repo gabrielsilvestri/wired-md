@@ -1594,14 +1594,22 @@ async function runE2eTest() {
         const ink = hex(v['search-hit-ink']);
         const bg2 = hex(v['bg-2']);
         const bg3 = hex(v['bg-3']);
-        return { shBg2: rat(ink, comp(rgb, 0.18, bg2)), shBg3: rat(ink, comp(rgb, 0.18, bg3)), warn: rat(hex(v['warn-ink']), bg2) };
+        return {
+          shBg2: rat(ink, comp(rgb, 0.18, bg2)),
+          shBg3: rat(ink, comp(rgb, 0.18, bg3)),
+          warn: rat(hex(v['warn-ink']), bg2),
+          schema: rat(hex(v['schema-ink']), bg3)
+        };
       };
       return { wired: medir('wired.css'), claro: medir('claro.css') };
     })();
     const naFaixa = (x) => x >= 4.5 && x <= 11;
-    const todosContraste = [contraste.wired.shBg2, contraste.wired.shBg3, contraste.wired.warn, contraste.claro.shBg2, contraste.claro.shBg3, contraste.claro.warn];
+    const todosContraste = [
+      contraste.wired.shBg2, contraste.wired.shBg3, contraste.wired.warn, contraste.wired.schema,
+      contraste.claro.shBg2, contraste.claro.shBg3, contraste.claro.warn, contraste.claro.schema
+    ];
     check(
-      'contraste do destaque de busca e do aviso de schema fica em 4.5:1 a 11:1 nos dois temas',
+      'contraste do destaque de busca, do aviso e do selo de schema fica em 4.5:1 a 11:1 nos dois temas',
       todosContraste.every(naFaixa),
       JSON.stringify(contraste)
     );
