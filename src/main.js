@@ -1614,6 +1614,101 @@ async function runE2eTest() {
       JSON.stringify(contraste)
     );
 
+    // --- breadcrumb do cabeçalho do pane (caminho da nota + botão de pasta) ---
+
+    mainWindow.setSize(1360, 840);
+    await js('setSidebarVisible(true)');
+    await sleep(500);
+    const bcRoot = path.dirname(demoPath); // exemplos
+    const bcDir = path.join(bcRoot, 'bc-e2e');
+    const bcMid = path.join(bcDir, 'mid');
+    const bcDeep = path.join(bcMid, 'deep');
+    const bcNote = path.join(bcDir, 'nota-bc.md');
+    const bcDeepNote = path.join(bcDeep, 'nota-deep.md');
+    fs.mkdirSync(bcDeep, { recursive: true });
+    fs.writeFileSync(bcNote, '# nota bc\n', 'utf8');
+    fs.writeFileSync(bcDeepNote, '# nota deep\n', 'utf8');
+    await sleep(1400);
+    // A árvore reroota pra pasta da nota ATIVA. Abrindo a nota da subpasta e
+    // depois o demo ao lado, a raiz volta pra exemplos e o pane inativo
+    // (nota-bc) passa a mostrar o caminho relativo com dois segmentos.
+    await js(`openPath(${JSON.stringify(bcNote)})`);
+    await sleep(1000);
+    await js(`openPath(${JSON.stringify(demoPath)}, true)`);
+    await sleep(1200);
+
+    // 57. o pane inativo mostra o caminho relativo à raiz (exemplos / bc-e2e),
+    // com os segmentos clicáveis, o tooltip absoluto e o botão de pasta
+    const bc = await js(`(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});if(!p)return null;var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];var fb=p.folderBtn;return {segs:segs.map(function(s){return s.textContent;}),seps:p.crumbEl.querySelectorAll('.crumb-sep').length,tip:p.crumbEl.title,clic:segs.map(function(s){return s.classList.contains('clickable');}),fbOk:!!fb&&!!fb.querySelector('svg')&&(fb.title||'').length>0&&fb.style.display!=='none',root:treeRoot};})()`);
+    check(
+      'breadcrumb: pane mostra o caminho da pasta relativo à raiz (exemplos / bc-e2e), clicável, com botão de pasta',
+      !!bc && bc.segs.join('/') === 'exemplos/bc-e2e' && bc.seps === 1 && bc.tip === bcDir && bc.clic.every(Boolean) && bc.fbOk && bc.root === bcRoot,
+      JSON.stringify(bc)
+    );
+
+    // 58. clicar num segmento revela a pasta na árvore (expande e mostra a
+    // linha), sem trocar a raiz nem o arquivo ativo
+    await js(`(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});var segs=[...p.crumbEl.querySelectorAll('.crumb-seg.clickable')];segs[segs.length-1].click();})()`);
+    await sleep(500);
+    const rev = await js(`(function(){var row=null,rows=document.querySelectorAll('#file-tree .tree-row.folder');for(var i=0;i<rows.length;i++){if(rows[i].title===${JSON.stringify(bcDir)}){row=rows[i];break;}}return {expandido:[...expandedDirs].indexOf(${JSON.stringify(bcDir)})!==-1,rowExiste:!!row,sidebar:!document.getElementById('sidebar').classList.contains('hidden'),root:treeRoot,ativo:currentPath};})()`);
+    check(
+      'breadcrumb: clique no segmento revela a pasta na árvore (expande e mostra a linha), sem trocar a raiz',
+      !!rev && rev.expandido && rev.rowExiste && rev.sidebar && rev.root === bcRoot && rev.ativo === demoPath,
+      JSON.stringify(rev)
+    );
+
+    // 59. o botão de pasta dispara o fs:showInFolder na pasta da nota (observado
+    // por lastNoteFolderReveal, sem espionar o objeto do contextBridge)
+    const fbAlvo = await js(`(function(){var p=activePane();return p?dirName(p.path):null;})()`);
+    // suppressExplorer evita abrir o Explorer de verdade (janela solta cobriria
+    // o app e derrubaria as medidas de layout dos checks seguintes).
+    await js(`(function(){suppressExplorer=true;lastNoteFolderReveal=null;activePane().folderBtn.click();})()`);
+    await sleep(200);
+    const fbFired = await js('lastNoteFolderReveal');
+    await js('suppressExplorer=false');
+    check(
+      'breadcrumb: botão de pasta dispara fs:showInFolder na pasta da nota',
+      !!fbFired && fbFired === fbAlvo && fbAlvo === bcRoot,
+      JSON.stringify({ fbFired, fbAlvo })
+    );
+
+    // 60. caminho profundo colapsa o meio (raiz / … / pasta da nota). O pane com
+    // a nota funda fica inativo, com a raiz em exemplos, pra o caminho ter os
+    // quatro segmentos que colapsam pra três.
+    await js(`(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});if(p){setPaneDirty(p,false);closePane(p);}})()`);
+    await sleep(400);
+    await js(`openPath(${JSON.stringify(bcDeepNote)}, true)`);
+    await sleep(1000);
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(1000);
+    const deep = await js(`(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcDeepNote)};});if(!p)return null;if(p.el.classList.contains('collapsed'))return {colapsado:true};var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];var mid=segs[1];return {segs:segs.map(function(s){return s.textContent;}),seps:p.crumbEl.querySelectorAll('.crumb-sep').length,midTitle:mid?mid.title:null,root:treeRoot};})()`);
+    check(
+      'breadcrumb: caminho profundo colapsa o meio (exemplos / … / deep) com o tooltip listando o que sumiu',
+      !!deep && !deep.colapsado && deep.segs.join('/') === 'exemplos/…/deep' && deep.seps === 2 && deep.midTitle === 'bc-e2e / mid' && deep.root === bcRoot,
+      JSON.stringify(deep)
+    );
+
+    // 61. o cabeçalho não estoura na horizontal em janela estreita: todo
+    // pane-header aberto tem scrollWidth == clientWidth, e nada rola o body
+    await js('setSidebarVisible(false)');
+    mainWindow.setSize(460, 840);
+    await sleep(700);
+    const ov = await js(`(function(){var hs=[...document.querySelectorAll('#panes .pane:not(.collapsed) .pane-header')];var bad=hs.filter(function(h){return h.scrollWidth>h.clientWidth+1;}).map(function(h){return h.scrollWidth+'/'+h.clientWidth;});var tb=document.getElementById('titlebar');return {n:hs.length,bad:bad,tbOver:tb.scrollWidth>tb.clientWidth+1,bodyOver:document.documentElement.scrollWidth>window.innerWidth};})()`);
+    check(
+      'breadcrumb: cabeçalho não estoura na horizontal em janela estreita (scrollWidth == clientWidth)',
+      !!ov && ov.n >= 1 && ov.bad.length === 0 && !ov.tbOver && !ov.bodyOver,
+      JSON.stringify(ov)
+    );
+    // limpa os artefatos do breadcrumb e volta pro demo num pane só
+    mainWindow.setSize(1360, 840);
+    await js('setSidebarVisible(true)');
+    await js(`(function(){['bc-e2e','nota-bc','nota-deep'].forEach(function(k){var p=panes.find(function(x){return x.path&&x.path.indexOf(k)!==-1;});if(p){setPaneDirty(p,false);closePane(p);}});config.recentFiles=config.recentFiles.filter(function(r){return r.indexOf('nota-bc')===-1&&r.indexOf('nota-deep')===-1;});saveConfig();renderRecents();})()`);
+    await sleep(500);
+    await js(`openPath(${JSON.stringify(demoPath)})`);
+    await sleep(600);
+    fs.rmSync(bcDir, { recursive: true, force: true });
+    await sleep(800);
+
     // 21. screenshot final: janela larga, sidebar visível e três panes (a
     // régua com a sidebar de 320px deixa dois abertos e um em lombada)
     await js('toggleTerminal(false)');

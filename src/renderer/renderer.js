@@ -93,6 +93,8 @@ const ICON_FOLDER = ['M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.
 const ICON_FILE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z', 'M15 2v5h5'];
 const ICON_X = ['M18 6 6 18', 'm6 6 12 12'];
 const ICON_SPARKLES = ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'];
+// folder-open do lucide: o botão "abrir a pasta da nota no Explorer" no cabeçalho do pane.
+const ICON_FOLDER_OPEN = ['m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2'];
 
 // Math inline ($...$) é ruído puro num editor de markdown pra IA: "R$ 300" e
 // "de R$ 297 a R$ 397" viram fórmula e a frase inteira quebra. O Lute (parser
@@ -201,6 +203,140 @@ function updatePaneHeader(pane) {
   pane.spineTitleEl.textContent = paneTitleText(pane);
   pane.spineTitleEl.title = pane.path || '';
   pane.spineDotEl.classList.toggle('on', pane.dirty);
+  updatePaneBreadcrumb(pane);
+}
+
+// --- breadcrumb do cabeçalho do pane ---
+// Mostra a PASTA da nota relativa à raiz da árvore aberta (treeRoot), não o
+// caminho absoluto (poluição e vazamento de estrutura). Nota na raiz mostra só
+// o nome da raiz. Nota fora da raiz (ou sem pasta aberta) degrada pro nome da
+// pasta-mãe imediata. O tooltip guarda o caminho absoluto pra quem passa o mouse.
+
+function sepOf(p) {
+  return p.indexOf('\\') !== -1 ? '\\' : '/';
+}
+
+// Comparação de prefixo de caminho tolerante a caixa (Windows não diferencia).
+function isWithin(child, parent) {
+  const c = child.toLowerCase();
+  const p = parent.toLowerCase();
+  return c === p || c.startsWith(p + sepOf(parent));
+}
+
+function paneCrumbSegments(notePath) {
+  if (!notePath) return [];
+  const folder = dirName(notePath);
+  const root = treeRoot;
+  if (!root || !isWithin(folder, root)) {
+    // Fora da raiz (ou nenhuma pasta aberta): só a pasta-mãe imediata, sem clique.
+    return [{ name: baseName(folder), path: folder, clickable: false }];
+  }
+  const segs = [{ name: baseName(root), path: root, clickable: true }];
+  const rest = folder.slice(root.length).replace(/^[\\/]+/, '');
+  if (rest) {
+    const sep = sepOf(root);
+    let acc = root;
+    for (const part of rest.split(/[\\/]+/)) {
+      acc = acc + sep + part;
+      segs.push({ name: part, path: acc, clickable: true });
+    }
+  }
+  return segs;
+}
+
+function updatePaneBreadcrumb(pane) {
+  const el = pane.crumbEl;
+  if (!el) return;
+  el.innerHTML = '';
+  pane.folderBtn.style.display = pane.path ? '' : 'none';
+  if (!pane.path) {
+    el.title = '';
+    return;
+  }
+  const segs = paneCrumbSegments(pane.path);
+  el.title = dirName(pane.path); // tooltip com o caminho absoluto completo
+  // Caminho muito profundo colapsa o meio: raiz / ... / pasta da nota.
+  let display = segs;
+  if (segs.length > 3) {
+    const escondidos = segs.slice(1, segs.length - 1).map((s) => s.name).join(' / ');
+    display = [segs[0], { name: '…', clickable: false, title: escondidos }, segs[segs.length - 1]];
+  }
+  display.forEach((s, i) => {
+    if (i > 0) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '/';
+      el.appendChild(sep);
+    }
+    const seg = document.createElement('span');
+    seg.className = 'crumb-seg' + (s.clickable ? ' clickable' : '');
+    seg.textContent = s.name;
+    if (s.title) seg.title = s.title;
+    if (s.clickable) {
+      seg.addEventListener('click', (e) => {
+        e.stopPropagation();
+        revealCrumb(pane, s.path);
+      });
+    }
+    el.appendChild(seg);
+  });
+}
+
+function updateAllBreadcrumbs() {
+  for (const p of panes) updatePaneBreadcrumb(p);
+}
+
+// Abre a pasta da nota no Explorer (reusa o IPC fs:showInFolder da fase 6a, que
+// faz shell.openPath quando o alvo é diretório). lastNoteFolderReveal fica como
+// observável pro E2E sem depender de espionar o objeto do contextBridge.
+let lastNoteFolderReveal = null;
+let suppressExplorer = false; // o E2E liga isto pra não abrir o Explorer de verdade
+function openNoteFolder(pane) {
+  if (!pane || !pane.path) return;
+  lastNoteFolderReveal = dirName(pane.path);
+  if (!suppressExplorer) window.wired.showInFolder(lastNoteFolderReveal);
+}
+
+// Clique num segmento revela aquela pasta na árvore da sidebar SEM trocar a raiz
+// (segmento clicável é sempre um descendente de treeRoot, então já está na
+// árvore atual): mostra a sidebar se estiver oculta, expande até a pasta e
+// rola/pisca a linha dela.
+function revealCrumb(pane, dirPath) {
+  if (sidebar.classList.contains('hidden')) setSidebarVisible(true);
+  revealDirInTree(dirPath);
+}
+
+function revealDirInTree(dirPath) {
+  if (!treeRoot) return;
+  // Expande todos os ancestrais dentro da raiz até o alvo (inclusive), pra a
+  // linha da pasta existir e estar visível na árvore renderizada.
+  if (dirPath !== treeRoot && isWithin(dirPath, treeRoot)) {
+    let cur = dirPath;
+    while (cur && cur.length > treeRoot.length) {
+      expandedDirs.add(cur);
+      const parent = dirName(cur);
+      if (parent === cur) break;
+      cur = parent;
+    }
+  }
+  renderTree();
+  let target = null;
+  if (dirPath === treeRoot) {
+    fileTreeEl.scrollTop = 0;
+  } else {
+    for (const r of fileTreeEl.querySelectorAll('.tree-row.folder')) {
+      if (r.title === dirPath) {
+        target = r;
+        break;
+      }
+    }
+    if (target) target.scrollIntoView({ block: 'nearest' });
+  }
+  const flashEl = target || fileTreeEl.querySelector('.tree-row');
+  if (flashEl) {
+    flashEl.classList.add('reveal-flash');
+    setTimeout(() => flashEl.classList.remove('reveal-flash'), 1000);
+  }
 }
 
 function createPane() {
@@ -213,6 +349,16 @@ function createPane() {
   header.className = 'pane-header';
   const titleEl = document.createElement('span');
   titleEl.className = 'pane-title';
+  // Breadcrumb: caminho da pasta da nota relativo à raiz da árvore aberta,
+  // preenchendo o vão do meio do cabeçalho. Cada segmento revela a pasta na
+  // árvore da sidebar; o botão ao lado abre a pasta no Explorer.
+  const crumbEl = document.createElement('span');
+  crumbEl.className = 'pane-crumbs';
+  const folderBtn = document.createElement('button');
+  folderBtn.className = 'pane-folder';
+  folderBtn.title = 'Abrir a pasta da nota no Explorer';
+  folderBtn.setAttribute('aria-label', 'Abrir a pasta da nota no Explorer');
+  folderBtn.appendChild(svgIcon(13, ICON_FOLDER_OPEN));
   // Ponte claude por nota: o sparkles no cabeçalho age nesta nota.
   const claudeBtn = document.createElement('button');
   claudeBtn.className = 'pane-claude';
@@ -225,6 +371,8 @@ function createPane() {
   closeBtn.setAttribute('aria-label', 'Fechar painel');
   closeBtn.appendChild(svgIcon(12, ICON_X));
   header.appendChild(titleEl);
+  header.appendChild(crumbEl);
+  header.appendChild(folderBtn);
   header.appendChild(claudeBtn);
   header.appendChild(closeBtn);
 
@@ -260,11 +408,15 @@ function createPane() {
   el.appendChild(edEl);
   panesEl.appendChild(el);
 
-  const pane = { id, el, titleEl, spineTitleEl, spineDotEl, fmEl, fmTimer: null, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
+  const pane = { id, el, titleEl, crumbEl, folderBtn, spineTitleEl, spineDotEl, fmEl, fmTimer: null, path: null, dirty: false, vditor: null, ready: false, pendingPath: null };
   pane.vditor = new Vditor(edEl.id, vditorOptions(pane));
 
   el.addEventListener('mousedown', () => setActivePane(pane));
   spine.addEventListener('click', () => setActivePane(pane));
+  folderBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openNoteFolder(pane);
+  });
   claudeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     sendPaneToClaude(pane);
@@ -493,6 +645,7 @@ async function refreshSidebar() {
     sidebarRootName.textContent = 'sem pasta';
     sidebarRootName.title = '';
     renderTree();
+    updateAllBreadcrumbs();
     return;
   }
   const dir = dirName(cur);
@@ -511,6 +664,8 @@ async function refreshSidebar() {
   treeFiles = flattenTree(tree, []);
   lastTree = res.ok ? tree : null;
   renderTree();
+  // O caminho relativo de cada pane depende de treeRoot, que acabou de mudar.
+  updateAllBreadcrumbs();
 }
 
 window.wired.onDirChanged(() => {
