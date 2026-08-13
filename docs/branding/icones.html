@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ícones do editor: escolha</title>
+<style>
+  :root { --bg: #101216; --ink: #bcc2c9; --dim: #7a828c; --accent: #4fc7bb; --border: rgba(188,194,201,0.12); }
+  * { margin: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: Geist, Inter, system-ui, sans-serif; padding: 40px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  p.sub { color: var(--dim); font-size: 13px; margin-bottom: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+  .card { border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; }
+  .card img { width: 160px; height: 160px; border-radius: 22px; display: block; margin: 0 auto 14px; }
+  .card .mini { display: flex; justify-content: center; gap: 10px; align-items: center; margin-bottom: 12px; }
+  .card .mini img { width: 32px; height: 32px; border-radius: 6px; margin: 0; }
+  .card .mini img.s16 { width: 16px; height: 16px; border-radius: 3px; }
+  .nome { font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.02em; }
+  .desc { font-size: 12px; color: var(--dim); margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1>Ícones de app: contact sheet</h1>
+<p class="sub">Duas levas, uma por finalista de nome (Runa e Navi). Cada card mostra o ícone em 160px, 32px e 16px.</p>
+<div class="grid">
+  <div class="card">
+    <img src="icones/runa-glifo-angular.png" alt="runa glifo angular">
+    <div class="mini"><img src="icones/runa-glifo-angular.png" alt=""><img class="s16" src="icones/runa-glifo-angular.png" alt=""></div>
+    <div class="nome">runa-glifo-angular</div>
+    <div class="desc">glifo rúnico de 3 traços</div>
+  </div>
+  <div class="card">
+    <img src="icones/runa-pedra.png" alt="runa pedra">
+    <div class="mini"><img src="icones/runa-pedra.png" alt=""><img class="s16" src="icones/runa-pedra.png" alt=""></div>
+    <div class="nome">runa-pedra</div>
+    <div class="desc">pedra rúnica com marca gravada</div>
+  </div>
+  <div class="card">
+    <img src="icones/runa-bindrune.png" alt="runa bindrune">
+    <div class="mini"><img src="icones/runa-bindrune.png" alt=""><img class="s16" src="icones/runa-bindrune.png" alt=""></div>
+    <div class="nome">runa-bindrune</div>
+    <div class="desc">bind rune, haste com braços simétricos</div>
+  </div>
+  <div class="card">
+    <img src="icones/navi-crt.png" alt="navi crt">
+    <div class="mini"><img src="icones/navi-crt.png" alt=""><img class="s16" src="icones/navi-crt.png" alt=""></div>
+    <div class="nome">navi-crt</div>
+    <div class="desc">monitor CRT com ponto teal aceso</div>
+  </div>
+  <div class="card">
+    <img src="icones/navi-rede.png" alt="navi rede">
+    <div class="mini"><img src="icones/navi-rede.png" alt=""><img class="s16" src="icones/navi-rede.png" alt=""></div>
+    <div class="nome">navi-rede</div>
+    <div class="desc">nó de rede com linhas radiais</div>
+  </div>
+  <div class="card">
+    <img src="icones/navi-cursor.png" alt="navi cursor">
+    <div class="mini"><img src="icones/navi-cursor.png" alt=""><img class="s16" src="icones/navi-cursor.png" alt=""></div>
+    <div class="nome">navi-cursor</div>
+    <div class="desc">chevron de prompt com underscore</div>
+  </div>
+</div>
+</body>
+</html>

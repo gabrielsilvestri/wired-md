@@ -85,3 +85,20 @@ Filtro aplicado: o usuário do wired-md escreve CLAUDE.md, SKILL.md, prompts e n
 5. Ponte editor-claude por cima do terminal existente (comando que manda o arquivo ou a seleção pro claude e traz a resposta): o sucesso do Claudian no Obsidian mostra que é a demanda que mais cresce, e o wired-md já tem a infraestrutura pela metade.
 
 Antifeatures assumidas de propósito: sem sistema de plugins, sem banco de dados próprio, sem sync na nuvem, sem grafo. O que o mercado pune (lentidão, complexidade, lock-in) é o que o wired-md ganha por não ter.
+
+## Ideias do biel
+
+onboarding onde a pessoa customiza qual IA ela vai chamar no cli
+
+ter um próprio CLI + combo de skills da propria ferramenta
+
+mais opções de customização nativas além do accent
+
+loja de temas com várias opções
+
+banner buy my a coffee com meu link buymeacoffee.com/gabrielsilvestri
+
+landing page (em inglês) bem estilo apps apple store, com um titulo que tem aqueles flavor text do titulo do minecraft que fica trocando a cada refresh, várias opções de instalação, via terminal, download instalador, etc 
+
+github do projeto bem organizado desde o inicio, nivel foda de produtos open source famosos pra se alguem quiser contribuir, dar fork, etc. codigo vai ter que ser refatorado e padronizado em inglês
+

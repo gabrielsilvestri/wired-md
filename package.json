@@ -4,9 +4,28 @@
   "description": "Editor de markdown desktop estilo Typora, feito para quem escreve markdown para IA",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "test": "WIRED_E2E=1 npx electron . exemplos/demo.md"
   },
+  "keywords": [
+    "markdown",
+    "editor",
+    "electron",
+    "typora",
+    "ai",
+    "claude",
+    "wysiwyg"
+  ],
+  "author": "Gabriel Silvestri",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gabrielsilvestri/wired-md.git"
+  },
+  "homepage": "https://github.com/gabrielsilvestri/wired-md#readme",
+  "bugs": {
+    "url": "https://github.com/gabrielsilvestri/wired-md/issues"
+  },
   "devDependencies": {
     "electron": "^37.2.0"
   },

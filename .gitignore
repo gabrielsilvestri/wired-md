@@ -1,3 +1,28 @@
+# dependencies and build output
 node_modules/
 dist/
 out/
+build/
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local app state (also lives in %APPDATA%, never in the repo)
+config.json
+window-state.json
+
+# OS cruft
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# editor
+.vscode/
+
+# personal Windows launcher with a hardcoded absolute path (do not version).
+# the portable, path-free version lives in scripts/windows/
+launcher/
