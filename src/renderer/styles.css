@@ -476,10 +476,12 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .crumb-seg.clickable:hover { color: var(--ink); text-decoration: underline; }
 
 /* separador discreto: divisória, não texto de leitura */
+/* separador entre os nomes: teal legível, não decorativo abaixo do piso.
+   --accent-soft sobre o --bg-2 do cabeçalho: 9,27:1 no wired e 4,97:1 no claro,
+   dentro da faixa 4.5:1 a 11:1 (o --accent-dim com opacidade furava o piso). */
 .crumb-sep {
   flex: 0 0 auto;
-  color: var(--accent-dim);
-  opacity: 0.85;
+  color: var(--accent-soft);
 }
 
 .pane-folder,
