@@ -82,6 +82,68 @@ function fmSet(raw, key, kind, value) {
   }
 }
 
+// The map of the block, or null when the frontmatter is not a map of keys.
+// Every editing function below works on the Document, never on the plain object,
+// so what was not touched comes back byte for byte.
+function fmMap(doc) {
+  const map = doc.contents;
+  if (!map || !Array.isArray(map.items)) return null;
+  return map;
+}
+
+function fmHasKey(map, key) {
+  return map.items.some((p) => p.key && String(p.key.value) === String(key));
+}
+
+// Renames a key IN PLACE: the Pair keeps its position in the list, its value
+// node and the comments attached to it, so order, comments and unknown keys
+// survive. Only the key text changes.
+function fmRename(raw, oldKey, newKey) {
+  try {
+    const from = String(oldKey == null ? '' : oldKey);
+    const to = String(newKey == null ? '' : newKey).trim();
+    if (to === '') return { ok: false, error: 'the key cannot be empty' };
+    const doc = YAML.parseDocument(String(raw == null ? '' : raw));
+    if (doc.errors && doc.errors.length > 0) return { ok: false, error: String(doc.errors[0].message) };
+    const map = fmMap(doc);
+    if (!map) return { ok: false, error: 'the frontmatter is not a map of keys' };
+    if (to === from) return { ok: true, raw: doc.toString().replace(/\n+$/, '') };
+    if (fmHasKey(map, to)) return { ok: false, error: 'the key "' + to + '" is already there' };
+    const pair = map.items.find((p) => p.key && String(p.key.value) === from);
+    if (!pair) return { ok: false, error: 'the key "' + from + '" is not in the block' };
+    pair.key.value = to;
+    // The parsed Scalar carries the original text in `source`; leaving it there
+    // would re-emit the OLD key and silently swallow the rename.
+    delete pair.key.source;
+    delete pair.key.type;
+    return { ok: true, raw: doc.toString().replace(/\n+$/, '') };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+}
+
+// Appends a key with the empty value of its kind. Appending never reorders what
+// is already there, so the existing keys, their comments and their formatting
+// come back untouched.
+const FM_EMPTY = { string: '', text: '', number: 0, list: [], bool: false, boolean: false };
+
+function fmAdd(raw, key, kind) {
+  try {
+    const k = String(key == null ? '' : key).trim();
+    if (k === '') return { ok: false, error: 'the key cannot be empty' };
+    if (/[\r\n]/.test(k)) return { ok: false, error: 'the key cannot span lines' };
+    const doc = YAML.parseDocument(String(raw == null ? '' : raw));
+    if (doc.errors && doc.errors.length > 0) return { ok: false, error: String(doc.errors[0].message) };
+    const map = fmMap(doc);
+    if (map && fmHasKey(map, k)) return { ok: false, error: 'the key "' + k + '" is already there' };
+    const empty = Object.prototype.hasOwnProperty.call(FM_EMPTY, String(kind)) ? FM_EMPTY[String(kind)] : '';
+    doc.set(k, Array.isArray(empty) ? [] : empty);
+    return { ok: true, raw: doc.toString().replace(/\n+$/, '') };
+  } catch (err) {
+    return { ok: false, error: String(err.message || err) };
+  }
+}
+
 contextBridge.exposeInMainWorld('wired', {
   openDialog: () => ipcRenderer.invoke('dialog:open'),
   saveAsDialog: (suggested) => ipcRenderer.invoke('dialog:saveAs', suggested),
@@ -122,10 +184,14 @@ contextBridge.exposeInMainWorld('wired', {
   openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
   importTheme: () => ipcRenderer.invoke('themes:import'),
 
-  // templates (new file from a template)
+  // templates (new file from a template, and managing the template files)
   listTemplates: () => ipcRenderer.invoke('templates:list'),
   readTemplate: (file) => ipcRenderer.invoke('templates:read', file),
   openTemplatesFolder: () => ipcRenderer.invoke('templates:openFolder'),
+  templatePath: (file) => ipcRenderer.invoke('templates:path', file),
+  createTemplate: (file, content) => ipcRenderer.invoke('templates:create', file, content),
+  renameTemplate: (from, to) => ipcRenderer.invoke('templates:rename', from, to),
+  trashTemplate: (file) => ipcRenderer.invoke('templates:trash', file),
 
   // terminal
   termStart: (cwd, cols, rows) => ipcRenderer.invoke('term:start', cwd, cols, rows),
@@ -138,5 +204,7 @@ contextBridge.exposeInMainWorld('wired', {
 
   // frontmatter (the properties panel)
   fmParse: (raw) => fmParse(raw),
-  fmSet: (raw, key, kind, value) => fmSet(raw, key, kind, value)
+  fmSet: (raw, key, kind, value) => fmSet(raw, key, kind, value),
+  fmRename: (raw, oldKey, newKey) => fmRename(raw, oldKey, newKey),
+  fmAdd: (raw, key, kind) => fmAdd(raw, key, kind)
 });

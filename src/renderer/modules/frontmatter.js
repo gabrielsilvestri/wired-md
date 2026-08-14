@@ -14,6 +14,10 @@
 import { config, saveConfig, registerConfigDefaults, panes, baseName, dirName } from './state.js';
 import { svgIcon, ICON_ALERT } from './icons.js';
 import { setPaneDirty } from './panes.js';
+// Table editing is a pane level editor feature like this panel, and this is
+// where the module graph reaches it: panes.js pulls the properties panel in, and
+// the properties panel pulls the tables in. Nothing else imports tables.js.
+import './tables.js';
 
 registerConfigDefaults({ frontmatterPanel: true });
 
@@ -86,6 +90,37 @@ export function fmValidate(schema, entries) {
 
 const FM_SCHEMA_LABEL = { skill: 'skill', subagent: 'subagent', generic: 'generic' };
 
+// The keys each schema actually reads. They are offered first in the add row, so
+// the common case is picking a real key instead of typing one and finding out
+// later that the agent ignored it.
+const FM_SCHEMA_KEYS = {
+  skill: ['name', 'description', 'license', 'allowed-tools', 'metadata'],
+  subagent: ['name', 'description', 'tools', 'model', 'color'],
+  generic: []
+};
+
+const FM_GENERIC_KEYS = ['title', 'tags', 'date', 'author', 'status'];
+
+// Suggestions for the add row: the schema keys still missing come first, then
+// the generic ones. A key that is already in the block is never suggested.
+export function fmSuggestions(schema, keys) {
+  const have = keys.slice();
+  const out = [];
+  for (const k of (FM_SCHEMA_KEYS[schema] || []).concat(FM_GENERIC_KEYS)) {
+    if (have.indexOf(k) === -1 && out.indexOf(k) === -1) out.push(k);
+  }
+  return out;
+}
+
+const FM_KINDS = [
+  ['string', 'text'],
+  ['number', 'number'],
+  ['list', 'list'],
+  ['bool', 'boolean']
+];
+
+const ICON_PLUS = ['M12 5v14', 'M5 12h14'];
+
 function fmWarnRow(msg) {
   const row = document.createElement('div');
   row.className = 'fm-warn';
@@ -110,30 +145,55 @@ function fmControlValue(input, kind) {
   return input.value;
 }
 
-// Rewrites the key in the block in the document. The whole block is re-emitted
-// by the yaml serializer, but order, comments, unknown keys and nested maps come
-// from the original Document: only the value that was touched changes.
-function fmCommit(pane, key, kind, input) {
-  if (!pane.vditor || !pane.ready) return;
+// The single write path of the panel. It reads the block out of the document,
+// hands the raw YAML to `edit` (one of the fm* functions in the preload, which
+// are the only place the yaml Document lives), and writes the result back.
+//
+// The whole block is re-emitted by the yaml serializer, but order, comments,
+// unknown keys and nested maps come from the original Document: only what was
+// touched changes.
+//
+// `redraw` says whether the rows have to be rebuilt. Editing a value must NOT
+// redraw (the focus would jump out from under the fingers of whoever is typing);
+// renaming a key or adding one changes the shape of the panel, so it must.
+function fmEdit(pane, edit, redraw) {
+  if (!pane.vditor || !pane.ready) return false;
   const text = pane.vditor.getValue();
   const split = splitFrontmatter(text);
-  if (!split) return;
-  const res = window.wired.fmSet(split.raw, key, kind, fmControlValue(input, kind));
-  if (!res.ok) {
-    renderFmWarnings(pane, ['could not write to the frontmatter: ' + res.error]);
-    return;
+  if (!split) return false;
+  const res = edit(split.raw);
+  if (!res || !res.ok) {
+    renderFmWarnings(pane, ['could not write to the frontmatter: ' + ((res && res.error) || 'unknown error')]);
+    return false;
   }
   const updated = '---\n' + res.raw + '\n---\n' + split.body;
-  if (updated === text) return;
-  pane.fmQuiet = true; // this very edit must not rebuild the panel
+  if (updated === text) return true;
+  pane.fmQuiet = true; // this very edit must not rebuild the panel from the document
   pane.vditor.setValue(updated);
   setPaneDirty(pane, true);
-  // Revalidates without redrawing the rows (focus stays where the person types).
-  const parsed = window.wired.fmParse(res.raw);
-  if (parsed.ok) renderFmWarnings(pane, fmValidate(fmSchema(pane.path, parsed.entries.map((e) => e.key)), parsed.entries));
+  if (redraw) {
+    refreshFmPanel(pane);
+  } else {
+    // Revalidates without redrawing the rows (focus stays where the person types).
+    const parsed = window.wired.fmParse(res.raw);
+    if (parsed.ok) renderFmWarnings(pane, fmValidate(fmSchema(pane.path, parsed.entries.map((e) => e.key)), parsed.entries));
+  }
   setTimeout(() => {
     pane.fmQuiet = false;
   }, 500);
+  return true;
+}
+
+function fmCommit(pane, key, kind, input) {
+  fmEdit(pane, (raw) => window.wired.fmSet(raw, key, kind, fmControlValue(input, kind)), false);
+}
+
+function fmCommitRename(pane, oldKey, newKey) {
+  return fmEdit(pane, (raw) => window.wired.fmRename(raw, oldKey, newKey), true);
+}
+
+function fmCommitAdd(pane, key, kind) {
+  return fmEdit(pane, (raw) => window.wired.fmAdd(raw, key, kind), true);
 }
 
 function renderFmWarnings(pane, warnings) {
@@ -143,13 +203,56 @@ function renderFmWarnings(pane, warnings) {
   for (const a of warnings) box.appendChild(fmWarnRow(a));
 }
 
+// Renaming a key in place: the label becomes a text field, and Enter (or moving
+// the focus away) commits. Esc puts the label back and writes nothing. The label
+// itself stays a label the rest of the time, so reading the panel never looks
+// like a form.
+function beginRename(pane, label, key) {
+  if (label.dataset.editing === '1') return;
+  label.dataset.editing = '1';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'fm-key-input';
+  inp.spellcheck = false;
+  inp.value = key;
+  inp.dataset.key = key;
+  inp.title = 'Rename the key (Enter commits, Esc cancels)';
+  let settled = false;
+  const finish = (commit) => {
+    if (settled) return;
+    settled = true;
+    const next = inp.value.trim();
+    label.dataset.editing = '';
+    if (inp.parentElement) inp.replaceWith(label);
+    if (commit && next && next !== key) fmCommitRename(pane, key, next);
+  };
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      finish(false);
+    }
+    e.stopPropagation();
+  });
+  inp.addEventListener('blur', () => finish(true));
+  label.replaceWith(inp);
+  inp.focus();
+  inp.select();
+}
+
 function fmRow(pane, entry) {
   const row = document.createElement('div');
   row.className = 'fm-row';
   const label = document.createElement('label');
   label.className = 'fm-key';
   label.textContent = entry.key;
-  label.title = entry.key;
+  label.title = entry.key + ' (click to rename)';
+  label.addEventListener('click', (e) => {
+    e.preventDefault();
+    beginRename(pane, label, entry.key);
+  });
   row.appendChild(label);
 
   if (entry.kind === 'other') {
@@ -193,6 +296,72 @@ function fmRow(pane, entry) {
     e.stopPropagation();
   });
   row.appendChild(inp);
+  return row;
+}
+
+// The row at the bottom that adds a key: a name (with the schema suggestions),
+// the kind of the value, and one icon button. The key is created with the empty
+// value of its kind, so the row that appears right above is immediately
+// editable. This row is never a .fm-row: the rows are the keys of the file.
+function fmAddRow(pane, schema, entries) {
+  const row = document.createElement('div');
+  row.className = 'fm-add-row';
+
+  const key = document.createElement('input');
+  key.type = 'text';
+  key.className = 'fm-add-key';
+  key.spellcheck = false;
+  key.placeholder = 'add a key...';
+  const listId = 'fm-add-list-' + pane.id;
+  key.setAttribute('list', listId);
+
+  const list = document.createElement('datalist');
+  list.id = listId;
+  for (const s of fmSuggestions(schema, entries.map((e) => e.key))) {
+    const opt = document.createElement('option');
+    opt.value = s;
+    list.appendChild(opt);
+  }
+
+  const kind = document.createElement('select');
+  kind.className = 'fm-add-kind';
+  kind.title = 'Type of the new key';
+  kind.setAttribute('aria-label', 'Type of the new key');
+  for (const [value, label] of FM_KINDS) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    kind.appendChild(opt);
+  }
+
+  const btn = document.createElement('button');
+  btn.className = 'fm-add-btn';
+  btn.title = 'Add the key';
+  btn.setAttribute('aria-label', 'Add the key');
+  btn.appendChild(svgIcon(13, ICON_PLUS));
+
+  const submit = () => {
+    const name = key.value.trim();
+    if (!name) return;
+    // On success the panel is rebuilt, which is what clears this row.
+    fmCommitAdd(pane, name, kind.value);
+  };
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    submit();
+  });
+  key.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    }
+    e.stopPropagation();
+  });
+
+  row.appendChild(key);
+  row.appendChild(list);
+  row.appendChild(kind);
+  row.appendChild(btn);
   return row;
 }
 
@@ -250,6 +419,7 @@ export function refreshFmPanel(pane) {
     rows.appendChild(empty);
   }
   for (const e of entries) rows.appendChild(fmRow(pane, e));
+  rows.appendChild(fmAddRow(pane, schema, entries));
   renderFmWarnings(pane, fmValidate(schema, entries));
 }
 
