@@ -36,7 +36,15 @@ async function run(ctx) {
   const { js, key, sleep, check, fs, path, win, forget, openPath, demoPath, rootDir } = ctx;
 
   const fixture = path.join(rootDir, 'tables-v1.md');
-  const original = fs.readFileSync(fixture, 'utf8');
+  // The repo runs with core.autocrlf, so a fresh checkout hands this file over
+  // with CRLF while the editor writes LF. Normalizing the working copy first is
+  // what keeps the byte comparisons below about the table and not about git.
+  let original = fs.readFileSync(fixture, 'utf8');
+  const asLf = original.split('\r\n').join('\n');
+  if (asLf !== original) {
+    fs.writeFileSync(fixture, asLf, 'utf8');
+    original = asLf;
+  }
 
   // The panel toggles and persists, so a run has to start from a known state.
   await js('toggleFrontmatterPanel(true)');

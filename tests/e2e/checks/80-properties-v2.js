@@ -9,7 +9,8 @@ async function run(ctx) {
   await js('toggleFrontmatterPanel(true)');
   await sleep(300);
 
-  const source = fs.readFileSync(path.join(rootDir, 'tables-v1.md'), 'utf8');
+  // core.autocrlf may hand the fixture over with CRLF; the editor writes LF.
+  const source = fs.readFileSync(path.join(rootDir, 'tables-v1.md'), 'utf8').split('\r\n').join('\n');
   const work = path.join(rootDir, 'props-v2-e2e.md');
   fs.writeFileSync(work, source, 'utf8');
   await sleep(1200);
