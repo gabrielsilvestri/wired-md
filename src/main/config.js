@@ -18,7 +18,11 @@ const APPEARANCE_DEFAULTS = {
   fontBody: '',
   fontCode: '',
   fontSize: 15,
-  snippets: []
+  snippets: [],
+  // Theme variable overrides from the settings panel, keyed by theme name:
+  // { wired: { '--ink': '#c4cad1' } }. Per theme on purpose, since a color
+  // measured against a dark page is wrong on a light one.
+  themeOverrides: {}
 };
 
 const LAYOUT_DEFAULTS = {

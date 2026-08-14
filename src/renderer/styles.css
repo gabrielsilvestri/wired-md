@@ -11,6 +11,18 @@
   --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
   --search-hit-ink:#83cdc6; --warn-ink:#d5a95a; --schema-ink:#83cdc6;
+  --win-close-ink:#14090b;
+  /* Motion tokens. Everything in this app moves inside 180ms, because the
+     window is a text editor and a transition you can watch is a transition
+     that interrupts reading. --t-fast is for a color or an opacity swap that
+     should feel instant but not harsh, --t-med for a control changing state,
+     --t-slow for geometry (a pane sliding, the sidebar collapsing). Anything
+     that wants longer than --t-slow is a decision to argue for, not a number
+     to raise in place. */
+  --t-fast:90ms;
+  --t-med:140ms;
+  --t-slow:180ms;
+  --ease:cubic-bezier(0.4, 0, 0.2, 1);
   --font-ui:"Geist","Segoe UI",system-ui,sans-serif;
   --font-body-default:"Mona Sans","Segoe UI",system-ui,sans-serif;
   --font-code-default:"Geist Mono","JetBrains Mono","Cascadia Mono",ui-monospace,Consolas,monospace;
@@ -59,6 +71,37 @@ html, body {
   -webkit-app-region: no-drag;
 }
 
+/* --- interaction states, defined once ---
+   Every control in this app answers to the pointer and to the keyboard the
+   same way: hover lifts the ink and lays down a surface, active presses it
+   back a hair, focus-visible draws a ring. The ring is focus-VISIBLE, not
+   focus, so a mouse click never leaves an outline behind while keyboard
+   navigation always shows where it is. */
+
+.tb-btn,
+.pane-folder, .pane-close, .pane-claude,
+#terminal-bar button,
+.setting-row button,
+#btn-template-folder,
+#input-actions button,
+#settings-header button,
+.settings-tab,
+.tvar-reset, .tvar-reset-all {
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
+              border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* The editor surface owns its own caret; a ring around the whole text column
+   would be noise, not a wayfinding aid. */
+.pane-editor :focus-visible,
+.vditor-ir pre.vditor-reset:focus-visible { outline: none; }
+
 /* icon buttons in the title bar */
 .tb-btn {
   background: transparent;
@@ -72,6 +115,8 @@ html, body {
 }
 
 .tb-btn:hover { background: var(--bg-3); color: var(--ink); }
+.tb-btn:active { transform: translateY(0.5px); }
+.tb-btn[aria-pressed="true"] { color: var(--accent-soft); background: var(--bg-3); }
 
 .tb-sep {
   width: 1px;
@@ -116,11 +161,16 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 
 #titlebar-controls button:hover { background: var(--bg-3); color: var(--ink); }
 
-#win-close:hover { background: var(--red); color: #1c1113; }
+/* The glyph on the red hover fill used to be a hardcoded #1c1113, which was
+   measured against the wired red exactly once and then silently inherited by
+   every other theme (in the light theme it landed at 3.41:1, under the floor).
+   It is a theme variable now, measured per theme by the contrast script. */
+#win-close:hover { background: var(--red); color: var(--win-close-ink); }
 
 #win-max .ico-restore { display: none; }
 #win-max.is-max .ico-max { display: none; }
@@ -137,7 +187,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.18s ease, opacity 0.18s ease;
+  transition: width var(--t-slow) var(--ease), opacity var(--t-slow) var(--ease);
 }
 
 /* Hiding is animated: the width shrinks and the opacity fades (~180ms). */
@@ -256,7 +306,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .tree-chevron {
   flex: 0 0 auto;
-  transition: transform 0.16s ease;
+  transition: transform var(--t-med) var(--ease);
   color: var(--ink-faint);
 }
 
@@ -326,12 +376,102 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 #recent-list li.active { color: var(--accent-soft); border-left-color: var(--accent); }
 
-#sidebar-empty {
-  display: none;
-  padding: 12px;
+/* --- empty states ---
+   Every one of these used to be a single gray line of text sitting flush left,
+   which reads as "something failed" rather than "there is nothing here yet".
+   They are now a centered column: a quiet icon, the state, and one line of
+   English telling you what to do about it.
+
+   The text nodes themselves are written with `textContent` by modules this
+   file does not own, so the icon and the hint are added from CSS: the icon is
+   an SVG mask (it takes currentColor, so it themes for free) and the hint is
+   `::after`. That keeps the whole treatment in the stylesheet without touching
+   the renderer modules. */
+
+/* Block layout, not flex, on purpose: tree.js writes `style.display = 'block'`
+   on #sidebar-empty inline, and inline style beats any selector short of
+   `!important`. Centering with text-align and block pseudo-elements survives
+   that, so the treatment holds without a second `!important` in the file and
+   without reaching into a module this package does not own. */
+#sidebar-empty,
+.palette-empty,
+.search-empty {
+  text-align: center;
+  padding: 26px 18px 30px;
+  font-size: 12px;
+  color: var(--ink-dim);
+  user-select: none;
+}
+
+#sidebar-empty::before,
+.palette-empty::before,
+.search-empty::before {
+  content: '';
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 0 auto 8px;
+  background: var(--ink-faint);
+  opacity: 0.8;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+}
+
+.palette-empty::after,
+.search-empty::after {
+  display: block;
+  margin: 5px auto 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  max-width: 34ch;
+}
+
+/* magnifier: nothing matched what you typed */
+.palette-empty::before,
+.search-empty::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
+}
+
+/* folder: the sidebar has no root, or the filter matched nothing. tree.js
+   writes both messages into the same node with no class to tell them apart,
+   so this state gets the icon and keeps the module's own wording rather than
+   a CSS hint that would be wrong half the time. */
+#sidebar-empty::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'/%3E%3C/svg%3E");
+}
+
+.palette-empty::after { content: 'Try a shorter query, or a different word.'; }
+.search-empty::after { content: 'No note in this folder contains that text.'; }
+
+/* The template picker reuses .palette-empty, so it overrides the hint. */
+#template-list .palette-empty::after {
+  content: 'Templates are .md files in the templates folder. Add one and reopen this picker.';
+}
+
+/* Recents has no rendered empty state at all: an empty <ul> is simply blank.
+   :empty catches it without the tree module having to know. */
+#recent-list:empty::after {
+  content: 'Files you open show up here.';
+  display: block;
+  padding: 4px 12px 2px 30px;
   font-size: 11px;
   color: var(--ink-faint);
+  user-select: none;
 }
+
+/* No pane at all is not reachable today (the app always keeps one open), but
+   the state exists in the layout and an unstyled void would be a blank window. */
+#panes:empty::after {
+  content: 'No note open. Ctrl+O opens a file, Ctrl+N starts a new one.';
+  margin: auto;
+  font-size: 12px;
+  color: var(--ink-faint);
+  user-select: none;
+}
+
+#sidebar-empty { display: none; }
 
 /* --- main column --- */
 
@@ -360,7 +500,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--rule-soft);
-  transition: flex-grow 0.2s ease, flex-basis 0.2s ease;
+  transition: flex-grow var(--t-slow) var(--ease), flex-basis var(--t-slow) var(--ease);
 }
 
 .pane:last-child { border-right: none; }
@@ -391,6 +531,17 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .pane.collapsed:hover .pane-spine { background: var(--bg-3); }
 
+/* The spine is a click target the width of a scrollbar, so it has to admit
+   that it is one. On hover the surface lifts, the title takes full ink and an
+   accent hairline runs up the leading edge: enough to read as "this opens",
+   nowhere near enough to be a moving part in the corner of your eye. */
+.pane.collapsed .pane-spine {
+  box-shadow: inset 2px 0 0 transparent;
+  transition: background var(--t-fast) var(--ease), box-shadow var(--t-med) var(--ease);
+}
+
+.pane.collapsed:hover .pane-spine { box-shadow: inset 2px 0 0 var(--accent-dim); }
+
 .spine-title {
   writing-mode: vertical-rl;
   font-size: 11px;
@@ -401,20 +552,39 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   text-overflow: ellipsis;
   white-space: nowrap;
   max-height: 100%;
+  transition: color var(--t-fast) var(--ease), letter-spacing var(--t-med) var(--ease);
 }
 
-.pane.collapsed:hover .spine-title { color: var(--ink); }
+.pane.collapsed:hover .spine-title { color: var(--ink); letter-spacing: 0.07em; }
 
-/* amber unsaved dot, visible on the spine too */
+/* Amber unsaved dot, visible on the spine too. It scales in from nothing the
+   first time the file goes dirty (a 120ms pop, once) instead of appearing
+   between two frames. It does NOT pulse or blink: this is a status, and a
+   status that moves forever is a status you learn to stop seeing. */
+@keyframes dot-in {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 .spine-dot {
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: transparent;
+  transform: scale(0);
+  transition: transform var(--t-med) var(--ease), background var(--t-fast) var(--ease);
 }
 
-.spine-dot.on { background: var(--amber); }
+.spine-dot.on {
+  background: var(--amber);
+  transform: scale(1);
+  animation: dot-in var(--t-med) var(--ease);
+}
+
+/* The pane title carries the same signal in the expanded state: the amber is
+   already there, so only the fade between the two inks is animated. */
+.pane-title { transition: color var(--t-med) var(--ease); }
 
 .pane-header {
   flex: 0 0 auto;
@@ -503,11 +673,17 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .pane-claude:hover { background: var(--bg-3); color: var(--accent-soft); }
 .pane-folder:hover { background: var(--bg-3); color: var(--ink); }
 
+.pane-close:active, .pane-claude:active, .pane-folder:active { transform: translateY(0.5px); }
+
+/* Closing a pane is the one destructive control in the header, so it says so
+   on hover instead of looking like every other icon next to it. */
+.pane-close:hover { color: var(--red); }
+
 /* flashes the row of the folder revealed by a breadcrumb click */
 .tree-row.reveal-flash {
   background: var(--bg-3);
   box-shadow: inset 2px 0 0 var(--accent-dim);
-  transition: background 0.16s ease;
+  transition: background var(--t-med) var(--ease);
 }
 
 /* --- properties panel (YAML frontmatter), at the top of every pane --- */
@@ -519,7 +695,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   background: var(--bg-2);
   border-bottom: 1px solid var(--rule-soft);
   padding: 6px 12px 8px;
-  animation: overlay-fade 0.13s ease;
+  animation: overlay-fade var(--t-fast) var(--ease);
 }
 
 .fm-panel.hidden { display: none; }
@@ -643,14 +819,36 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .fm-warn-ico { flex: 0 0 auto; align-self: center; }
 
+/* --- fighting the Vditor stylesheet ---
+   Three different fights live here, and they need three different answers.
+
+   1. Anything Vditor declares in its OWN stylesheet: styles.css loads after
+      vendor/vditor/dist/index.css, so equal specificity already wins and the
+      `!important` that used to sit on the border, the toolbar and the editor
+      background was pure noise. Those four are gone.
+
+   2. The highlight.js theme: Vditor lazy loads it at RUNTIME, so it lands
+      after us in the cascade and wins any tie. Answered with specificity, by
+      naming `.hljs` in our own selector (see the code block rule below), not
+      with `!important`.
+
+   3. Padding: Vditor writes `element.style.padding` INLINE from its own
+      layout code. Inline style outranks every selector ever written, so
+      `!important` is the only instrument that reaches it. That is why the two
+      padding rules keep theirs, and removing them (which looked like an easy
+      win) is what broke typewriter mode: the block stopped centering because
+      Vditor's inline 10px was back in charge.
+
+   So: seven `!important` before, three now, each of the three beating an
+   inline style rather than a stylesheet. */
+
 .pane-editor {
   flex: 1;
   min-height: 0;
-  border: none !important;
 }
 
 .vditor { border: none; background: var(--bg); }
-.vditor-toolbar { display: none !important; }
+.vditor .vditor-toolbar { display: none; }
 .vditor-content { background: var(--bg); }
 
 .vditor-reset {
@@ -660,17 +858,23 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   color: var(--ink);
   max-width: 860px;
   margin: 0 auto;
-  padding: 32px 48px 120px !important;
 }
 
 .vditor-ir { background: var(--bg); }
+
 /* Vditor ships `.vditor-ir pre.vditor-reset { margin: 0 }`, which beats the
    `margin: 0 auto` on `.vditor-reset` (it is more specific) and glues the text
-   column to the left, leaving dead space on the right in a wide window. Since
-   this styles.css loads after the Vditor CSS, repeating the selector with
-   `0 auto` gives the centering back; the `max-width: 860px` still applies, so
-   the column reflows (shrinks) when the pane is narrower. */
-.vditor-ir pre.vditor-reset { background: var(--bg) !important; margin: 0 auto; }
+   column to the left, leaving dead space on the right in a wide window.
+   Repeating its own selector gives the centering back, and the same selector
+   carries the padding and the background, so all three land at a specificity
+   Vditor's own rules cannot beat. `max-width: 860px` still applies, so the
+   column reflows when the pane is narrower. */
+.vditor-ir pre.vditor-reset {
+  background: var(--bg);
+  margin: 0 auto;
+  /* !important because Vditor sets this one inline (see fight 3 above) */
+  padding: 32px 48px 120px !important;
+}
 
 /* --- focus mode: the block holding the caret keeps full ink, everything else
    fades. The opacity is NOT a guess, it is measured: dimmed text has to stay
@@ -684,7 +888,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
    uniformly, and the 150ms transition avoids flicker while typing. --- */
 .pane.focus-mode .vditor-ir pre.vditor-reset > * {
   opacity: var(--focus-dim, 0.62);
-  transition: opacity 0.15s ease;
+  transition: opacity var(--t-med) var(--ease);
 }
 
 .pane.focus-mode .vditor-ir pre.vditor-reset > .focus-current { opacity: 1; }
@@ -731,8 +935,15 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 1px 5px;
 }
 
-.vditor-reset pre > code {
-  background: var(--bg-2) !important;
+/* The ONE place specificity has to do real work. Vditor lazy loads the
+   highlight.js theme at runtime, so `.hljs { background: ... }` is appended to
+   the head AFTER styles.css and wins any tie. `.vditor-reset pre > code` is
+   (0,1,2) and would lose to a late `.hljs` on equal-ish footing, which is why
+   this used to carry `!important`. Naming the class in the selector makes it
+   (0,2,2), which outranks `.hljs` (0,1,0) no matter who loads last. */
+.vditor-reset pre > code,
+.vditor-reset pre > code.hljs {
+  background: var(--bg-2);
   font-family: var(--font-code);
   font-size: 0.85em;
   border-radius: 6px;
@@ -828,7 +1039,8 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   cursor: pointer;
 }
 
-#terminal-bar button:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
+#terminal-bar button:hover { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--bg-3); }
+#terminal-bar button:active { transform: translateY(0.5px); }
 
 #btn-term-cd { display: inline-flex; align-items: center; padding: 2px 6px; }
 
@@ -1001,7 +1213,8 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   padding: 4px 9px;
 }
 
-#btn-template-folder:hover { color: var(--ink); border-color: var(--rule); }
+#btn-template-folder:hover { color: var(--ink); border-color: var(--rule); background: var(--bg-2); }
+#btn-template-folder:active { transform: translateY(0.5px); }
 
 /* --- full text search in the folder (Ctrl+Shift+F): same visual family as the palette --- */
 
@@ -1145,16 +1358,66 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 #settings-overlay.hidden { display: none; }
 
 #settings-panel {
-  width: 460px;
-  max-width: 92vw;
-  max-height: 84vh;
+  width: 620px;
+  max-width: 94vw;
+  height: 78vh;
+  max-height: 640px;
   display: flex;
   flex-direction: column;
   background: var(--bg-2);
   border: 1px solid var(--rule);
   border-radius: 8px;
   overflow: hidden;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
 }
+
+/* --- settings v2: icon tabs on the left, one panel at a time ---
+   The old panel was one long scroll with three <h3> rules in it, which meant
+   the theme section and the snippet section competed for the same attention
+   and neither won. Tabs give each concern the whole surface, and a fixed panel
+   height stops the dialog from resizing itself every time you switch. */
+
+#settings-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+#settings-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--rule-soft);
+  background: var(--bg);
+}
+
+.settings-tab {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-tab:hover { background: var(--bg-3); color: var(--ink); }
+.settings-tab:active { transform: translateY(0.5px); }
+
+/* The selected tab keeps the accent hairline the tree and the palette already
+   use for "you are here", so the idiom is the same everywhere in the app. */
+.settings-tab.is-active {
+  background: var(--bg-3);
+  color: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.settings-pane { display: none; }
+.settings-pane.is-active { display: block; }
 
 #settings-header {
   display: flex;
@@ -1175,16 +1438,20 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   font-size: 13px;
 }
 
-#settings-header button:hover { color: var(--accent-soft); }
+#settings-header button:hover { color: var(--accent-soft); background: var(--bg-3); }
+#settings-header button:active { transform: translateY(0.5px); }
 
 #settings-body {
-  padding: 8px 14px 16px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 16px 18px;
   overflow-y: auto;
 }
 
-#settings-body section { margin-top: 12px; }
+#settings-body h3:first-child { margin-top: 14px; }
 
 #settings-body h3 {
+  margin-top: 20px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -1248,7 +1515,8 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   cursor: pointer;
 }
 
-.setting-row button:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
+.setting-row button:hover { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--bg-3); }
+.setting-row button:active { transform: translateY(0.5px); }
 
 .setting-hint {
   font-size: 11px;
@@ -1270,6 +1538,159 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 .snippet-row input[type="checkbox"] { accent-color: var(--accent); }
 
+/* Icon-only buttons that sit inline in a setting row (open folder, import).
+   They share the .setting-row button box so the row stays on one baseline. */
+.setting-row .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  flex: 0 0 auto;
+}
+
+/* --- theme variable panel ---
+   Every :root variable the active theme declares, grouped and editable. The
+   override layer is #custom-style, which sits below the snippet <style> tags,
+   so a snippet can still have the last word (that is the documented order and
+   this panel does not get to change it).
+
+   The contrast warning is an inline amber row, never a popup and never a
+   block: the same contract the frontmatter panel already follows. You are
+   allowed to pick an unreadable color; you are not allowed to do it without
+   the app telling you. */
+
+.tvar-group { margin-bottom: 12px; }
+
+.tvar-group-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 6px 0 4px;
+  user-select: none;
+}
+
+.tvar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.tvar-row input[type="color"] {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg-3);
+  cursor: pointer;
+}
+
+.tvar-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--ink-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tvar-value {
+  flex: 0 0 auto;
+  font-family: var(--font-code);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+/* A row that is not overridden has nothing to reset, so its button is present
+   but invisible and inert: the row height never jumps as you edit. */
+.tvar-reset {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  visibility: hidden;
+}
+
+.tvar-row.is-overridden .tvar-reset { visibility: visible; }
+.tvar-reset:hover { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--bg-3); }
+.tvar-reset:active { transform: translateY(0.5px); }
+
+/* An overridden row is marked, so "what did I change?" is answerable at a
+   glance instead of by diffing against a theme file. */
+.tvar-row.is-overridden .tvar-name { color: var(--accent-soft); }
+
+.tvar-warn {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0 6px 42px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--warn-ink, var(--amber));
+}
+
+.tvar-warn-ico { flex: 0 0 auto; align-self: center; }
+
+.tvar-reset-all {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
+.tvar-reset-all:hover { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--bg-3); }
+.tvar-reset-all:active { transform: translateY(0.5px); }
+
+/* --- shortcut list (read only) --- */
+
+#shortcut-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  align-items: baseline;
+}
+
+#shortcut-list dt {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--accent-ink);
+  white-space: nowrap;
+}
+
+#shortcut-list dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+/* A heading inside the list spans both columns and separates the groups. */
+#shortcut-list .shortcut-group {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  padding: 10px 0 2px;
+}
+
 /* --- custom context menu --- */
 
 @keyframes ctx-pop {
@@ -1286,7 +1707,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   border-radius: 6px;
   padding: 4px 0;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  animation: ctx-pop 0.13s ease;
+  animation: ctx-pop var(--t-fast) var(--ease);
   transform-origin: top left;
   user-select: none;
 }
@@ -1345,7 +1766,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   justify-content: center;
   padding-top: 18vh;
   z-index: 70;
-  animation: overlay-fade 0.13s ease;
+  animation: overlay-fade var(--t-fast) var(--ease);
 }
 
 #input-overlay.hidden { display: none; }
@@ -1358,7 +1779,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   border-radius: 8px;
   padding: 12px 14px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
-  animation: ctx-pop 0.14s ease;
+  animation: ctx-pop var(--t-med) var(--ease);
 }
 
 #input-title {
@@ -1402,21 +1823,53 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   cursor: pointer;
 }
 
-#input-actions button:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
+#input-actions button:hover { color: var(--accent-soft); border-color: var(--accent-dim); background: var(--bg-3); }
+#input-actions button:active { transform: translateY(0.5px); }
 
 /* subtle fade and scale on the overlays */
-#palette-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
-#palette-overlay:not(.hidden) #palette { animation: ctx-pop 0.14s ease; }
-#template-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
-#template-overlay:not(.hidden) #template-box { animation: ctx-pop 0.14s ease; }
-#search-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
-#search-overlay:not(.hidden) #search-box { animation: ctx-pop 0.14s ease; }
-#settings-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
-#settings-overlay:not(.hidden) #settings-panel { animation: ctx-pop 0.14s ease; }
+#palette-overlay:not(.hidden) { animation: overlay-fade var(--t-fast) var(--ease); }
+#palette-overlay:not(.hidden) #palette { animation: ctx-pop var(--t-med) var(--ease); }
+#template-overlay:not(.hidden) { animation: overlay-fade var(--t-fast) var(--ease); }
+#template-overlay:not(.hidden) #template-box { animation: ctx-pop var(--t-med) var(--ease); }
+#search-overlay:not(.hidden) { animation: overlay-fade var(--t-fast) var(--ease); }
+#search-overlay:not(.hidden) #search-box { animation: ctx-pop var(--t-med) var(--ease); }
+#settings-overlay:not(.hidden) { animation: overlay-fade var(--t-fast) var(--ease); }
+#settings-overlay:not(.hidden) #settings-panel { animation: ctx-pop var(--t-med) var(--ease); }
 
-/* --- thin scrollbar --- */
+/* --- thin scrollbar ---
+   The thumb used to be --rule-soft, which measures 1.13:1 against the surface
+   it sits on: present in the stylesheet, invisible on screen. It is --rule now
+   (1.8:1), which reads as a thumb without reading as a rail, and it brightens
+   toward the ink on hover so grabbing it is a deliberate act. Track and corner
+   stay transparent, so a scrollable area does not draw a gutter it does not
+   need. */
 
-::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--rule-soft); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--rule); }
+::-webkit-scrollbar-corner { background: transparent; }
+
+::-webkit-scrollbar-thumb {
+  background: var(--rule);
+  border-radius: 5px;
+  /* the inset keeps the thumb off the edge of its container */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); background-clip: padding-box; }
+::-webkit-scrollbar-thumb:active { background: var(--ink-dim); background-clip: padding-box; }
+
+/* --- respecting prefers-reduced-motion ---
+   Everything above moves for a reason, and none of those reasons survive a
+   user who has told the OS that motion makes them ill. The states stay (hover
+   still lifts, the pane still collapses), only the travel between them stops.
+   Kept to the very end of the file so it wins over every rule above it. */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+}

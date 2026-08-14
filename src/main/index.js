@@ -22,6 +22,7 @@ const treeIpc = require('./ipc/tree');
 const searchIpc = require('./ipc/search');
 const customizationIpc = require('./ipc/customization');
 const terminalIpc = require('./ipc/terminal');
+const themeImportIpc = require('./ipc/theme-import');
 
 let mainWindow = null;
 
@@ -140,12 +141,16 @@ fsIpc.register({ getWindow });
 treeIpc.register({ send });
 searchIpc.register();
 customizationIpc.register();
+themeImportIpc.register({ getWindow });
 terminalIpc.register({ send });
 
 app.whenReady().then(() => {
   // Fully custom window: no leftover native menu.
   Menu.setApplicationMenu(null);
   ensureUserDirs();
+  // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
+  // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.
+  themeImportIpc.sweepLegacySeeds();
   createWindow();
 });
 

@@ -5,7 +5,16 @@
 
 import { config, registerConfigDefaults } from './state.js';
 
-registerConfigDefaults({ theme: 'wired', accent: null, fontBody: '', fontCode: '', fontSize: 15, snippets: [] });
+// themeOverrides is keyed BY THEME NAME, not flat:
+//   { wired: { '--ink': '#c4cad1' }, light: { ... } }
+// An ink tuned against a near black page is wrong on paper, so carrying one
+// theme's overrides into another would hand the user a palette nobody measured.
+// Switching themes therefore switches which overrides are live, and switching
+// back brings them intact.
+registerConfigDefaults({
+  theme: 'wired', accent: null, fontBody: '', fontCode: '', fontSize: 15, snippets: [],
+  themeOverrides: {}
+});
 
 const themeStyle = document.getElementById('theme-style');
 const customStyle = document.getElementById('custom-style');
@@ -89,6 +98,72 @@ function cssFontValue(name) {
   return clean ? '"' + clean + '",' : '';
 }
 
+// --- theme variable overrides (the Style Settings style panel) ---
+
+// The :root declarations of the ACTIVE theme, in the order the file writes
+// them. The theme text is already sitting in #theme-style, so this reads what
+// is really applied rather than re-fetching the file.
+export function themeVars() {
+  const css = themeStyle.textContent || '';
+  const out = {};
+  const open = css.indexOf('{', css.indexOf(':root'));
+  if (open < 0) return out;
+  let depth = 0;
+  let close = -1;
+  for (let i = open; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}') {
+      depth--;
+      if (depth === 0) { close = i; break; }
+    }
+  }
+  if (close < 0) return out;
+  // Comments in these files carry measured ratios ("4.66:1") and sample hex
+  // codes; parsed as declarations they would invent variables.
+  const body = css.slice(open + 1, close).replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const m of body.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) out[m[1]] = m[2].trim();
+  return out;
+}
+
+export function overridesFor(theme) {
+  const all = config.themeOverrides || {};
+  return all[theme || config.theme] || {};
+}
+
+export function setOverride(name, value) {
+  if (!config.themeOverrides) config.themeOverrides = {};
+  if (!config.themeOverrides[config.theme]) config.themeOverrides[config.theme] = {};
+  config.themeOverrides[config.theme][name] = value;
+}
+
+export function clearOverride(name) {
+  const t = (config.themeOverrides || {})[config.theme];
+  if (!t) return;
+  delete t[name];
+  if (Object.keys(t).length === 0) delete config.themeOverrides[config.theme];
+}
+
+export function clearAllOverrides() {
+  if (config.themeOverrides) delete config.themeOverrides[config.theme];
+}
+
+function overrideCss() {
+  const over = overridesFor();
+  let css = '';
+  for (const [name, value] of Object.entries(over)) {
+    if (!/^#[0-9a-f]{6}$/i.test(value)) continue;
+    css += name + ':' + value + ';';
+    // --accent-rgb is the channel list behind every rgba() in the app (the
+    // search highlight, the resizer glow). Overriding --accent without it would
+    // leave those fills tinted with the old accent.
+    if (name === '--accent') {
+      const rgb = hexToRgb(value);
+      if (rgb) css += '--accent-rgb:' + rgb.join(',') + ';';
+    }
+  }
+  return css;
+}
+
 // Rebuilds the user override <style> from the config.
 export function applyCustom() {
   let vars = '';
@@ -96,13 +171,26 @@ export function applyCustom() {
   if (config.fontBody) vars += '--font-body:' + cssFontValue(config.fontBody) + 'var(--font-body-default);';
   if (config.fontCode) vars += '--font-code:' + cssFontValue(config.fontCode) + 'var(--font-code-default);';
   if (config.fontSize) vars += '--font-size-body:' + Number(config.fontSize) + 'px;';
-  // The focus mode opacity is recomputed on every theme change so dimmed text
-  // never drops below 4.5:1 in any theme (including themes already seeded in
-  // %APPDATA% by an older install, which do not declare the variable).
+  // Variable overrides go LAST, so a color picked in the settings panel beats
+  // the accent picker for the same variable. Whoever touched it more recently
+  // and more specifically wins.
+  vars += overrideCss();
+
+  // Written BEFORE the focus dim is measured, on purpose. focusDimFor reads
+  // getComputedStyle, so measuring first would measure the palette from the
+  // previous call and land the dim one step behind: override --bg and the
+  // dimmed text would be checked against the OLD background. Writing, then
+  // measuring, then rewriting costs one extra style recalc and makes the
+  // number honest for overrides, themes and third party themes alike.
+  customStyle.textContent = vars ? ':root{' + vars + '}' : '';
+
   const cs = getComputedStyle(document.documentElement);
   const dim = focusDimFor(cs.getPropertyValue('--bg').trim(), cs.getPropertyValue('--ink').trim());
-  if (dim !== null) vars += '--focus-dim:' + dim + ';';
-  customStyle.textContent = vars ? ':root{' + vars + '}' : '';
+  if (dim !== null) {
+    vars += '--focus-dim:' + dim + ';';
+    customStyle.textContent = ':root{' + vars + '}';
+  }
+
   for (const fn of afterApply) fn();
 }
 

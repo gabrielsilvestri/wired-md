@@ -150,52 +150,118 @@
     </div>
   </div>
 
+  <!-- Settings. Still an overlay, and the gear that opens it still lives in the
+       sidebar footer (never the title bar). The sections are icon tabs down the
+       left edge, in the same idiom as the rest of the chrome: an action is an
+       icon with a tooltip, never a text menu. Every tab carries both title and
+       aria-label, because the tooltip serves the mouse and the label serves the
+       screen reader, and neither substitutes for the other. -->
   <div id="settings-overlay" class="hidden">
-    <div id="settings-panel">
+    <div id="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
       <div id="settings-header">
-        <span>settings</span>
-        <button id="btn-settings-close" title="Close">✕</button>
+        <span id="settings-title">settings</span>
+        <button id="btn-settings-close" title="Close settings (Esc)" aria-label="Close settings">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-      <div id="settings-body">
-        <section>
-          <h3>theme</h3>
-          <div class="setting-row">
-            <label for="sel-theme">active theme</label>
-            <select id="sel-theme"></select>
-            <button id="btn-open-themes" title="Open the themes folder in Explorer">folder</button>
-          </div>
-          <div class="setting-row">
-            <label for="inp-accent">accent color</label>
-            <input type="color" id="inp-accent">
-            <button id="btn-accent-reset" title="Back to the theme accent">theme default</button>
-          </div>
-        </section>
-        <section>
-          <h3>fonts</h3>
-          <div class="setting-row">
-            <label for="inp-font-body">document font</label>
-            <input type="text" id="inp-font-body" list="font-options" placeholder="theme default">
-          </div>
-          <div class="setting-row">
-            <label for="inp-font-code">code font</label>
-            <input type="text" id="inp-font-code" list="font-options" placeholder="theme default">
-          </div>
-          <datalist id="font-options"></datalist>
-          <div class="setting-row">
-            <label for="inp-font-size">text size</label>
-            <input type="number" id="inp-font-size" min="11" max="26" step="1">
-            <span class="setting-hint">px</span>
-          </div>
-        </section>
-        <section>
-          <h3>css snippets</h3>
-          <p class="setting-hint">.css files in the snippets folder; turn on the ones you want layered over the theme.</p>
-          <div id="snippet-list"></div>
-          <div class="setting-row">
-            <button id="btn-open-snippets" title="Open the snippets folder in Explorer">open snippets folder</button>
-            <button id="btn-reload-snippets" title="Re-read the snippet list">reload list</button>
-          </div>
-        </section>
+      <div id="settings-main">
+        <nav id="settings-tabs" role="tablist" aria-label="Settings sections">
+          <button class="settings-tab is-active" id="tab-appearance" role="tab" data-tab="appearance"
+                  aria-selected="true" aria-controls="pane-appearance"
+                  title="Appearance (theme, accent, snippets)" aria-label="Appearance">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20 2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h2a4 4 0 0 0 4-4 10 10 0 0 0-10-11z"/></svg>
+          </button>
+          <button class="settings-tab" id="tab-editor" role="tab" data-tab="editor"
+                  aria-selected="false" aria-controls="pane-editor" tabindex="-1"
+                  title="Editor (fonts and text size)" aria-label="Editor">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V5h16v2"/><path d="M9 20h6"/><path d="M12 5v15"/></svg>
+          </button>
+          <button class="settings-tab" id="tab-ai" role="tab" data-tab="ai"
+                  aria-selected="false" aria-controls="pane-ai" tabindex="-1"
+                  title="Terminal and AI" aria-label="Terminal and AI">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/></svg>
+          </button>
+          <button class="settings-tab" id="tab-shortcuts" role="tab" data-tab="shortcuts"
+                  aria-selected="false" aria-controls="pane-shortcuts" tabindex="-1"
+                  title="Keyboard shortcuts" aria-label="Keyboard shortcuts">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+          </button>
+        </nav>
+        <div id="settings-body">
+          <section id="pane-appearance" class="settings-pane is-active" role="tabpanel" aria-labelledby="tab-appearance">
+            <h3>theme</h3>
+            <div class="setting-row">
+              <label for="sel-theme">active theme</label>
+              <select id="sel-theme"></select>
+              <button class="icon-btn" id="btn-open-themes" title="Open the themes folder in Explorer" aria-label="Open the themes folder in Explorer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+              </button>
+              <button class="icon-btn" id="btn-import-theme" title="Import a .css theme file" aria-label="Import a theme file">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+              </button>
+            </div>
+            <p class="setting-hint" id="theme-import-status" role="status"></p>
+            <div class="setting-row">
+              <label for="inp-accent">accent color</label>
+              <input type="color" id="inp-accent">
+              <button id="btn-accent-reset" title="Back to the accent this theme ships with">theme default</button>
+            </div>
+
+            <h3>theme variables</h3>
+            <p class="setting-hint">
+              Every color the active theme declares, editable in place. An override is layered
+              over the theme and survives a restart; it never rewrites the theme file.
+            </p>
+            <div id="theme-vars"></div>
+            <div class="setting-row" id="theme-vars-actions">
+              <button class="tvar-reset-all" id="btn-vars-reset-all" title="Drop every override and go back to the theme as shipped">reset all to theme</button>
+            </div>
+
+            <h3>css snippets</h3>
+            <p class="setting-hint">.css files in the snippets folder; turn on the ones you want layered over the theme.</p>
+            <div id="snippet-list"></div>
+            <div class="setting-row">
+              <button id="btn-open-snippets" title="Open the snippets folder in Explorer">open snippets folder</button>
+              <button id="btn-reload-snippets" title="Re-read the snippet list">reload list</button>
+            </div>
+          </section>
+
+          <section id="pane-editor" class="settings-pane" role="tabpanel" aria-labelledby="tab-editor" hidden>
+            <h3>fonts</h3>
+            <div class="setting-row">
+              <label for="inp-font-body">document font</label>
+              <input type="text" id="inp-font-body" list="font-options" placeholder="theme default">
+            </div>
+            <div class="setting-row">
+              <label for="inp-font-code">code font</label>
+              <input type="text" id="inp-font-code" list="font-options" placeholder="theme default">
+            </div>
+            <datalist id="font-options"></datalist>
+            <div class="setting-row">
+              <label for="inp-font-size">text size</label>
+              <input type="number" id="inp-font-size" min="11" max="26" step="1">
+              <span class="setting-hint">px</span>
+            </div>
+            <p class="setting-hint">Ctrl+= and Ctrl+- change the same value while you write; Ctrl+0 goes back to 15.</p>
+          </section>
+
+          <!-- Terminal and AI settings land here. Left deliberately empty: the
+               shell command, the startup cwd rule and the AI bridge behavior are
+               owned elsewhere, and inventing controls for them from this side
+               would mean guessing at their config keys. The tab, its icon and
+               its panel exist so that work is a matter of filling a section
+               rather than restructuring the panel again. -->
+          <section id="pane-ai" class="settings-pane" role="tabpanel" aria-labelledby="tab-ai" hidden>
+            <h3>terminal and AI</h3>
+            <p class="setting-hint">Nothing to configure here yet. The terminal takes its folder from the note you are in, and the bridge to claude never presses Enter for you.</p>
+          </section>
+
+          <section id="pane-shortcuts" class="settings-pane" role="tabpanel" aria-labelledby="tab-shortcuts" hidden>
+            <h3>keyboard</h3>
+            <p class="setting-hint">Read only for now. These are wired in the renderer and listen in the capture phase, so they work inside the text too.</p>
+            <dl id="shortcut-list"></dl>
+          </section>
+        </div>
       </div>
     </div>
   </div>

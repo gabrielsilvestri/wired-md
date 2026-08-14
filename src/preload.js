@@ -120,6 +120,7 @@ contextBridge.exposeInMainWorld('wired', {
   readSnippet: (file) => ipcRenderer.invoke('snippets:read', file),
   openSnippetsFolder: () => ipcRenderer.invoke('snippets:openFolder'),
   openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
+  importTheme: () => ipcRenderer.invoke('themes:import'),
 
   // templates (new file from a template)
   listTemplates: () => ipcRenderer.invoke('templates:list'),
