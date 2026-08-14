@@ -1,0 +1,29 @@
+/* Theme "ash": mid gray.
+
+   Neither a dark theme nor a light one. The page sits around 20 percent
+   lightness, which is the interesting constraint: a mid gray page has a hard
+   ceiling on how much contrast is available in EITHER direction, so the ink has
+   to be light (dark ink on this page tops out around 2.5:1 and can never reach
+   the floor). What it buys is a page with no glare at all, which is the point.
+
+   Because the headroom is narrow, the three ink levels are packed closer than
+   in the dark themes (9.2 / 7.4 / 6.5 against --bg) and every value is measured
+   against --bg-3, the lightest surface, where the margin is thinnest.
+
+   Accent is a warm amber, the complement of the cool gray page. */
+
+:root {
+  --bg:#33363b; --bg-2:#3b3f45; --bg-3:#454a51;
+  --rule:#6d7580; --rule-soft:#41454c; --rule-row:#5b626c; --leader:#626a74;
+  --ink:#dde1e4; --ink-dim:#c7cbd0; --ink-faint:#b9bec4;
+  --accent:#ecc090; --accent-soft:#f1d2b0; --accent-ink:#e9b780; --accent-dim:#bb7121;
+  --accent-rgb:236,192,144;
+  /* measured against this background: 0.62 gives 4.61:1 on dimmed text */
+  --focus-dim:0.62;
+  --green:#8bd5af; --amber:#e9c98c; --red:#f6aaaa;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.97:1 over bg-2, 5.20:1 over bg-3 */
+  --search-hit-ink:#f8e7d4; --warn-ink:#e6c17b; --schema-ink:#eec69b;
+  /* glyph of the close button over its red hover fill: 5.60:1 over --red */
+  --win-close-ink:#633131;
+}

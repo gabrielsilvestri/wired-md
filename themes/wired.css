@@ -1,5 +1,8 @@
 /* Default theme "wired": dark. A theme only defines the variables; the
-   structure lives in styles.css. */
+   structure lives in styles.css.
+
+   Every number here is measured by scripts/measure-contrast.mjs, which fails
+   the build when any text pairing leaves the 4.5:1 to 11:1 band. */
 
 :root {
   --bg:#101216; --bg-2:#191d23; --bg-3:#222732;
@@ -12,4 +15,6 @@
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
   /* ink for the search highlight, the warning and the schema badge, all measured inside 4.5:1 to 11:1 */
   --search-hit-ink:#83cdc6; --warn-ink:#d5a95a; --schema-ink:#83cdc6;
+  /* glyph of the close button while its red hover fill is showing: 7.29:1 over --red */
+  --win-close-ink:#14090b;
 }

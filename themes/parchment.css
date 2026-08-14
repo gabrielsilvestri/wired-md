@@ -1,0 +1,28 @@
+/* Theme "parchment": warm sepia light.
+
+   Paper, not screen: the surfaces carry yellow, and the ink is a warm brown
+   black rather than a neutral gray. The accent is a cool indigo on purpose,
+   the way an old plate sits on aged paper: with a warm accent the amber
+   warning and the accent would collapse into the same signal, and the panel
+   would lose the ability to say "careful" in a color the page does not already
+   use everywhere.
+
+   Every value is measured against the DARKEST surface the ink lands on
+   (--bg-3), because a light theme loses contrast fastest there and that is the
+   only place the floor actually bites. */
+
+:root {
+  --bg:#f4ecda; --bg-2:#ebe1cb; --bg-3:#ded2b7;
+  --rule:#b3a583; --rule-soft:#ded3ba; --rule-row:#c8b994; --leader:#c1b28d;
+  --ink:#4a4032; --ink-dim:#5a5142; --ink-faint:#5d5546;
+  --accent:#444f9f; --accent-soft:#3a4487; --accent-ink:#4752a5; --accent-dim:#7d87c7;
+  --accent-rgb:68,79,159;
+  /* measured against this background: 0.77 gives 4.63:1 on dimmed text */
+  --focus-dim:0.77;
+  --green:#2d623c; --amber:#6e531b; --red:#903d3d;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.92:1 over bg-2, 5.20:1 over bg-3 */
+  --search-hit-ink:#353e7b; --warn-ink:#664c18; --schema-ink:#3f4993;
+  /* glyph of the close button over its red hover fill: 5.42:1 over --red */
+  --win-close-ink:#ffd7cb;
+}

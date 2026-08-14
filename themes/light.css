@@ -1,20 +1,32 @@
 /* Simple light theme. Contained contrast: text between 4.5:1 and 11:1 against
-   the background, with no pure black and no pure white. */
+   the background, with no pure black and no pure white.
+
+   A light background loses contrast much faster than a dark one, and the
+   surfaces here are only 1.1 apart, so several inks that looked fine on --bg
+   were under the floor by the time they sat on --bg-3 (a control or a hovered
+   row). scripts/measure-contrast.mjs caught five of them; the values below are
+   the corrected ones, measured against the DARKEST surface each ink lands on. */
 
 :root {
   --bg:#f2f0ea; --bg-2:#e9e6de; --bg-3:#dedad0;
   --rule:#b3aca0; --rule-soft:#ddd8ce; --rule-row:#c8c2b6; --leader:#beb8ac;
-  --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#6a7079;
-  --accent:#1f7a72; --accent-soft:#2a6b64; --accent-ink:#22706a; --accent-dim:#5b9c96;
+  /* ink-faint was #6a7079: 3.58:1 on --bg-3, unreadable. Now 6.01 / 5.49 / 4.90 */
+  --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#565b62;
+  /* accent-soft was #2a6b64: 4.44:1 on --bg-3. Now 6.08 / 5.56 / 4.97 */
+  --accent:#1f7a72; --accent-soft:#27635d; --accent-ink:#22706a; --accent-dim:#5b9c96;
   --accent-rgb:31,122,114;
   /* a light background loses contrast faster: 0.76 gives 4.66:1 on dimmed text */
   --focus-dim:0.76;
-  --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
+  /* green and amber were #2e7d4f and #8a6a24, both under 4.5:1 on --bg-2 and
+     --bg. Darkened until every surface clears the floor with headroom. */
+  --green:#266842; --amber:#72581e; --red:#984040;
   /* a light background loses contrast fast, so the search highlight ink and the
      schema warning ink are darkened to stay above 4.5:1 (the owner's floor).
      search-hit #1d514c: 5.78:1 over bg-2, 5.23:1 over bg-3.
-     warn #78591c: 5.19:1 over bg-2.
+     warn #6e5219: 5.53:1 over bg-2, 4.94:1 over bg-3.
      schema badge #215a54: 5.67:1 over bg-3 (raw accent-soft only gave 4.44:1).
      All of them stay in the accent and amber families. */
-  --search-hit-ink:#1d514c; --warn-ink:#78591c; --schema-ink:#215a54;
+  --search-hit-ink:#1d514c; --warn-ink:#6e5219; --schema-ink:#215a54;
+  /* glyph of the close button over its red hover fill: 6.68:1 over --red */
+  --win-close-ink:#ffffff;
 }

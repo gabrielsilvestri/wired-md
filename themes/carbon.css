@@ -1,0 +1,28 @@
+/* Theme "carbon": the high contrast dark.
+
+   Same shape as wired, pushed as far up the readable band as the ceiling
+   allows. --ink lands at 10.33:1 against --bg, not at 15:1 or 21:1, because the
+   ceiling is a real constraint here and not a stylistic preference: above 11:1
+   the stroke scatters and every letter grows a ghost for the maintainer. So
+   this is "high contrast" in the sense of separation between the ink levels
+   (10.3 / 8.2 / 6.5, a wider ladder than wired's 10.4 / 7.6 / 6.4) sitting on a
+   near black page, not in the sense of raw maximum.
+
+   Accent is a cold blue, deliberately far from the wired teal, so the two dark
+   themes are distinguishable at a glance. */
+
+:root {
+  --bg:#0a0c0f; --bg-2:#13161b; --bg-3:#1d2129;
+  --rule:#3c4552; --rule-soft:#1e222a; --rule-row:#2f3743; --leader:#353e4a;
+  --ink:#b5bdc8; --ink-dim:#a1a9b2; --ink-faint:#8e95a0;
+  --accent:#58a9f1; --accent-soft:#78baf4; --accent-ink:#459ff0; --accent-dim:#1279d5;
+  --accent-rgb:88,169,241;
+  /* measured against this background: 0.63 gives 4.62:1 on dimmed text */
+  --focus-dim:0.63;
+  --green:#3ebd7e; --amber:#de9e2d; --red:#f07171;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.95:1 over bg-2, 5.20:1 over bg-3 */
+  --search-hit-ink:#6bb3f3; --warn-ink:#dd9b27; --schema-ink:#75b8f4;
+  /* glyph of the close button over its red hover fill: 7.02:1 over --red */
+  --win-close-ink:#0c0607;
+}
