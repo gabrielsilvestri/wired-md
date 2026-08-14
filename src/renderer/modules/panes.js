@@ -12,6 +12,10 @@ import { refreshSidebar, pushRecent, revealDirInTree, getTreeRoot, setSidebarVis
 import { refreshFmPanel, scheduleFmRefresh } from './frontmatter.js';
 import { applyFocusMode, applyTypewriterMode, caretMoved } from './focus-typewriter.js';
 import { sendPaneToClaude } from './ai-bridge.js';
+import { gitBadge, gitStateFor, openDiff, scheduleGitRefresh } from './git.js';
+
+// lucide git-compare, for the "view file diff" button in the pane header.
+const ICON_DIFF = ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8', 'M3 8a9 9 0 0 0 9 6', 'M21 8a9 9 0 0 1-9 6'];
 
 const panesEl = document.getElementById('panes');
 
@@ -116,6 +120,19 @@ export function updatePaneHeader(pane) {
   pane.spineTitleEl.textContent = paneTitleText(pane);
   pane.spineTitleEl.title = pane.path || '';
   pane.spineDotEl.classList.toggle('on', pane.dirty);
+  // git state of THIS file, beside the name; the diff button only shows up when
+  // there is something to diff.
+  if (pane.gitSlotEl) {
+    pane.gitSlotEl.dataset.path = pane.path || '';
+    pane.gitSlotEl.innerHTML = '';
+    const badge = gitBadge(pane.path);
+    if (badge) pane.gitSlotEl.appendChild(badge);
+  }
+  if (pane.diffBtn) {
+    pane.diffBtn.dataset.path = pane.path || '';
+    const st = gitStateFor(pane.path);
+    pane.diffBtn.style.display = st && st !== '!' ? '' : 'none';
+  }
   updatePaneBreadcrumb(pane);
 }
 
@@ -251,8 +268,19 @@ export function createPane() {
   // Breadcrumb: the note folder relative to the open tree root, filling the gap
   // in the middle of the header. Each segment reveals the folder in the sidebar;
   // the button beside it opens the folder in Explorer.
+  // git badge for this file, right after the name (empty when clean or when
+  // there is no repository).
+  const gitSlotEl = document.createElement('span');
+  gitSlotEl.className = 'git-slot';
   const crumbEl = document.createElement('span');
   crumbEl.className = 'pane-crumbs';
+  // Read only diff of this file, hidden while there is nothing to show.
+  const diffBtn = document.createElement('button');
+  diffBtn.className = 'pane-diff';
+  diffBtn.title = 'View file diff';
+  diffBtn.setAttribute('aria-label', 'View file diff');
+  diffBtn.style.display = 'none';
+  diffBtn.appendChild(svgIcon(13, ICON_DIFF));
   const folderBtn = document.createElement('button');
   folderBtn.className = 'pane-folder';
   folderBtn.title = 'Open the note folder in Explorer';
@@ -270,7 +298,9 @@ export function createPane() {
   closeBtn.setAttribute('aria-label', 'Close pane');
   closeBtn.appendChild(svgIcon(12, ICON_X));
   header.appendChild(titleEl);
+  header.appendChild(gitSlotEl);
   header.appendChild(crumbEl);
+  header.appendChild(diffBtn);
   header.appendChild(folderBtn);
   header.appendChild(claudeBtn);
   header.appendChild(closeBtn);
@@ -308,7 +338,7 @@ export function createPane() {
   panesEl.appendChild(el);
 
   const pane = {
-    id, el, titleEl, crumbEl, folderBtn, spineTitleEl, spineDotEl, fmEl,
+    id, el, titleEl, crumbEl, folderBtn, gitSlotEl, diffBtn, spineTitleEl, spineDotEl, fmEl,
     fmTimer: null, path: null, dirty: false, vditor: null, ready: false, pendingPath: null
   };
   pane.vditor = new Vditor(edEl.id, vditorOptions(pane));
@@ -322,6 +352,10 @@ export function createPane() {
   claudeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     sendPaneToClaude(pane);
+  });
+  diffBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDiff(pane.path);
   });
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -461,6 +495,7 @@ export async function save() {
     return;
   }
   setPaneDirty(pane, false);
+  scheduleGitRefresh(); // a save is exactly what turns a clean file into M
 }
 
 export async function saveAs() {
