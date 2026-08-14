@@ -1,15 +1,17 @@
-// Ponte segura entre renderer e main. Só expõe o que o editor precisa.
+// Safe bridge between the renderer and main. It exposes only what the editor
+// needs, plus the frontmatter parser.
 
 const { contextBridge, ipcRenderer } = require('electron');
 const YAML = require('yaml');
 
-// --- frontmatter: parse e edição do bloco YAML ---
-// O parser roda aqui, no preload, porque o renderer é isolado (sem require) e
-// mandar isso pro main seria um round trip de IPC a cada tecla. O que atravessa
-// a ponte é sempre objeto simples: o Document do yaml nunca sai daqui.
+// --- frontmatter: parsing and editing of the YAML block ---
+// The parser runs here, in the preload, because the renderer is isolated (no
+// require) and pushing this to main would be an IPC round trip on every
+// keystroke. Only plain objects cross the bridge: the yaml Document never
+// leaves this file.
 
-// Classifica o valor pra decidir o controle da linha no painel.
-function classificar(v) {
+// Classifies the value to decide which control the panel row gets.
+function classify(v) {
   if (typeof v === 'boolean') return 'bool';
   if (typeof v === 'number') return 'number';
   if (v === null || v === undefined) return 'string';
@@ -18,7 +20,7 @@ function classificar(v) {
   return 'other';
 }
 
-function previa(v) {
+function preview(v) {
   try {
     return YAML.stringify(v).trim().replace(/\s+/g, ' ').slice(0, 80);
   } catch {
@@ -43,24 +45,24 @@ function fmParse(raw) {
   } catch (err) {
     return { ok: false, error: String(err.message || err) };
   }
-  if (js === null || js === undefined) return { ok: true, mapa: true, entries: [] };
-  if (typeof js !== 'object' || Array.isArray(js)) return { ok: true, mapa: false, entries: [] };
+  if (js === null || js === undefined) return { ok: true, isMap: true, entries: [] };
+  if (typeof js !== 'object' || Array.isArray(js)) return { ok: true, isMap: false, entries: [] };
   const entries = [];
   for (const [key, value] of Object.entries(js)) {
-    const kind = classificar(value);
+    const kind = classify(value);
     entries.push({
       key,
       kind,
       value: kind === 'other' ? null : value === undefined ? null : value,
-      preview: kind === 'other' ? previa(value) : ''
+      preview: kind === 'other' ? preview(value) : ''
     });
   }
-  return { ok: true, mapa: true, entries };
+  return { ok: true, isMap: true, entries };
 }
 
-// Escreve uma chave no bloco e devolve o YAML re-emitido. O Document do yaml
-// preserva ordem, comentários, chaves desconhecidas e mapas aninhados; só o
-// valor mexido é reescrito.
+// Writes one key into the block and returns the re-emitted YAML. The yaml
+// Document preserves order, comments, unknown keys and nested maps; only the
+// value that was touched is rewritten.
 function fmSet(raw, key, kind, value) {
   let doc;
   try {
@@ -84,7 +86,7 @@ contextBridge.exposeInMainWorld('wired', {
   openDialog: () => ipcRenderer.invoke('dialog:open'),
   saveAsDialog: (suggested) => ipcRenderer.invoke('dialog:saveAs', suggested),
 
-  // janela (barra de título custom)
+  // window (the custom title bar)
   winMinimize: () => ipcRenderer.send('window:minimize'),
   winMaximizeToggle: () => ipcRenderer.send('window:maximize-toggle'),
   winClose: () => ipcRenderer.send('window:close'),
@@ -99,7 +101,7 @@ contextBridge.exposeInMainWorld('wired', {
   searchFolder: (root, query) => ipcRenderer.invoke('search:folder', root, query),
   setTitle: (t) => ipcRenderer.send('window:setTitle', t),
 
-  // operações de arquivo da sidebar (toolbar e menu de contexto)
+  // file operations behind the sidebar toolbar and context menu
   showInFolder: (p) => ipcRenderer.invoke('fs:showInFolder', p),
   createFile: (p) => ipcRenderer.invoke('fs:createFile', p),
   createDir: (p) => ipcRenderer.invoke('fs:createDir', p),
@@ -109,7 +111,7 @@ contextBridge.exposeInMainWorld('wired', {
   exportFile: (p) => ipcRenderer.invoke('fs:export', p),
   onOpenFilePath: (cb) => ipcRenderer.on('open-file-path', (_ev, p) => cb(p)),
 
-  // configuração, temas e snippets
+  // config, themes and snippets
   getConfig: () => ipcRenderer.invoke('config:get'),
   setConfig: (cfg) => ipcRenderer.invoke('config:set', cfg),
   listThemes: () => ipcRenderer.invoke('themes:list'),
@@ -119,7 +121,7 @@ contextBridge.exposeInMainWorld('wired', {
   openSnippetsFolder: () => ipcRenderer.invoke('snippets:openFolder'),
   openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
 
-  // templates (novo arquivo a partir de template)
+  // templates (new file from a template)
   listTemplates: () => ipcRenderer.invoke('templates:list'),
   readTemplate: (file) => ipcRenderer.invoke('templates:read', file),
   openTemplatesFolder: () => ipcRenderer.invoke('templates:openFolder'),
@@ -133,7 +135,7 @@ contextBridge.exposeInMainWorld('wired', {
   onTermData: (cb) => ipcRenderer.on('term:data', (_ev, d) => cb(d)),
   onTermExit: (cb) => ipcRenderer.on('term:exit', (_ev, c) => cb(c)),
 
-  // frontmatter (painel de propriedades)
+  // frontmatter (the properties panel)
   fmParse: (raw) => fmParse(raw),
   fmSet: (raw, key, kind, value) => fmSet(raw, key, kind, value)
 });
