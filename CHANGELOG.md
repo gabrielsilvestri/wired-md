@@ -7,7 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Git status where the writing happens: a letter badge (`M`, `A`, `?`, `D`,
+  `R`) on every tree row and in the pane header, refreshed on the folder
+  watcher and on save, debounced. Backed by the `git` binary through
+  `child_process`, never a native library. With no git on PATH, or outside a
+  repository, the feature is simply absent: no error, no empty state.
+- Read only diff view, from the palette ("view file diff") and from an icon in
+  the pane header. Added and removed lines are tinted with colors derived from
+  the active theme and measured to stay between 4.5:1 and 11:1. An untracked
+  file is shown as its whole content added. No staging and no commit UI: the
+  embedded terminal already covers that.
+- `wired`, an experimental CLI so an AI agent can drive the editor from the
+  terminal it already lives in: `wired open`, `wired focus`, `wired list`
+  (`--json` for machine output) and `wired new`. No daemon, no server and no
+  port: the app is single instance now, and a second invocation hands its argv
+  to the live window. `skills/wired-md/SKILL.md` teaches an agent to use it.
+- `aiCliCommand` config key (default `claude`): the AI bridge and the terminal
+  button bring up whichever CLI is configured, and the tooltips say which one.
+  The bridge still never presses Enter on the final prompt line, with any CLI.
 
 ## [0.1.0] - 2026-08-13
 
