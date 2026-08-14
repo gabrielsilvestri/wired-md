@@ -5,15 +5,22 @@
 // booted, laid out and holding a real note here, which is the state worth
 // looking at. It writes into docs/review-wp2 and asserts only that the files
 // were produced.
+//
+// OPT IN: writing the PNGs only happens with WIRED_SHOTS=1. A png re-encoded on
+// every run is a diff on every run, which left `npm test` dirtying the working
+// tree for no reason. The rest of the check still runs unchanged, because the
+// window resize, the focus reset and the theme cycle are state that the checks
+// after this one inherit.
 
 const path = require('path');
 
 const OUT = path.join(__dirname, '..', '..', '..', 'docs', 'review-wp2');
+const SHOTS = process.env.WIRED_SHOTS === '1';
 
 async function run(ctx) {
   const { js, sleep, check, fs, win } = ctx;
 
-  fs.mkdirSync(OUT, { recursive: true });
+  if (SHOTS) fs.mkdirSync(OUT, { recursive: true });
 
   // A settings panel photographed in a 1360px window is a small box in a large
   // empty frame, so the window is sized to what the panel needs.
@@ -39,6 +46,7 @@ async function run(ctx) {
   await sleep(400);
 
   const shoot = async (name) => {
+    if (!SHOTS) return;
     const img = await win.webContents.capturePage();
     fs.writeFileSync(path.join(OUT, name + '.png'), img.toPNG());
   };
@@ -90,6 +98,10 @@ async function run(ctx) {
   await js(`(async()=>{config.theme='wired';await applyTheme('wired');await saveConfig();})()`);
   await sleep(300);
 
+  if (!SHOTS) {
+    check('review screenshots skipped (set WIRED_SHOTS=1 to write docs/review-wp2)', true, String(written.length) + ' shots');
+    return;
+  }
   const onDisk = written.filter((f) => fs.existsSync(path.join(OUT, f)));
   check(
     'review screenshots written to docs/review-wp2',

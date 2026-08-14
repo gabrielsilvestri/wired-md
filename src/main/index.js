@@ -171,16 +171,24 @@ app.on('second-instance', (_ev, argv, workingDirectory) => {
 // that lost it exists for a fraction of a second to deliver its argv, and it
 // must not touch the user data folder of the live one.
 if (gotLock) {
-  app.whenReady().then(() => {
-    // Fully custom window: no leftover native menu.
-    Menu.setApplicationMenu(null);
-    ensureUserDirs();
-    // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
-    // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.
-    themeImportIpc.sweepLegacySeeds();
-    cli.writeInstanceFile(app.getPath('userData'), path.join(__dirname, '..', '..'));
-    createWindow();
-  });
+  app.whenReady()
+    .then(() => {
+      // Fully custom window: no leftover native menu.
+      Menu.setApplicationMenu(null);
+      ensureUserDirs();
+      // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
+      // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.
+      themeImportIpc.sweepLegacySeeds();
+      cli.writeInstanceFile(app.getPath('userData'), app.getAppPath());
+      createWindow();
+    })
+    // A user data folder that cannot be created (an invalid WIRED_USERDATA, a
+    // read only drive) used to surface as an unhandled rejection and a window
+    // that half worked. Failing loudly and exiting is the honest answer.
+    .catch((err) => {
+      process.stderr.write('[wired-md] startup failed: ' + (err && err.stack ? err.stack : String(err)) + '\n');
+      app.exit(1);
+    });
 
   app.on('will-quit', () => cli.clearInstanceFile(app.getPath('userData')));
 }

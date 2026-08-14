@@ -39,12 +39,18 @@ async function run(ctx) {
   // The repo runs with core.autocrlf, so a fresh checkout hands this file over
   // with CRLF while the editor writes LF. Normalizing the working copy first is
   // what keeps the byte comparisons below about the table and not about git.
-  let original = fs.readFileSync(fixture, 'utf8');
+  //
+  // The ORIGINAL BYTES are kept aside and written back at the end: normalizing
+  // and leaving it that way changed only the line endings, which is invisible in
+  // a diff view and still left `npm test` with a dirty working tree.
+  const originalBytes = fs.readFileSync(fixture);
+  let original = originalBytes.toString('utf8');
   const asLf = original.split('\r\n').join('\n');
   if (asLf !== original) {
     fs.writeFileSync(fixture, asLf, 'utf8');
     original = asLf;
   }
+  const restoreFixtureBytes = () => fs.writeFileSync(fixture, originalBytes);
 
   // The panel toggles and persists, so a run has to start from a known state.
   await js('toggleFrontmatterPanel(true)');
@@ -209,7 +215,7 @@ async function run(ctx) {
   await sleep(400);
   await openPath(demoPath);
   await forget(['tables-v1']);
-  fs.writeFileSync(fixture, original, 'utf8');
+  restoreFixtureBytes();
   await sleep(800);
 }
 
