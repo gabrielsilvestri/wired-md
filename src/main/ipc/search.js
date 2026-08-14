@@ -15,12 +15,21 @@ const { TREE_IGNORE, MAX_DEPTH } = require('./tree');
 const SEARCH_MAX = 200; // ceiling of returned matches; above it the result is flagged truncated
 const SEARCH_LINE_MAX = 240; // ceiling of characters shown for one result line
 
+// PACKAGED BUILD TRAP: inside an installed app, require.resolve answers with a
+// path INSIDE app.asar, and an archive member cannot be executed. The binary is
+// listed in asarUnpack, so the real file sits in app.asar.unpacked under the same
+// relative path. Rewriting that one path segment is the whole fix; in dev the
+// path has no `app.asar` in it and this is a no-op.
+function unpacked(p) {
+  return p.split(path.sep + 'app.asar' + path.sep).join(path.sep + 'app.asar.unpacked' + path.sep);
+}
+
 // WIRED_SEARCH_ENGINE=node forces the fallback (useful to exercise that path).
 let rgPath = null;
 try {
   if (process.env.WIRED_SEARCH_ENGINE === 'node') throw new Error('fallback forced');
   const bin = process.platform === 'win32' ? 'rg.exe' : 'rg';
-  rgPath = require.resolve('@vscode/ripgrep-' + process.platform + '-' + process.arch + '/bin/' + bin);
+  rgPath = unpacked(require.resolve('@vscode/ripgrep-' + process.platform + '-' + process.arch + '/bin/' + bin));
   if (!fs.existsSync(rgPath)) rgPath = null;
 } catch {
   rgPath = null;

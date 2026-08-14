@@ -1,0 +1,97 @@
+# Packaging (electron-builder). See CLAUDE.md, section "Packaging", for the asar
+# traps this configuration exists to work around.
+#
+# The product name is not decided yet, so everything here is packaged under the
+# repository and package name. Renaming later means editing appId, productName
+# and the file association names in one place: this file.
+
+appId: com.gabrielsilvestri.wired-md
+productName: wired-md
+copyright: Copyright 2026 Gabriel Silvestri
+
+directories:
+  output: dist
+  buildResources: packaging
+
+# TRAP, and it cost a build: electron-builder runs @electron/rebuild by default,
+# which tries to compile node-pty from source. That fails here for two reasons at
+# once (the repo path contains spaces, which node-gyp refuses, and the bundled
+# winpty needs a git checkout to read a commit hash), and it is unnecessary:
+# node-pty ships N-API prebuilds under prebuilds/win32-x64 that the app already
+# loads unmodified in dev under this same Electron. Nothing else here is native.
+npmRebuild: false
+
+# Whitelist, not a blacklist: the repo carries a test suite, a docs folder and a
+# site that have no business inside an installer. node_modules of the production
+# dependencies are added by electron-builder on its own.
+#
+# src/renderer/vendor is generated (gitignored) and MUST ship: index.html loads
+# vditor and xterm from there and never from node_modules.
+files:
+  - package.json
+  - src/**/*
+  - bin/**/*
+  - themes/**/*
+  - snippets/**/*
+  - templates/**/*
+  - examples/demo.md
+  - LICENSE
+  # Browser only packages that are already vendored into src/renderer/vendor by
+  # scripts/sync-vendor.mjs. Nothing in main or preload requires them, so keeping
+  # a second copy under node_modules only doubles the download.
+  - "!node_modules/vditor/**"
+  - "!node_modules/@xterm/**"
+  - "!node_modules/geist/**"
+  # node-pty ships prebuilds for four platforms; this is a Windows x64 installer.
+  - "!node_modules/node-pty/prebuilds/darwin-*/**"
+  - "!node_modules/node-pty/prebuilds/win32-arm64/**"
+  # Source and vendored winpty sources; the prebuilt binaries stay (third_party
+  # holds the conpty runtime node-pty can load, so it is NOT excluded).
+  - "!node_modules/node-pty/{deps,src,scripts}/**"
+
+# Everything here is a binary that cannot be executed from inside an archive.
+# @vscode/ripgrep ships rg.exe in a per platform subpackage; node-pty ships the
+# prebuilt .node files plus the conpty agent (OpenConsole.exe and conpty.dll),
+# and it forks conpty_console_list_agent.js as a child process.
+asarUnpack:
+  - "**/node_modules/@vscode/ripgrep/**"
+  - "**/node_modules/@vscode/ripgrep-*/**"
+  - "**/node_modules/node-pty/**"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: packaging/wired-md.ico
+  # No signing certificate yet: an unsigned build is what the owner installs on
+  # his own machine, and SmartScreen will say so on any other one.
+  signAndEditExecutable: true
+
+# Per user install: no elevation prompt, no admin rights, nothing written under
+# Program Files. That is a hard requirement, not a preference.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: wired-md
+  installerIcon: packaging/wired-md.ico
+  uninstallerIcon: packaging/wired-md.ico
+  deleteAppDataOnUninstall: false
+
+# Right click a .md and "open with" finds the app; double click opens it, since
+# main resolves the file from argv.
+fileAssociations:
+  - ext: md
+    name: Markdown document
+    description: Markdown document
+    icon: packaging/wired-md-doc.ico
+    role: Editor
+  - ext: markdown
+    name: Markdown document
+    description: Markdown document
+    icon: packaging/wired-md-doc.ico
+    role: Editor

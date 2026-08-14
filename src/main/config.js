@@ -72,18 +72,31 @@ function ensureUserDirs() {
   // Copies what ships with the app (themes, snippets, templates) when it is not
   // in userData yet. An existing file is never overwritten: what the user edited
   // or deleted is their call.
-  const repoRoot = path.join(__dirname, '..', '..');
+  //
+  // PACKAGED BUILD: the source folders live inside app.asar. `app.getAppPath()`
+  // is the repo root in dev and `...\resources\app.asar` in an installed build,
+  // and Electron's asar layer makes readdir and readFile work on both. The seed
+  // is a readFileSync plus a writeFileSync rather than a copyFileSync, because
+  // reading is the operation the asar layer is guaranteed to serve.
+  const appRoot = app.getAppPath();
   const pairs = [
-    [path.join(repoRoot, 'themes'), themesDir, /\.css$/i],
-    [path.join(repoRoot, 'snippets'), snippetsDir, /\.css$/i],
-    [path.join(repoRoot, 'templates'), templatesDir, /\.(md|markdown)$/i]
+    [path.join(appRoot, 'themes'), themesDir, /\.css$/i],
+    [path.join(appRoot, 'snippets'), snippetsDir, /\.css$/i],
+    [path.join(appRoot, 'templates'), templatesDir, /\.(md|markdown)$/i]
   ];
   for (const [src, dest, ext] of pairs) {
     if (!fs.existsSync(src)) continue;
     for (const f of fs.readdirSync(src)) {
       if (!ext.test(f)) continue;
       const target = path.join(dest, f);
-      if (!fs.existsSync(target)) fs.copyFileSync(path.join(src, f), target);
+      if (fs.existsSync(target)) continue;
+      try {
+        fs.writeFileSync(target, fs.readFileSync(path.join(src, f)));
+      } catch (err) {
+        // One unreadable seed is not worth refusing to boot over, but it is
+        // worth saying out loud: a theme silently missing is a bug report.
+        process.stderr.write('[wired-md] could not seed ' + f + ': ' + String(err && err.message ? err.message : err) + '\n');
+      }
     }
   }
 }

@@ -11,7 +11,9 @@
     "prestart": "node scripts/sync-vendor.mjs",
     "start": "electron .",
     "test": "node scripts/test.js",
-    "smoke": "node scripts/test.js --smoke"
+    "smoke": "node scripts/test.js --smoke",
+    "dist": "node scripts/sync-vendor.mjs && electron-builder --win",
+    "smoke:installed": "node scripts/smoke-installed.mjs"
   },
   "keywords": [
     "markdown",
@@ -33,7 +35,8 @@
     "url": "https://github.com/gabrielsilvestri/wired-md/issues"
   },
   "devDependencies": {
-    "electron": "^37.2.0"
+    "electron": "^37.2.0",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "@vscode/ripgrep": "^1.18.0",

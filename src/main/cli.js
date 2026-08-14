@@ -191,16 +191,25 @@ async function run(cmd, deps) {
 }
 
 // A marker file so the CLI can tell, without paying for an Electron start up,
-// whether an instance is live in this profile. It carries the pid and the app
-// root, and it is removed on quit.
+// whether an instance is live in this profile. It carries the pid, the app root
+// and the executable that is running it, and it is removed on quit.
+//
+// PACKAGED: `appRoot` comes from `app.getAppPath()`, so it is the repo root in
+// dev and `...\resources\app.asar` in an installed build. `exe` is the thing a
+// future packaged CLI would have to launch (the installed wired-md.exe), since
+// there is no `node_modules/electron` next to an installed app.
 function instanceFile(userDataDir) {
   return path.join(userDataDir, 'cli-instance.json');
 }
 
-function writeInstanceFile(userDataDir, appRoot) {
+function writeInstanceFile(userDataDir, appRoot, exe) {
   try {
     fs.mkdirSync(userDataDir, { recursive: true });
-    fs.writeFileSync(instanceFile(userDataDir), JSON.stringify({ pid: process.pid, appRoot }), 'utf8');
+    fs.writeFileSync(
+      instanceFile(userDataDir),
+      JSON.stringify({ pid: process.pid, appRoot, exe: exe || process.execPath }),
+      'utf8'
+    );
   } catch {}
 }
 
