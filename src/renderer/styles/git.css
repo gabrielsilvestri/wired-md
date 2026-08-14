@@ -1,0 +1,165 @@
+/* Git badges and the read only diff overlay.
+   Feature stylesheet: it only knows the variables the theme declares, so a
+   third party theme gets the same treatment with no edit here. */
+
+/* --- the badge on a tree row and in the pane header --- */
+
+.git-slot {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 6px;
+}
+
+.git-badge {
+  flex: 0 0 auto;
+  font-family: var(--font-code);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  user-select: none;
+}
+
+/* Ink for the letter, derived from the theme's own status colors. The raw
+   --green and --red read fine on the dark theme and fall UNDER 4.5:1 on the
+   light one, so half of the theme ink is mixed in: that lands every pairing
+   between 5.0:1 and 6.9:1 in both themes, inside the owner's 4.5:1 to 11:1
+   window. Measured by tests/e2e/checks/91-git-diff.js at runtime. */
+.git-m,
+.git-r { color: color-mix(in srgb, var(--amber) 50%, var(--ink)); }
+.git-a,
+.git-untracked { color: color-mix(in srgb, var(--green) 50%, var(--ink)); }
+.git-d { color: color-mix(in srgb, var(--red) 50%, var(--ink)); }
+.git-ignored { color: var(--ink-faint); }
+
+/* In the pane header the badge sits right after the file name, so it does not
+   push itself to the far edge the way it does on a tree row. */
+.pane-header .git-slot { margin-left: 0; padding-left: 0; }
+
+.pane-diff {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.pane-diff:hover { background: var(--bg-3); color: var(--ink); }
+
+/* --- diff overlay: same family as #search-overlay --- */
+
+#diff-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 8vh;
+  z-index: 62;
+}
+
+#diff-overlay.hidden { display: none; }
+
+#diff-box {
+  width: 760px;
+  max-width: 92vw;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+#diff-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: var(--bg-3);
+}
+
+#diff-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#diff-status {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#diff-body {
+  max-height: 62vh;
+  overflow: auto;
+  padding: 6px 0;
+  font-family: var(--font-code);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.diff-line {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-sign {
+  flex: 0 0 auto;
+  width: 8px;
+  color: var(--ink-faint);
+  user-select: none;
+}
+
+.diff-text { flex: 1 1 auto; }
+
+.diff-ctx { color: var(--ink-dim); }
+
+/* Tint at 12% of the status color over the box background, with the ink mixed
+   half and half with the theme ink. Same measurement as the badges. */
+.diff-add {
+  background: color-mix(in srgb, var(--green) 12%, var(--bg-2));
+  color: color-mix(in srgb, var(--green) 50%, var(--ink));
+}
+
+.diff-add .diff-sign { color: color-mix(in srgb, var(--green) 50%, var(--ink)); }
+
+.diff-del {
+  background: color-mix(in srgb, var(--red) 12%, var(--bg-2));
+  color: color-mix(in srgb, var(--red) 50%, var(--ink));
+}
+
+.diff-del .diff-sign { color: color-mix(in srgb, var(--red) 50%, var(--ink)); }
+
+.diff-hunk {
+  color: var(--ink-faint);
+  padding-top: 6px;
+  padding-bottom: 2px;
+}
+
+.diff-meta { color: var(--ink-faint); }
+
+#diff-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
+#diff-overlay:not(.hidden) #diff-box { animation: ctx-pop 0.14s ease; }

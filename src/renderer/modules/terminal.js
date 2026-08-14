@@ -6,6 +6,7 @@
 
 import { config, saveConfig, registerConfigDefaults, activePane, dirName } from './state.js';
 import { cssVar, onThemeApplied } from './theme.js';
+import { aiCliCommand } from './ai-bridge.js';
 
 registerConfigDefaults({ terminalHeight: 260 });
 
@@ -223,11 +224,11 @@ export function initTerminal() {
   document.getElementById('btn-term-cd').addEventListener('click', cdTerminalToNote);
   document.getElementById('btn-terminal').addEventListener('click', () => toggleTerminal());
 
-  // Types the claude command into the shell, Enter included: this button is the
-  // explicit "start a session", not the bridge.
+  // Types the configured AI CLI command into the shell, Enter included: this
+  // button is the explicit "start a session", not the bridge.
   document.getElementById('btn-claude').addEventListener('click', () => {
     toggleTerminal(true);
-    setTimeout(() => termType('claude'), 300);
+    setTimeout(() => termType(aiCliCommand()), 300);
   });
 
   let resizing = false;

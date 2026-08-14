@@ -202,6 +202,10 @@ contextBridge.exposeInMainWorld('wired', {
   onTermData: (cb) => ipcRenderer.on('term:data', (_ev, d) => cb(d)),
   onTermExit: (cb) => ipcRenderer.on('term:exit', (_ev, c) => cb(c)),
 
+  // git (status badges and the read only diff overlay)
+  gitStatus: (dir) => ipcRenderer.invoke('git:status', dir),
+  gitDiff: (file) => ipcRenderer.invoke('git:diff', file),
+
   // frontmatter (the properties panel)
   fmParse: (raw) => fmParse(raw),
   fmSet: (raw, key, kind, value) => fmSet(raw, key, kind, value),

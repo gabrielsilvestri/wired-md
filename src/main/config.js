@@ -39,7 +39,14 @@ const WORKSPACE_DEFAULTS = {
   typewriterMode: false
 };
 
-const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS);
+// The AI CLI the bridge brings up in the terminal. It is a name, not a path:
+// whatever is on PATH under this name is what gets typed. The bridge still
+// never presses Enter, whichever CLI this is.
+const AI_DEFAULTS = {
+  aiCliCommand: 'claude'
+};
+
+const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS, AI_DEFAULTS);
 
 // Names that shipped before the project went English only. A config written by
 // an older build still points at them, so they are mapped on read instead of

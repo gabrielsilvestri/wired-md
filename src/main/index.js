@@ -23,8 +23,16 @@ const searchIpc = require('./ipc/search');
 const customizationIpc = require('./ipc/customization');
 const terminalIpc = require('./ipc/terminal');
 const themeImportIpc = require('./ipc/theme-import');
+const gitIpc = require('./ipc/git');
+const cli = require('./cli');
 
 let mainWindow = null;
+
+// Single instance: a second `wired` invocation is not a second editor, it is a
+// command for the one already open (see src/main/cli.js). Losing the lock means
+// this process exists only to hand its argv over, so it quits at once.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
 
 const E2E = process.env.WIRED_E2E === '1';
 const SMOKE = process.env.WIRED_SMOKE === '1';
@@ -105,6 +113,9 @@ function createWindow() {
     // var: the app itself never carries them.
     if (SMOKE) require('../../tests/smoke').run({ window: mainWindow, app });
     if (E2E) require('../../tests/e2e/driver').run({ window: mainWindow, app, filePath: initial });
+    // A cold start through the CLI (`wired open x.md` with no app running).
+    const cold = cli.parseArgv(process.argv);
+    if (cold) cli.execute(cold, { getWindow, templatesDir: path.join(app.getPath('userData'), 'templates') });
   });
 
   mainWindow.on('closed', () => {
@@ -143,16 +154,36 @@ searchIpc.register();
 customizationIpc.register();
 themeImportIpc.register({ getWindow });
 terminalIpc.register({ send });
+gitIpc.register();
 
-app.whenReady().then(() => {
-  // Fully custom window: no leftover native menu.
-  Menu.setApplicationMenu(null);
-  ensureUserDirs();
-  // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
-  // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.
-  themeImportIpc.sweepLegacySeeds();
-  createWindow();
+// A later `wired ...` hands its argv here instead of opening a second window.
+app.on('second-instance', (_ev, argv, workingDirectory) => {
+  const cmd = cli.parseArgv(argv);
+  if (!cmd) {
+    if (mainWindow) mainWindow.focus();
+    return;
+  }
+  cmd.cwd = cmd.cwd || workingDirectory;
+  cli.execute(cmd, { getWindow, templatesDir: path.join(app.getPath('userData'), 'templates') });
 });
+
+// Everything below only belongs to the instance that HOLDS the lock. The one
+// that lost it exists for a fraction of a second to deliver its argv, and it
+// must not touch the user data folder of the live one.
+if (gotLock) {
+  app.whenReady().then(() => {
+    // Fully custom window: no leftover native menu.
+    Menu.setApplicationMenu(null);
+    ensureUserDirs();
+    // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
+    // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.
+    themeImportIpc.sweepLegacySeeds();
+    cli.writeInstanceFile(app.getPath('userData'), path.join(__dirname, '..', '..'));
+    createWindow();
+  });
+
+  app.on('will-quit', () => cli.clearInstanceFile(app.getPath('userData')));
+}
 
 app.on('window-all-closed', () => {
   terminalIpc.killTerminal();

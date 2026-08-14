@@ -12,6 +12,7 @@ import { showCtxMenu, showFileContextMenu, showFolderContextMenu, showRecentCont
 import { openPath, newFile, setPaneDirty, closePane, paneWithPath, updatePaneHeader, updateAllBreadcrumbs } from './panes.js';
 import { updateChrome } from './titlebar.js';
 import { newFromTemplate } from './templates.js';
+import { gitSlot, scheduleGitRefresh } from './git.js';
 
 registerConfigDefaults({ sidebarWidth: 240, sidebarVisible: true, treeSort: 'az', recentFiles: [] });
 
@@ -88,6 +89,7 @@ function fileRow(f, depth) {
   name.textContent = f.name;
   row.appendChild(ico);
   row.appendChild(name);
+  row.appendChild(gitSlot(f.path)); // git badge, empty when the file is clean
   const p = activePane();
   if (p && f.path === p.path) row.classList.add('active');
   // Ctrl+click opens in a new pane beside; a plain click opens in the active one.
@@ -188,6 +190,7 @@ export async function refreshSidebar() {
     selectedDir = null;
     // Subfolders start closed when the root changes; opening one is a click.
     window.wired.watchDir(dir);
+    scheduleGitRefresh(); // another folder can be another repository (or none)
   }
   // Header: the root folder name, with the full path in the tooltip.
   sidebarRootName.textContent = baseName(dir);
@@ -489,5 +492,6 @@ export function initTree() {
 
   window.wired.onDirChanged(() => {
     refreshSidebar();
+    scheduleGitRefresh();
   });
 }

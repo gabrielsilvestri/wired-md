@@ -65,6 +65,23 @@ There is also a portable Windows helper in `scripts/windows/` that creates a des
 - `Ctrl+\`` toggles the embedded terminal.
 - `F8` focus mode, `F9` typewriter mode.
 
+## CLI (experimental)
+
+The editor can be driven from a terminal, so an AI agent working in a shell can put the right note in front of you. This is an experiment: the surface is small on purpose and may change.
+
+```
+npm link                                         # puts `wired` on PATH
+
+wired open <file>                                # open a .md (starts the editor if it is not running)
+wired focus <file>                               # bring a file that is already open to the front
+wired list [--json]                              # the files the editor has open
+wired new [--template <name>] [--title <title>]  # create a note from a template and open it
+```
+
+There is no daemon, no server and no port: the app is single instance, and a second `wired` invocation hands its argv to the live window and exits. To CHANGE a note, write the file on disk with any tool: the editor watches the folder and picks the change up. The CLI never sends content.
+
+`skills/wired-md/SKILL.md` is a skill file that teaches an AI agent (Claude Code or any CLI agent) to use this.
+
 ## Roadmap
 
 - **Packaging.** A real installer (electron-builder), so the app runs without cloning the source.
@@ -83,7 +100,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
-npm test        # full end to end suite (64 checks)
+npm test        # full end to end suite (75 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.
