@@ -1,0 +1,20 @@
+/* Tema claro simples de exemplo. Contraste contido: texto entre 4.5:1 e 11:1
+   sobre o fundo, sem preto puro nem branco puro. */
+
+:root {
+  --bg:#f2f0ea; --bg-2:#e9e6de; --bg-3:#dedad0;
+  --rule:#b3aca0; --rule-soft:#ddd8ce; --rule-row:#c8c2b6; --leader:#beb8ac;
+  --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#6a7079;
+  --accent:#1f7a72; --accent-soft:#2a6b64; --accent-ink:#22706a; --accent-dim:#5b9c96;
+  --accent-rgb:31,122,114;
+  /* fundo claro perde contraste mais rápido: 0.76 dá 4,66:1 no texto esmaecido */
+  --focus-dim:0.76;
+  --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
+  /* fundo claro perde contraste rápido: tinta do destaque de busca e do aviso
+     de schema escurecidas pra ficar acima de 4.5:1 (astigmatismo do dono).
+     search-hit #1d514c: 5,78:1 sobre bg-2, 5,23:1 sobre bg-3.
+     warn #78591c: 5,19:1 sobre bg-2.
+     selo de schema #215a54: 5,67:1 sobre bg-3 (o accent-soft cru dava 4,44:1).
+     Todas continuam na família accent/âmbar. */
+  --search-hit-ink:#1d514c; --warn-ink:#78591c; --schema-ink:#215a54;
+}
