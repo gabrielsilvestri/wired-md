@@ -15,13 +15,22 @@ import { askInput } from './dialogs.js';
 import { openPath, newFile, setPaneDirty } from './panes.js';
 import { getSelectedDir, getTreeRoot } from './tree.js';
 import { refreshFmPanel } from './frontmatter.js';
+import { registerPaletteAction } from './palette.js';
 
 const templateOverlay = document.getElementById('template-overlay');
 const templateListEl = document.getElementById('template-list');
+const templateHeadEl = document.getElementById('template-head');
+const inputOverlay = document.getElementById('input-overlay');
 
 let templateItems = []; // [{ file, name }] currently on screen
 let templateSel = 0;
 let templateResolve = null;
+let templateMode = 'pick'; // 'pick' creates a file from the template, 'manage' edits the templates
+
+const TEMPLATE_HEAD = {
+  pick: 'pick a template (arrows navigate, Enter creates, Esc cancels)',
+  manage: 'manage templates (arrows navigate, Enter opens for editing, Esc closes)'
+};
 
 export function getTemplateSel() {
   return templateSel;
@@ -160,6 +169,10 @@ export function isTemplatePickerOpen() {
 
 function templateKeydown(e) {
   if (templateOverlay.classList.contains('hidden')) return;
+  // The management buttons ask for a name in the app's own dialog WITHOUT
+  // closing the picker underneath. This listener runs in the capture phase, so
+  // without this line the Enter that confirms the name would also pick a row.
+  if (!inputOverlay.classList.contains('hidden')) return;
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     moveTemplateSel(1);
@@ -178,10 +191,13 @@ function templateKeydown(e) {
   e.stopPropagation();
 }
 
-async function pickTemplate() {
+// Redraws the list from disk, keeping the selection on the same file when it is
+// still there (a rename or a delete moves it as little as possible).
+async function renderTemplateList(keepFile) {
   const list = await window.wired.listTemplates();
   templateItems = Array.isArray(list) ? list : [];
-  templateSel = 0;
+  const at = keepFile ? templateItems.findIndex((t) => t.file === keepFile) : -1;
+  templateSel = at !== -1 ? at : Math.max(0, Math.min(templateSel, templateItems.length - 1));
   templateListEl.innerHTML = '';
   if (templateItems.length === 0) {
     const empty = document.createElement('div');
@@ -191,7 +207,7 @@ async function pickTemplate() {
   }
   templateItems.forEach((item, i) => {
     const row = document.createElement('div');
-    row.className = 'palette-row' + (i === 0 ? ' selected' : '');
+    row.className = 'palette-row' + (i === templateSel ? ' selected' : '');
     const label = document.createElement('span');
     label.className = 'palette-label';
     label.textContent = item.name;
@@ -202,22 +218,135 @@ async function pickTemplate() {
     row.appendChild(hint);
     row.addEventListener('mousedown', (e) => {
       e.preventDefault();
+      // In management mode a click only selects: the footer buttons act on the
+      // selected row, so closing on the first click would make them unreachable
+      // with the mouse. A double click opens the template for editing.
+      if (templateMode === 'manage') {
+        templateSel = i;
+        markTemplateSel();
+        return;
+      }
+      closeTemplatePicker(item);
+    });
+    row.addEventListener('dblclick', (e) => {
+      e.preventDefault();
       closeTemplatePicker(item);
     });
     templateListEl.appendChild(row);
   });
+}
+
+function openTemplateOverlay(mode) {
+  templateMode = mode === 'manage' ? 'manage' : 'pick';
+  templateHeadEl.textContent = TEMPLATE_HEAD[templateMode];
   templateOverlay.classList.remove('hidden');
+  window.removeEventListener('keydown', templateKeydown, true);
   window.addEventListener('keydown', templateKeydown, true);
   return new Promise((resolve) => {
     templateResolve = resolve;
   });
 }
 
+async function pickTemplate(mode) {
+  templateSel = 0;
+  await renderTemplateList(null);
+  return openTemplateOverlay(mode);
+}
+
 templateOverlay.addEventListener('mousedown', (e) => {
   if (e.target === templateOverlay) closeTemplatePicker(null);
 });
 
+// --- managing the templates from the picker footer ---
+// Icon buttons, English tooltips. Every step can be cancelled and cancelling
+// leaves nothing on disk: the file is only touched after the last answer.
+
+const STARTER_TEMPLATE = '# {{title}}\n\n{{cursor}}\n';
+
+function selectedTemplate() {
+  return templateItems[templateSel] || null;
+}
+
+function templateFileName(name) {
+  return /\.(md|markdown)$/i.test(name) ? name : name + '.md';
+}
+
+async function newTemplate() {
+  const name = await askInput('new template', 'untitled.md', 'create');
+  if (!name) return;
+  const file = templateFileName(name);
+  const res = await window.wired.createTemplate(file, STARTER_TEMPLATE);
+  if (!res.ok) {
+    alert('Could not create the template: ' + res.error);
+    return;
+  }
+  await renderTemplateList(file);
+}
+
+async function renameTemplate() {
+  const item = selectedTemplate();
+  if (!item) return;
+  const name = await askInput('rename ' + item.name, item.file, 'rename');
+  if (!name) return;
+  const file = templateFileName(name);
+  if (file === item.file) return;
+  const res = await window.wired.renameTemplate(item.file, file);
+  if (!res.ok) {
+    alert('Could not rename the template: ' + res.error);
+    return;
+  }
+  await renderTemplateList(file);
+}
+
+// Deleting goes to the Recycle Bin (shell.trashItem), never unlink: a template
+// the user wrote is never destroyed by this app.
+async function deleteTemplate() {
+  const item = selectedTemplate();
+  if (!item) return;
+  if (!confirm('Move the template "' + item.file + '" to the Recycle Bin?')) return;
+  const res = await window.wired.trashTemplate(item.file);
+  if (!res.ok) {
+    alert('Could not move the template to the Recycle Bin: ' + res.error);
+    return;
+  }
+  await renderTemplateList(null);
+}
+
+// Opens the template file itself in a pane, so it is edited with the same editor
+// as everything else instead of a second, worse one inside a modal.
+async function editTemplate(item) {
+  const target = item || selectedTemplate();
+  if (!target) return;
+  const res = await window.wired.templatePath(target.file);
+  if (!res.ok) {
+    alert('Could not locate the template: ' + res.error);
+    return;
+  }
+  closeTemplatePicker(null);
+  await openPath(res.path, false);
+}
+
+// The picker in management mode. Enter opens the selected template for editing.
+export async function manageTemplates() {
+  const chosen = await pickTemplate('manage');
+  if (chosen) await editTemplate(chosen);
+}
+
 document.getElementById('btn-template-folder').addEventListener('click', () => window.wired.openTemplatesFolder());
+document.getElementById('btn-template-new').addEventListener('click', () => void newTemplate());
+document.getElementById('btn-template-rename').addEventListener('click', () => void renameTemplate());
+document.getElementById('btn-template-delete').addEventListener('click', () => void deleteTemplate());
+document.getElementById('btn-template-edit').addEventListener('click', () => void editTemplate(null));
+
+// The wording is load bearing. The palette ranks by fuzzy score, and a bare
+// "manage templates" outranks "new from template" for the query "template",
+// which would put the management command in front of the one people reach for
+// every day. Naming what it acts on (the FILES) keeps the everyday command on
+// top and says more besides.
+registerPaletteAction({ label: 'manage the template files', run: () => void manageTemplates() });
+
+// The end to end suite drives management through the same seam the buttons use.
+window.manageTemplates = manageTemplates;
 
 // Puts the caret where the {{cursor}} was. The trick: reopen the content with an
 // invisible token, find the token in the rendered DOM, remove it from the text
@@ -265,7 +394,7 @@ function placeCursorAtMarker(pane, withMarker, clean) {
 // because the file is only born after the last answer.
 export async function newFromTemplate(targetDir) {
   const dir = targetDir || getSelectedDir() || getTreeRoot();
-  const tpl = await pickTemplate();
+  const tpl = await pickTemplate('pick');
   if (!tpl) return;
   const read = await window.wired.readTemplate(tpl.file);
   if (!read.ok) {

@@ -86,6 +86,63 @@ function register() {
   });
 
   ipcMain.handle('templates:openFolder', () => shell.openPath(userDir('templates')));
+
+  // --- managing the template files from inside the app ---
+  // Every path is rebuilt from userDir('templates') plus a name that passed
+  // TEMPLATE_NAME_RE, so nothing here can point outside the folder. Deleting
+  // goes through shell.trashItem (Recycle Bin), never unlink: a template the
+  // user wrote is never destroyed by this app.
+
+  const templateFile = (file) => {
+    const name = String(file || '');
+    if (!TEMPLATE_NAME_RE.test(name)) return null;
+    return userDir('templates', name);
+  };
+
+  ipcMain.handle('templates:path', (_ev, file) => {
+    const p = templateFile(file);
+    if (!p) return { ok: false, error: 'invalid name' };
+    return { ok: true, path: p };
+  });
+
+  ipcMain.handle('templates:create', (_ev, file, content) => {
+    try {
+      const p = templateFile(file);
+      if (!p) return { ok: false, error: 'invalid name' };
+      if (fs.existsSync(p)) return { ok: false, error: 'a template with that name already exists' };
+      fs.writeFileSync(p, String(content == null ? '' : content), 'utf8');
+      return { ok: true, path: p };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  ipcMain.handle('templates:rename', (_ev, from, to) => {
+    try {
+      const src = templateFile(from);
+      const dest = templateFile(to);
+      if (!src || !dest) return { ok: false, error: 'invalid name' };
+      if (src === dest) return { ok: true, path: dest };
+      if (!fs.existsSync(src)) return { ok: false, error: 'the template is not there anymore' };
+      if (fs.existsSync(dest)) return { ok: false, error: 'a template with that name already exists' };
+      fs.renameSync(src, dest);
+      return { ok: true, path: dest };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  ipcMain.handle('templates:trash', async (_ev, file) => {
+    try {
+      const p = templateFile(file);
+      if (!p) return { ok: false, error: 'invalid name' };
+      if (!fs.existsSync(p)) return { ok: false, error: 'the template is not there anymore' };
+      await shell.trashItem(p);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
 }
 
 module.exports = { register };
