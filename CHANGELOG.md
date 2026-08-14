@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Spreadsheet style editing for markdown tables. Tab moves to the next cell and
+  grows the table when it runs off the last one, Shift+Tab goes back, Enter
+  drops to the row below in the same column. A floating icon toolbar over the
+  table (and a palette command for each) adds and deletes rows and columns,
+  moves them around, and sets the alignment of a column. Every transform is
+  applied to a single table node, and a round trip guard verifies that the rest
+  of the document came back byte for byte identical before the change is kept.
+- Properties panel v2: a key can be renamed by clicking its label, and a row at
+  the bottom of the panel adds a key of any kind (text, number, list, boolean),
+  offering the keys of the file's schema first. Order, comments, unknown keys
+  and nested maps are preserved exactly; problems stay an inline amber row.
+- Templates are managed from inside the app. The picker footer creates, renames,
+  deletes and opens a template for editing in a pane, and the palette command
+  "manage the template files" opens the picker in that mode. Deleting goes to
+  the Recycle Bin, and cancelling any step leaves nothing on disk.
 
 ## [0.1.0] - 2026-08-13
 
