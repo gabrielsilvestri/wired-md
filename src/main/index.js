@@ -8,6 +8,13 @@ const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Redirect the whole user data folder (config, themes, snippets, templates).
+// Lets test runs live in an isolated profile instead of the owner's real
+// %APPDATA%\wired-md, so parallel suites never trample each other.
+if (process.env.WIRED_USERDATA) {
+  app.setPath('userData', path.resolve(process.env.WIRED_USERDATA));
+}
+
 const { ensureUserDirs } = require('./config');
 const { readWindowState, saveWindowState } = require('./window-state');
 const fsIpc = require('./ipc/fs');
