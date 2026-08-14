@@ -1,4 +1,5 @@
-/* Tema padrão "wired": dark, paleta do dashboard da lain. */
+/* Base structure and defaults. The colors come from the theme file loaded into
+   #theme-style; what lives here is the fallback palette. */
 
 :root {
   --bg:#101216; --bg-2:#191d23; --bg-3:#222732;
@@ -6,7 +7,7 @@
   --ink:#bcc2c9; --ink-dim:#9fa6b0; --ink-faint:#9098a3;
   --accent:#4fc7bb; --accent-soft:#83cdc6; --accent-ink:#5bbcb2; --accent-dim:#3a8c85;
   --accent-rgb:79,199,187;
-  /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
+  /* focus mode opacity measured for this background: 4.66:1 on dimmed text */
   --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
   --search-hit-ink:#83cdc6; --warn-ink:#d5a95a; --schema-ink:#83cdc6;
@@ -38,7 +39,7 @@ html, body {
   height: calc(100vh - var(--titlebar-h));
 }
 
-/* --- barra de título custom (janela frameless) --- */
+/* --- custom title bar (frameless window) --- */
 
 #titlebar {
   height: var(--titlebar-h);
@@ -58,7 +59,7 @@ html, body {
   -webkit-app-region: no-drag;
 }
 
-/* botões de ícone da barra de título */
+/* icon buttons in the title bar */
 .tb-btn {
   background: transparent;
   border: none;
@@ -139,7 +140,7 @@ html, body {
   transition: width 0.18s ease, opacity 0.18s ease;
 }
 
-/* Ocultar é animado: a largura encolhe e a opacidade some (~180ms). */
+/* Hiding is animated: the width shrinks and the opacity fades (~180ms). */
 #sidebar.hidden {
   width: 0 !important;
   opacity: 0;
@@ -147,7 +148,7 @@ html, body {
   pointer-events: none;
 }
 
-/* Sem transição durante o arrasto do resizer, senão a largura "persegue" o mouse. */
+/* No transition while dragging the resizer, otherwise the width chases the mouse. */
 body.resizing-sidebar #sidebar { transition: none; }
 
 #sidebar-resizer {
@@ -172,7 +173,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   border-bottom: 1px solid var(--rule-soft);
 }
 
-/* nome da pasta raiz da nota aberta (ellipsis; path completo no tooltip) */
+/* name of the root folder of the open note (ellipsis; full path in the tooltip) */
 #sidebar-root-name {
   flex: 1;
   min-width: 0;
@@ -188,7 +189,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 #btn-root-explorer { flex: 0 0 auto; }
 
-/* --- toolbar da tree (estilo Obsidian) --- */
+/* --- tree toolbar (Obsidian style) --- */
 
 #tree-toolbar {
   display: flex;
@@ -220,7 +221,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 #tree-search::placeholder { color: var(--ink-faint); }
 #tree-search:focus { border-color: var(--accent-dim); }
 
-/* --- árvore de arquivos --- */
+/* --- file tree --- */
 
 #file-tree {
   overflow-y: auto;
@@ -271,7 +272,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   white-space: nowrap;
 }
 
-/* --- arquivos recentes --- */
+/* --- recent files --- */
 
 #sidebar-footer {
   border-top: 1px solid var(--rule-soft);
@@ -332,7 +333,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   color: var(--ink-faint);
 }
 
-/* --- coluna principal --- */
+/* --- main column --- */
 
 #main-col {
   flex: 1;
@@ -341,7 +342,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   min-width: 0;
 }
 
-/* --- sliding panes (arquivos lado a lado, estilo Obsidian) --- */
+/* --- sliding panes (files side by side, Obsidian style) --- */
 
 #panes {
   flex: 1;
@@ -350,8 +351,8 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
 }
 
-/* Pane aberto ocupa a largura flexível; o encolhido vira lombada de 40px.
-   O deslize é a transição de flex-grow e flex-basis (~200ms). */
+/* An open pane takes the flexible width; a collapsed one becomes a 40px spine.
+   The slide is the flex-grow and flex-basis transition (~200ms). */
 .pane {
   flex: 1 1 0;
   min-width: 0;
@@ -373,7 +374,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .pane.collapsed .fm-panel,
 .pane.collapsed .pane-editor { display: none; }
 
-/* --- lombada do pane encolhido: X no topo, bolinha de sujo, título vertical --- */
+/* --- spine of a collapsed pane: X on top, dirty dot, vertical title --- */
 
 .pane-spine { display: none; }
 
@@ -404,7 +405,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .pane.collapsed:hover .spine-title { color: var(--ink); }
 
-/* bolinha âmbar de não salvo, visível também na lombada */
+/* amber unsaved dot, visible on the spine too */
 .spine-dot {
   flex: 0 0 auto;
   width: 6px;
@@ -423,14 +424,14 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 4px 8px 4px 12px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--rule-soft);
-  /* trava dura contra overflow horizontal do cabeçalho (o nome do arquivo e o
-     breadcrumb encolhem com reticências; os botões têm largura fixa) */
+  /* hard stop against horizontal overflow of the header (the file name and the
+     breadcrumb shrink with an ellipsis; the buttons keep a fixed width) */
   overflow: hidden;
 }
 
-/* O nome do arquivo tem prioridade: encolhe por ÚLTIMO (shrink baixo). O
-   breadcrumb absorve o aperto primeiro (shrink alto) e, esgotado ele, o nome
-   trunca com reticências. Assim o cabeçalho nunca estoura na horizontal. */
+/* The file name has priority: it shrinks LAST (low shrink). The breadcrumb
+   absorbs the squeeze first (high shrink) and, once it is spent, the name
+   truncates with an ellipsis. The header never overflows horizontally. */
 .pane-title {
   flex: 0 1 auto;
   min-width: 0;
@@ -448,7 +449,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .pane-title.dirty { color: var(--amber); }
 .pane.active .pane-header { box-shadow: inset 0 -1px 0 var(--accent-dim); }
 
-/* breadcrumb da pasta da nota, preenchendo o vão do meio do cabeçalho */
+/* breadcrumb of the note folder, filling the gap in the middle of the header */
 .pane-crumbs {
   flex: 1 100 auto;
   min-width: 0;
@@ -466,19 +467,19 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink-dim); /* 6,89:1 no wired e 5,34:1 no claro sobre o bg-2 */
+  color: var(--ink-dim); /* 6.89:1 in wired and 5.34:1 in light, over bg-2 */
 }
 
-/* o último segmento (a pasta que contém a nota) não encolhe antes dos de cima */
+/* the last segment (the folder holding the note) never shrinks before the others */
 .crumb-seg:last-child { flex: 0 1 auto; }
 
 .crumb-seg.clickable { cursor: pointer; }
 .crumb-seg.clickable:hover { color: var(--ink); text-decoration: underline; }
 
-/* separador discreto: divisória, não texto de leitura */
-/* separador entre os nomes: teal legível, não decorativo abaixo do piso.
-   --accent-soft sobre o --bg-2 do cabeçalho: 9,27:1 no wired e 4,97:1 no claro,
-   dentro da faixa 4.5:1 a 11:1 (o --accent-dim com opacidade furava o piso). */
+/* discreet separator: a divider, not reading text */
+/* separator between the names: legible teal, not decoration below the floor.
+   --accent-soft over the header --bg-2: 9.27:1 in wired and 4.97:1 in light,
+   inside 4.5:1 to 11:1 (--accent-dim with opacity broke through the floor). */
 .crumb-sep {
   flex: 0 0 auto;
   color: var(--accent-soft);
@@ -502,14 +503,14 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 .pane-claude:hover { background: var(--bg-3); color: var(--accent-soft); }
 .pane-folder:hover { background: var(--bg-3); color: var(--ink); }
 
-/* pisca a linha da pasta revelada por um clique no breadcrumb */
+/* flashes the row of the folder revealed by a breadcrumb click */
 .tree-row.reveal-flash {
   background: var(--bg-3);
   box-shadow: inset 2px 0 0 var(--accent-dim);
   transition: background 0.16s ease;
 }
 
-/* --- painel de propriedades (frontmatter YAML), no topo de cada pane --- */
+/* --- properties panel (YAML frontmatter), at the top of every pane --- */
 
 .fm-panel {
   flex: 0 0 auto;
@@ -538,9 +539,9 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   user-select: none;
 }
 
-/* Selo do schema: tinta da família accent (--schema-ink, com fallback pro
-   accent-soft de temas de terceiro) sobre o bg-3 sólido. Dentro da faixa 4.5:1
-   a 11:1: wired 8,20:1, claro 5,67:1 (o accent-soft cru dava 4,44:1 no claro). */
+/* Schema badge: ink from the accent family (--schema-ink, falling back to
+   accent-soft for third party themes) over solid bg-3. Inside 4.5:1 to 11:1:
+   wired 8.20:1, light 5.67:1 (raw accent-soft gave 4.44:1 in the light theme). */
 .fm-schema {
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -624,10 +625,10 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 2px 0;
 }
 
-/* Aviso do schema: linha compacta, tinta de aviso da família âmbar
-   (--warn-ink, com fallback pro --amber de temas de terceiro). Fica sobre o
-   bg-2 do painel, dentro da faixa 4.5:1 a 11:1: wired 7,78:1, claro 5,19:1.
-   O --amber da bolinha de não salvo continua intocado. Nunca popup, nunca trava. */
+/* Schema warning: a compact row, warning ink from the amber family (--warn-ink,
+   falling back to --amber for third party themes), over the panel bg-2, inside
+   4.5:1 to 11:1: wired 7.78:1, light 5.19:1. The --amber of the unsaved dot is
+   untouched. Never a popup, never a block on typing or saving. */
 .fm-warns { display: flex; flex-direction: column; gap: 2px; }
 
 .fm-warn {
@@ -663,24 +664,24 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 }
 
 .vditor-ir { background: var(--bg); }
-/* O Vditor manda `.vditor-ir pre.vditor-reset { margin: 0 }`, que sobrepõe o
-   `margin: 0 auto` do `.vditor-reset` (mais específico) e cola a coluna de
-   texto na esquerda, deixando o vão morto à direita em janela larga. Como este
-   styles.css carrega depois do CSS do Vditor, repetir o seletor com `0 auto`
-   devolve a centralização; o `max-width: 860px` do `.vditor-reset` continua
-   valendo, então a coluna reflui (encolhe) quando o pane é mais estreito. */
+/* Vditor ships `.vditor-ir pre.vditor-reset { margin: 0 }`, which beats the
+   `margin: 0 auto` on `.vditor-reset` (it is more specific) and glues the text
+   column to the left, leaving dead space on the right in a wide window. Since
+   this styles.css loads after the Vditor CSS, repeating the selector with
+   `0 auto` gives the centering back; the `max-width: 860px` still applies, so
+   the column reflows (shrinks) when the pane is narrower. */
 .vditor-ir pre.vditor-reset { background: var(--bg) !important; margin: 0 auto; }
 
-/* --- modo foco: o bloco onde o caret está fica com a tinta cheia, o resto
-   esmaece. A opacidade NÃO é chute, é medida: o texto esmaecido tem que ficar
-   acima de 4.5:1 contra o fundo (astigmatismo do dono).
-     tema wired: #bcc2c9 a 62% sobre #101216 = 4,66:1 (tinta cheia: 10,44:1)
-     tema claro: #3c424a a 76% sobre #f2f0ea = 4,66:1 (tinta cheia: 8,90:1)
-   Por isso cada tema carrega o seu --focus-dim, e o renderer ainda recalcula o
-   valor a cada troca de tema (focusDimFor), que é o que cobre tema de terceiro
-   e tema antigo já semeado em %APPDATA% sem a variável.
-   O esmaecimento vale pra qualquer bloco (parágrafo, tabela, imagem, código),
-   uniforme, e a transição de 150ms evita piscada enquanto se digita. --- */
+/* --- focus mode: the block holding the caret keeps full ink, everything else
+   fades. The opacity is NOT a guess, it is measured: dimmed text has to stay
+   above 4.5:1 against the background (the owner's contrast floor).
+     wired theme: #bcc2c9 at 62% over #101216 = 4.66:1 (full ink: 10.44:1)
+     light theme: #3c424a at 76% over #f2f0ea = 4.66:1 (full ink: 8.90:1)
+   That is why every theme carries its own --focus-dim, and the renderer still
+   recomputes the value on each theme change (focusDimFor), which covers third
+   party themes and older themes already seeded in %APPDATA% without the
+   variable. The fading applies to any block (paragraph, table, image, code),
+   uniformly, and the 150ms transition avoids flicker while typing. --- */
 .pane.focus-mode .vditor-ir pre.vditor-reset > * {
   opacity: var(--focus-dim, 0.62);
   transition: opacity 0.15s ease;
@@ -688,13 +689,13 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .pane.focus-mode .vditor-ir pre.vditor-reset > .focus-current { opacity: 1; }
 
-/* --- modo typewriter: a linha em edição fica no centro vertical. O espaço em
-   cima e embaixo é o que permite centralizar a PRIMEIRA e a ÚLTIMA linha do
-   documento; sem ele o scroll acaba antes do meio da tela e as linhas das
-   pontas ficariam paradas fora do centro. --- */
+/* --- typewriter mode: the line being edited sits at the vertical center. The
+   space above and below is what allows centering the FIRST and the LAST line of
+   the document; without it the scroll runs out before mid screen and the edge
+   lines would sit off center. --- */
 .pane.typewriter-mode .vditor-ir pre.vditor-reset { padding: 50vh 48px !important; }
 
-/* hierarquia por cor e peso, não por tamanho exagerado */
+/* hierarchy through color and weight, not exaggerated size */
 .vditor-reset h1, .vditor-reset h2, .vditor-reset h3,
 .vditor-reset h4, .vditor-reset h5, .vditor-reset h6 {
   color: var(--accent-soft);
@@ -756,11 +757,11 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 .vditor-reset input[type="checkbox"] { accent-color: var(--accent); }
 
-/* --- toolbar extra --- */
+/* --- extra toolbar --- */
 
 .toolbar-spacer { flex: 1; }
 
-/* --- terminal embutido --- */
+/* --- embedded terminal --- */
 
 #terminal-panel {
   position: relative;
@@ -775,7 +776,7 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 #terminal-panel.hidden { display: none; }
 
-/* pega na borda superior do painel e arrasta a altura */
+/* grab the top edge of the panel and drag the height */
 #terminal-resizer {
   position: absolute;
   top: -3px;
@@ -840,7 +841,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 #terminal-host .xterm { height: 100%; }
 
-/* --- command palette e quick switcher --- */
+/* --- command palette and quick switcher --- */
 
 #palette-overlay {
   position: fixed;
@@ -930,7 +931,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   color: var(--ink-faint);
 }
 
-/* --- seletor de template (novo a partir de template): mesma família visual da palette --- */
+/* --- template picker (new from template): same visual family as the palette --- */
 
 #template-overlay {
   position: fixed;
@@ -1002,7 +1003,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 #btn-template-folder:hover { color: var(--ink); border-color: var(--rule); }
 
-/* --- busca full-text na pasta (Ctrl+Shift+F): mesma família visual da palette --- */
+/* --- full text search in the folder (Ctrl+Shift+F): same visual family as the palette --- */
 
 #search-overlay {
   position: fixed;
@@ -1111,11 +1112,11 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   white-space: nowrap;
 }
 
-/* Destaque do trecho: tinta da família accent do tema (--search-hit-ink, com
-   fallback pro accent-soft de temas de terceiro). O fundo é o accent a 0.18
-   compondo sobre a linha (bg-2, ou bg-3 quando selecionada). Medido em ambos os
-   temas dentro da faixa 4.5:1 a 11:1 que o dono precisa: wired 6,47:1 (bg-2) e
-   5,70:1 (bg-3); claro 5,78:1 (bg-2) e 5,23:1 (bg-3). */
+/* Snippet highlight: ink from the theme accent family (--search-hit-ink,
+   falling back to accent-soft for third party themes). The background is the
+   accent at 0.18 composited over the row (bg-2, or bg-3 when selected).
+   Measured in both themes inside the 4.5:1 to 11:1 range the owner needs:
+   wired 6.47:1 (bg-2) and 5.70:1 (bg-3); light 5.78:1 (bg-2) and 5.23:1 (bg-3). */
 .search-hit {
   background: rgba(var(--accent-rgb), 0.18);
   color: var(--search-hit-ink, var(--accent-soft));
@@ -1129,7 +1130,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   color: var(--ink-faint);
 }
 
-/* --- painel de configurações --- */
+/* --- settings panel --- */
 
 #settings-overlay {
   position: fixed;
@@ -1222,7 +1223,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 .setting-row input[type="number"] { flex: 0 0 70px; font-variant-numeric: tabular-nums; }
 
-/* números alinhados e ligatures desligadas onde a grade importa */
+/* aligned figures and ligatures off where the grid matters */
 #terminal-host .xterm { font-feature-settings: "tnum" 1, "calt" 0; }
 
 .setting-row input[type="color"] {
@@ -1269,7 +1270,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 .snippet-row input[type="checkbox"] { accent-color: var(--accent); }
 
-/* --- menu de contexto custom --- */
+/* --- custom context menu --- */
 
 @keyframes ctx-pop {
   from { opacity: 0; transform: scale(0.97) translateY(-2px); }
@@ -1328,7 +1329,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
   margin: 4px 0;
 }
 
-/* --- dialog de input (novo arquivo, nova pasta, renomear) --- */
+/* --- input dialog (new file, new folder, rename) --- */
 
 @keyframes overlay-fade {
   from { opacity: 0; }
@@ -1403,7 +1404,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 #input-actions button:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
 
-/* fade/scale sutil nos overlays existentes */
+/* subtle fade and scale on the overlays */
 #palette-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
 #palette-overlay:not(.hidden) #palette { animation: ctx-pop 0.14s ease; }
 #template-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
@@ -1413,7 +1414,7 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 #settings-overlay:not(.hidden) { animation: overlay-fade 0.13s ease; }
 #settings-overlay:not(.hidden) #settings-panel { animation: ctx-pop 0.14s ease; }
 
-/* --- scrollbar fina --- */
+/* --- thin scrollbar --- */
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
