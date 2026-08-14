@@ -1,0 +1,157 @@
+/* Floating toolbar for the table the caret is in.
+   Colors are theme variables only: bg-2 for the strip, rule for the edge,
+   ink-dim for a resting icon and ink over bg-3 for the one under the pointer.
+   That is the same pair the title bar buttons already use, so the contrast was
+   measured once and holds in every theme. */
+
+#table-toolbar {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+
+#table-toolbar.hidden { display: none; }
+
+.tt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.tt-btn:hover { background: var(--bg-3); color: var(--ink); }
+.tt-btn:active { color: var(--accent-ink, var(--accent)); }
+
+.tt-sep {
+  width: 1px;
+  height: 15px;
+  margin: 0 3px;
+  background: var(--rule-soft);
+}
+
+/* --- properties panel v2: renaming a key and adding one ---
+   These rules ride in this file on purpose. This work package owns exactly one
+   feature stylesheet and exactly one <link> line in index.html, and the base
+   .fm-* rules live in styles.css, which it does not own. Everything here is
+   built out of the variables the panel already uses. */
+
+/* The key label turned into a field: it keeps the width and the type of the
+   label it replaced, so nothing on the row shifts while the name is edited. */
+.fm-row input.fm-key-input {
+  flex: 0 0 108px;
+  min-width: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--accent-dim);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+}
+
+.fm-key { cursor: text; }
+
+.fm-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--rule-soft);
+}
+
+.fm-add-row input.fm-add-key {
+  flex: 0 0 108px;
+  min-width: 0;
+  background: var(--bg-3);
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+}
+
+.fm-add-row input.fm-add-key:focus { border-color: var(--accent-dim); }
+.fm-add-row input.fm-add-key::placeholder { color: var(--ink-faint); }
+
+.fm-add-row select.fm-add-kind {
+  background: var(--bg-3);
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  color: var(--ink-dim);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  padding: 2px 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.fm-add-row button.fm-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--rule-soft);
+  border-radius: 4px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.fm-add-row button.fm-add-btn:hover { background: var(--bg-3); color: var(--ink); }
+
+/* --- template management, in the picker footer --- */
+
+.tpl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--rule-soft);
+  border-radius: 5px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.tpl-btn:hover { background: var(--bg-3); color: var(--ink); }
+
+#template-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The table itself: the header row reads as a header without shouting, and a
+   wide table scrolls inside its own block instead of pushing the document. */
+.vditor-ir .vditor-reset table th {
+  background: var(--bg-2);
+  color: var(--ink);
+}
+
+.vditor-ir .vditor-reset table td,
+.vditor-ir .vditor-reset table th {
+  border-color: var(--rule-soft);
+}
