@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Desktop markdown editor in the spirit of Typora, for people who write markdown for AI",
   "main": "src/main/index.js",
+  "bin": {
+    "wired": "bin/wired.js"
+  },
   "scripts": {
     "postinstall": "node scripts/sync-vendor.mjs",
     "prestart": "node scripts/sync-vendor.mjs",
