@@ -156,6 +156,9 @@ function flattenTree(node, out) {
 export function renderTree() {
   fileTreeEl.innerHTML = '';
   if (!lastTree) {
+    // Two different states used to share one anonymous node, so CSS could not
+    // give either its own hint. The class says which one this is.
+    sidebarEmpty.className = 'sidebar-empty-noroot';
     sidebarEmpty.style.display = 'block';
     return;
   }
@@ -164,6 +167,7 @@ export function renderTree() {
   const view = term ? filterNode(sorted, term) : sorted;
   if (view.dirs.length === 0 && view.files.length === 0) {
     sidebarEmpty.textContent = term ? 'nothing found' : 'no folder open';
+    sidebarEmpty.className = term ? 'sidebar-empty-filter' : 'sidebar-empty-noroot';
     sidebarEmpty.style.display = 'block';
     return;
   }

@@ -39,6 +39,7 @@ export function applyAiCliLabels() {
   if (termBtn) {
     termBtn.textContent = cmd;
     termBtn.title = 'Type the ' + cmd + ' command into the shell';
+    termBtn.setAttribute('aria-label', 'Type the ' + cmd + ' command into the shell');
   }
 }
 

@@ -116,10 +116,19 @@ export function updatePaneHeader(pane) {
   pane.titleEl.textContent = (pane.dirty ? '● ' : '') + paneTitleText(pane);
   pane.titleEl.title = pane.path || '';
   pane.titleEl.classList.toggle('dirty', pane.dirty);
-  // The spine shows the same title (vertically) and the amber dirty dot.
+  // The spine shows the same title (vertically) and the amber dirty dot. A
+  // collapsed pane is 40px of vertical text, so the file it holds has to be
+  // readable from the tooltip and from a screen reader, not only from the glyphs.
   pane.spineTitleEl.textContent = paneTitleText(pane);
   pane.spineTitleEl.title = pane.path || '';
+  if (pane.spineEl) {
+    pane.spineEl.title = 'Expand ' + paneTitleText(pane);
+    pane.spineEl.setAttribute('aria-label', 'Expand the pane holding ' + paneTitleText(pane));
+  }
   pane.spineDotEl.classList.toggle('on', pane.dirty);
+  // The dot is pure color, so the state it carries needs words of its own.
+  pane.spineDotEl.setAttribute('aria-label', pane.dirty ? 'Unsaved changes' : 'Saved');
+  pane.spineDotEl.title = pane.dirty ? 'Unsaved changes' : '';
   // git state of THIS file, beside the name; the diff button only shows up when
   // there is something to diff.
   if (pane.gitSlotEl) {
@@ -309,6 +318,7 @@ export function createPane() {
   const spine = document.createElement('div');
   spine.className = 'pane-spine';
   spine.title = 'Expand this pane';
+  spine.setAttribute('role', 'button');
   const spineClose = document.createElement('button');
   spineClose.className = 'pane-close spine-close';
   spineClose.title = 'Close pane';
@@ -316,6 +326,7 @@ export function createPane() {
   spineClose.appendChild(svgIcon(12, ICON_X));
   const spineDotEl = document.createElement('span');
   spineDotEl.className = 'spine-dot';
+  spineDotEl.setAttribute('role', 'status');
   const spineTitleEl = document.createElement('span');
   spineTitleEl.className = 'spine-title';
   spine.appendChild(spineClose);
@@ -338,7 +349,7 @@ export function createPane() {
   panesEl.appendChild(el);
 
   const pane = {
-    id, el, titleEl, crumbEl, folderBtn, gitSlotEl, diffBtn, spineTitleEl, spineDotEl, fmEl,
+    id, el, titleEl, crumbEl, folderBtn, gitSlotEl, diffBtn, spineEl: spine, spineTitleEl, spineDotEl, fmEl,
     fmTimer: null, path: null, dirty: false, vditor: null, ready: false, pendingPath: null
   };
   pane.vditor = new Vditor(edEl.id, vditorOptions(pane));

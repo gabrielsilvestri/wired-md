@@ -124,6 +124,9 @@ const ICON_PLUS = ['M12 5v14', 'M5 12h14'];
 function fmWarnRow(msg) {
   const row = document.createElement('div');
   row.className = 'fm-warn';
+  // Announced, never blocking: the row is the whole warning surface here (no
+  // popup, by design), so it has to reach a screen reader as a live status.
+  row.setAttribute('role', 'status');
   const ico = svgIcon(12, ICON_ALERT);
   ico.classList.add('fm-warn-ico');
   const txt = document.createElement('span');

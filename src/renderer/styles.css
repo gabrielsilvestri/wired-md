@@ -434,13 +434,29 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
 }
 
-/* folder: the sidebar has no root, or the filter matched nothing. tree.js
-   writes both messages into the same node with no class to tell them apart,
-   so this state gets the icon and keeps the module's own wording rather than
-   a CSS hint that would be wrong half the time. */
+/* folder: the sidebar has no root. tree.js now tags the node with which of the
+   two states it is in (`sidebar-empty-noroot` or `sidebar-empty-filter`), so
+   each one can carry the icon and the hint that actually fits it. */
 #sidebar-empty::before {
   -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z'/%3E%3C/svg%3E");
 }
+
+/* the filter matched nothing: a magnifier, not a folder */
+#sidebar-empty.sidebar-empty-filter::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.6-3.6'/%3E%3C/svg%3E");
+}
+
+#sidebar-empty::after {
+  display: block;
+  margin: 5px auto 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  max-width: 34ch;
+}
+
+#sidebar-empty.sidebar-empty-noroot::after { content: 'Ctrl+O opens a file, and its folder becomes this tree.'; }
+#sidebar-empty.sidebar-empty-filter::after { content: 'No file name in this folder matches the filter.'; }
 
 .palette-empty::after { content: 'Try a shorter query, or a different word.'; }
 .search-empty::after { content: 'No note in this folder contains that text.'; }
