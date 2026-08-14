@@ -68,6 +68,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Motion tokens (`--t-fast`, `--t-med`, `--t-slow`, `--ease`), all under 180ms,
   replacing scattered magic durations, and a `prefers-reduced-motion` block that
   keeps every state while removing the travel between them.
+- A real Windows installer. `npm run dist` builds an NSIS package with
+  electron-builder (`electron-builder.yml`): per user, no elevation, nothing
+  under `Program Files`, with `.md` and `.markdown` associated per user and the
+  icons in `packaging/`. The ripgrep binary and node-pty ship unpacked beside the
+  archive, and the themes, snippets and templates are seeded into `%APPDATA%`
+  straight out of `app.asar`.
+- `scripts/smoke-installed.mjs`, a smoke test for an INSTALLED build. It drives
+  the installed executable from outside over the DevTools protocol (the E2E suite
+  lives in `tests/`, which deliberately does not ship) and checks the window, the
+  file passed on the command line, the profile seeding, ripgrep answering over
+  IPC and node-pty loading its prebuilt binary.
 
 ### Changed
 
@@ -82,6 +93,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `claro.css`, the pre rename seed, is retired from the user themes folder at
   startup when it is byte for byte what the app shipped, via `shell.trashItem`
   (never `unlink`). A copy the user edited is left untouched.
+- Accessibility on markup the modules build at runtime: a collapsed pane spine
+  names the file it holds (tooltip and `aria-label`) and its unsaved dot carries
+  the state in words, frontmatter warning rows are announced as a `status`, the
+  terminal buttons have labels, and the two sidebar empty states are told apart
+  by a class so each gets its own hint instead of sharing an anonymous one.
+- The roadmap dropped wikilinks and backlinks for good. The README now carries an
+  explicit antifeatures list (no wikilinks or backlinks, no plugins, no database,
+  no cloud sync, no graph view): this is an editor for the markdown you write for
+  an AI, not an Obsidian clone.
 
 ### Fixed
 
@@ -98,6 +118,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`styles.css` already loads after Vditor's stylesheet) and one is now handled
   with specificity against the lazy loaded highlight.js theme. The three that
   remain each beat an inline style, which specificity cannot reach.
+- `npm test` no longer leaves the working tree dirty. The two checks that wrote
+  PNGs re-encoded them on every run; they are now opt in behind `WIRED_SHOTS=1`.
+  The tables fixture check normalized the file's line endings and left it that
+  way, so it now keeps the original bytes and writes them back when it is done.
+- A user data folder that cannot be created (an invalid `WIRED_USERDATA`, a read
+  only drive) surfaced as an unhandled promise rejection and a half working
+  window. Startup now reports the error on stderr and exits non zero.
 
 ## [0.1.0] - 2026-08-13
 

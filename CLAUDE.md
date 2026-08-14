@@ -23,9 +23,14 @@ and `npm test` green twice in a row.
 ```
 npm install     # postinstall vendors the browser assets into src/renderer/vendor
 npm start
-npm test        # end to end suite, 64 checks
+npm test        # end to end suite, 117 checks
 npm run smoke   # fast non interactive heartbeat
+npm run dist    # Windows installer into dist/ (see Packaging)
 ```
+
+`npm test` must leave `git status --porcelain` empty. The two screenshot writing
+checks are opt in behind `WIRED_SHOTS=1`; that is also how `docs/screenshot.png`
+is regenerated on purpose.
 
 Direct invocation still works: `$env:WIRED_E2E='1'; npx electron . examples\demo.md`.
 
@@ -53,6 +58,9 @@ tests/e2e/checks/    NN-name.js, one file per feature, run in file name order
 tests/smoke.js       the smoke run
 themes/ snippets/ templates/   seeded into %APPDATA%\wired-md on first boot
 examples/            fixtures the E2E suite drives (demo.md is the entry file)
+electron-builder.yml the installer configuration
+packaging/           build resources (the .ico files the installer uses)
+scripts/smoke-installed.mjs   drives an INSTALLED build over CDP
 ```
 
 Renderer modules: `state` (config, pane registry, MRU), `panes` (Vditor
@@ -121,6 +129,46 @@ These cost real debugging time. None of them are optional.
 - **No em dash and no en dash** anywhere, English included: parentheses, commas,
   colons or a separate sentence.
 - **The product, the UI, the identifiers and the docs are English only.**
+
+## Packaging
+
+`npm run dist` runs `scripts/sync-vendor.mjs` and then electron-builder with
+`electron-builder.yml`, producing `dist\wired-md Setup <version>.exe` (NSIS,
+**per user**, no elevation) and `dist\win-unpacked`. The installer registers
+`.md` and `.markdown` per user, with the icons in `packaging/`. That folder
+exists because `launcher/` is gitignored (it holds the owner's absolute path),
+and a build resource has to be in the repository.
+
+`scripts/smoke-installed.mjs <path to the installed exe>` drives an INSTALLED
+build from outside over the DevTools protocol (`--remote-debugging-port`, a CDP
+client on Node's built in `WebSocket`), because `tests/` deliberately does not
+ship in the installer. It is the only thing that can catch the traps below.
+
+- **`npmRebuild: false` is load bearing.** electron-builder runs
+  `@electron/rebuild` by default, which tries to compile node-pty from source and
+  fails twice over: node-gyp refuses a path with spaces (this repo lives in one),
+  and the vendored winpty wants a git checkout to read a commit hash. node-pty
+  already ships N-API prebuilds under `prebuilds/win32-x64` that this Electron
+  loads unmodified, and nothing else in the tree is native.
+- **`require.resolve` inside asar answers with a path that cannot be executed.**
+  `src/main/ipc/search.js` resolves ripgrep and then rewrites the `app.asar`
+  segment to `app.asar.unpacked` (`unpacked()`); in dev the segment is not there
+  and the call is a no-op. Anything binary must be in `asarUnpack` AND get that
+  rewrite; being listed in `asarUnpack` alone changes nothing about what
+  `require.resolve` returns.
+- **The %APPDATA% seeding reads out of the archive.** `themes/`, `snippets/` and
+  `templates/` ship inside `app.asar`. `src/main/config.js` uses
+  `app.getAppPath()` (repo root in dev, `...\resources\app.asar` packaged) and
+  seeds with `readFileSync` plus `writeFileSync` rather than `copyFileSync`,
+  because reading is what Electron's asar layer is guaranteed to serve.
+- **Vendored browser assets must be in `files`.** `src/renderer/vendor/` is
+  gitignored but generated, and `index.html` loads Vditor and xterm from there.
+  The mirror copies under `node_modules` are excluded instead: nothing in main or
+  preload requires them, and keeping both doubles the download.
+- **The CLI is a source checkout feature.** `bin/wired.js` finds Electron through
+  `node_modules/electron`, which does not exist beside an installed app. The
+  instance marker file records `exe` (`process.execPath`) so a future packaged
+  CLI has something to launch, but nothing wires it onto PATH yet.
 
 ## Conventions
 

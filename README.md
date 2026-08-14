@@ -26,9 +26,12 @@ Everything below is implemented and covered by the end to end test suite.
 - **Full text search across the folder.** Ctrl+Shift+F searches file *contents* in every markdown file under the open note's folder, powered by a bundled ripgrep binary with a pure Node fallback. Grouped results with highlighted snippets, keyboard navigable.
 - **claude bridge, per note.** A sparkles button in each pane header opens the embedded terminal, brings up `claude`, runs `/cd` into the note's folder, and types the file path into the prompt *without sending it*, so you finish the question. The palette can send the current selection the same way. It never sends on its own: spending a token is your call.
 - **Frontmatter as a properties panel.** A file that starts with a YAML `---` block gets an editable properties panel at the top of the pane: text fields for strings and numbers, comma separated fields for lists, checkboxes for booleans, and a read only box for anything the panel cannot represent (which is left untouched in the file). It validates against a schema chosen automatically (`skill`, `subagent`, or generic), flagging a missing `name`, an empty `description`, a likely key typo, or an odd `model`, as a quiet inline warning, never a popup. The YAML block stays visible and the two views stay in sync both ways, preserving key order, comments, and nested maps on round trip.
+- **Spreadsheet style table editing.** Tab moves to the next cell and grows the table when it runs off the last one, Shift+Tab goes back, Enter drops to the row below in the same column. A floating icon toolbar over the table (and a palette command for each) adds, deletes, moves and aligns rows and columns, so you never type a pipe. Every transform is applied to a single table node behind a round trip guard that verifies the rest of the document came back byte for byte identical before the change is kept.
+- **Git state where the writing happens.** A letter badge (`M`, `A`, `?`, `D`, `R`) on each tree row and in the pane header, plus a read only diff view whose added and removed line colors are derived from the active theme and measured for contrast. Untracked files show as fully added. No staging and no commit UI: the embedded terminal already covers that. Outside a repository, or with no git on PATH, the feature is simply absent.
+- **Template management from inside the app.** Create, rename, open for editing and delete templates (Recycle Bin, never a hard unlink) from the same picker that uses them.
 - **New file from template, with variables.** Templates are `.md` files seeded into your user folder on first boot (skill, subagent, `CLAUDE.md`, and a dated note ship by default). Variables like `{{date}}`, `{{time}}`, `{{title}}`, `{{folder}}`, `{{cursor}}` (where the caret lands), and `{{ask:label}}` (asked once in an in app dialog) are filled in on creation. Cancel at any step and nothing is written.
 - **Focus mode and typewriter mode.** Two independent toggles (F8 and F9). Focus dims every block except the one you are editing; typewriter keeps the current line vertically centered. The dim opacity is *measured*, not guessed, so faded text always clears the 4.5:1 contrast floor in whatever theme is active. Neither mode fights manual scrolling.
-- **Themes and CSS snippets, Obsidian style.** Themes are `.css` files that define only the color variables (`wired` dark and `light` ship by default), living in `%APPDATA%\wired-md\themes\`. Snippets are `.css` files you toggle on and off individually, layered over the theme. Accent color, document font, code font, and text size are live controls in the settings panel; everything persists to `%APPDATA%\wired-md\config.json`.
+- **Themes and CSS snippets, Obsidian style.** Themes are `.css` files that define only the color variables; five ship by default (`wired`, `carbon` and `ash` dark, `light` and `parchment` light), living in `%APPDATA%\wired-md\themes\`. A settings panel edits any theme variable by hand and warns inline when a color you picked leaves the readable contrast band. Snippets are `.css` files you toggle on and off individually, layered over the theme. Accent color, document font, code font, and text size are live controls in the settings panel; everything persists to `%APPDATA%\wired-md\config.json`.
 - **Studio typography, offline.** Geist, Geist Mono, Mona Sans, Inter, and Satoshi are bundled locally, no network needed. UI uses Geist, code and terminal use Geist Mono, document body defaults to Mona Sans.
 - **Frameless window with a custom title bar.** Icon only chrome (no text menus), custom window controls, a draggable title bar, and window size, position, and maximized state persisted between sessions.
 - **Embedded terminal.** Ctrl+` opens a terminal in the current file's directory, resizable by dragging its top edge (height persisted). Backend is node-pty with a pipe based fallback if the native build is unavailable.
@@ -37,7 +40,9 @@ Everything below is implemented and covered by the end to end test suite.
 
 ## Installation
 
-wired-md currently runs from source. A packaged installer does not exist yet (it is on the roadmap).
+Windows 11, x64. Download the installer (`wired-md Setup <version>.exe`) and run it. It installs **per user**: no administrator prompt, nothing written under `Program Files`, and it registers `.md` and `.markdown` so the app appears in "Open with". Your notes, config, themes, snippets and templates live in `%APPDATA%\wired-md` and survive an uninstall.
+
+### From source
 
 Requirements: Windows 11 and a recent Node.js.
 
@@ -55,6 +60,18 @@ npx electron . path\to\file.md
 ```
 
 There is also a portable Windows helper in `scripts/windows/` that creates a desktop shortcut and associates `.md` files with the app. See `scripts/windows/README.md`.
+
+### Building the installer
+
+```
+npm run dist
+```
+
+electron-builder (config in [`electron-builder.yml`](electron-builder.yml)) produces `dist\wired-md Setup <version>.exe` plus an unpacked build in `dist\win-unpacked`. `scripts/smoke-installed.mjs` drives an *installed* build from outside over the DevTools protocol and checks the things only packaging can break: the window, the file from the command line, the `%APPDATA%` seeding out of `app.asar`, ripgrep running from `app.asar.unpacked`, and node-pty loading its prebuilt binary.
+
+```
+node scripts/smoke-installed.mjs "%LOCALAPPDATA%\Programs\wired-md\wired-md.exe"
+```
 
 ## Keyboard shortcuts
 
@@ -82,15 +99,25 @@ There is no daemon, no server and no port: the app is single instance, and a sec
 
 `skills/wired-md/SKILL.md` is a skill file that teaches an AI agent (Claude Code or any CLI agent) to use this.
 
+This works from a **source checkout**, where `npm link` finds the Electron binary in `node_modules`. An installed build has no `node_modules` next to it, so putting `wired` on PATH from the installer is future work; the app records its own executable path in `cli-instance.json` so that wiring has what it needs.
+
 ## Roadmap
 
-- **Packaging.** A real installer (electron-builder), so the app runs without cloning the source.
-- **Wikilinks and backlinks.** `[[note]]` links and a backlinks panel.
-- **Spreadsheet style table editing.** Tab to move between cells, auto aligned columns, add and reorder rows and columns without typing pipes.
-- **Theme variable panel.** Edit theme color variables from inside the app instead of by hand.
-- **More from the properties panel.** Rename a key and add a new key (v1 edits values only), and manage templates from within the app.
+- **A final name and icon.** The project still ships under its repository name.
+- **The CLI in a packaged install.** `wired` works from a source checkout today; putting it on PATH from an installed build is not wired up yet.
+- **A theme catalog.** Browsing and installing community themes from inside the app, the way snippets and templates already work from disk.
 
-The full design rationale for these lives in [`docs/pesquisa-features.md`](docs/pesquisa-features.md).
+The full design rationale for the features that shipped lives in [`docs/pesquisa-features.md`](docs/pesquisa-features.md).
+
+## Antifeatures
+
+Things this editor will not grow, so nobody has to ask twice. This is an editor for the markdown you write *for* an AI, not a knowledge base.
+
+- **No wikilinks and no backlinks.** `[[note]]` syntax, a backlinks panel and a graph view belong to Obsidian, which already does them well. A `CLAUDE.md` or a `SKILL.md` is read by a machine that has never heard of `[[note]]`.
+- **No plugin system.** Themes and CSS snippets are files on disk and that is the whole extension surface.
+- **No database and no proprietary format.** Plain `.md` files in your folders, always.
+- **No cloud sync and no account.** Whatever syncs your folder syncs your notes.
+- **No graph view.**
 
 ## Architecture
 
@@ -100,7 +127,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
-npm test        # full end to end suite (75 checks)
+npm test        # full end to end suite (117 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.
