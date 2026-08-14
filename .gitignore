@@ -4,6 +4,9 @@ dist/
 out/
 build/
 
+# third party browser assets copied from node_modules by scripts/sync-vendor.mjs
+src/renderer/vendor/
+
 # logs
 *.log
 npm-debug.log*

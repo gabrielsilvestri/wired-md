@@ -1,11 +1,14 @@
 {
   "name": "wired-md",
   "version": "0.1.0",
-  "description": "Editor de markdown desktop estilo Typora, feito para quem escreve markdown para IA",
-  "main": "src/main.js",
+  "description": "Desktop markdown editor in the spirit of Typora, for people who write markdown for AI",
+  "main": "src/main/index.js",
   "scripts": {
+    "postinstall": "node scripts/sync-vendor.mjs",
+    "prestart": "node scripts/sync-vendor.mjs",
     "start": "electron .",
-    "test": "WIRED_E2E=1 npx electron . exemplos/demo.md"
+    "test": "node scripts/test.js",
+    "smoke": "node scripts/test.js --smoke"
   },
   "keywords": [
     "markdown",
