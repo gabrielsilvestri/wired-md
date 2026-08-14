@@ -1,30 +1,66 @@
-# HANDOFF (estado vivo da sessão; sobrescrever, não acumular)
+# HANDOFF (live session state; overwrite it, do not pile up)
 
-## o que foi feito e decidido (sessão de 12/08/2026)
+## what was done and decided (session of 2026-08-14)
 
-App nasceu inteiro nesta sessão, do zero (o "fork do Typora" morreu: o código nunca foi aberto; o zip 0.11.18 do Biel era backup de binário). Fases via workflows: base Electron + Vditor IR, customização e terminal, janela frameless 700x840 + fontes de estúdio (Geist, Geist Mono, Mona Sans, Inter, Satoshi, tudo local), shell obsidian (file tree, recentes, barra por ícones), sliding panes reais + palette + ponte claude, sidebar com toolbar/menu de contexto/lixeira + zoom + terminal redimensionável, busca full-text com ripgrep, painel de propriedades de frontmatter e novo arquivo a partir de template com variáveis. Decisões de UX do Biel aplicadas: engrenagem no rodapé da sidebar, menus por ícone (nunca texto), ponte claude no cabeçalho de cada pane digitando `claude`, `/cd`, path SEM enter (não gasta token).
+Full modularization pass plus the migration to English. The app behaves exactly
+as before; what changed is the shape of the code and the language of everything
+the reader sees.
 
-## estado atual
+- `src/main.js` (1767 lines) became `src/main/`: `index.js` (window, lifecycle,
+  window IPC, the test env gate), `config.js`, `window-state.js` and one file per
+  IPC area under `ipc/` (fs, tree, search, customization, terminal). Each IPC file
+  registers its own handlers. `package.json` main points at `src/main/index.js`.
+- `src/renderer/renderer.js` (2989 lines, one global scope) became
+  `src/renderer/app.js` plus 16 ES modules in `src/renderer/modules/`. No bundler:
+  Electron loads `file://` modules directly. `app.js` re-exposes on `window` the
+  small surface the E2E drives the app through (documented at the bottom of the
+  file), including four names the tests assign to, which are accessor properties
+  writing back into the owning module.
+- The inline test suites (about 970 lines of `executeJavaScript` string blobs
+  inside main.js) moved to `tests/`: `tests/e2e/driver.js` holds the plumbing
+  (js/key/type/sleep, PASS-FAIL, the config readers, the terminal polling and the
+  artifact cleanup helper) and `tests/e2e/checks/NN-name.js` holds the checks, one
+  file per feature, run in file name order. `tests/smoke.js` is the smoke run.
+  `src/main/index.js` keeps only the env var gate that requires them.
+- Third party browser assets are vendored: `scripts/sync-vendor.mjs` copies the
+  whole `vditor/dist` (it lazy loads relative to its `cdn` option, so a hand
+  picked subset breaks features later), plus xterm and addon-fit, into
+  `src/renderer/vendor/` (gitignored), wired as postinstall and prestart.
+  `index.html` no longer mentions `node_modules`.
+- English migration, product decision: identifiers, comments, UI strings,
+  tooltips, dialogs, empty states, warnings, the seeded templates and the example
+  notes. `exemplos/` is now `examples/`, the theme `claro` is now `light`, the
+  example snippet was renamed, and the template variables are `{{date}}`,
+  `{{time}}`, `{{title}}`, `{{folder}}`, `{{cursor}}` and `{{ask:label}}`.
+  Old persisted config keeps working: `src/main/config.js` migrates the legacy
+  theme name, the legacy snippet file name and the legacy `treeSort: recente`.
+- Anti conflict registries for parallel work: `registerPaletteAction` in
+  `modules/palette.js`, `registerConfigDefaults` in `modules/state.js` (and per
+  area default objects in `src/main/config.js`), and a marked `<link>` slot in
+  `index.html` for future `styles/<feature>.css` files.
+- The flaky terminal check now polls the xterm buffer until it grows and settles
+  instead of sleeping a fixed amount, and every check that reads `config.json`
+  resets that state first (the sort order, the terminal height and the properties
+  panel toggle were added to the ones that already did).
 
-- Repo: github.com/gabrielsilvestri/wired-md (privado), main, último commit conserta o contraste do tema claro (`.search-hit` e `.fm-warn` furavam o piso de 4.5:1) e o YAML de template quando a resposta tem aspas. E2E `WIRED_E2E=1 npx electron . exemplos\demo.md` com 59/59 PASS (duas rodadas seguidas); smoke `WIRED_SMOKE=1 npm start` verde.
-- FASE 10, modo foco e modo typewriter: dois toggles INDEPENDENTES (`focusMode`, `typewriterMode` no config.json, padrão false, reaplicados no boot), ações na palette com rótulo que mostra o estado ("ligar"/"desligar") e atalhos F8 (foco) e F9 (typewriter). Foco: o bloco de topo do caret fica com tinta cheia (`.focus-current`) e os irmãos esmaecem no pane ATIVO (`.focus-mode`, transição 150ms). A opacidade é MEDIDA, não chutada (piso 4.5:1): `focusDimFor` recalcula `--focus-dim` a cada troca de tema; no wired 0.62 dá 4,66:1 no texto esmaecido, no claro 0.76 dá 4,66:1. Typewriter: a linha em edição fica no centro vertical via `scrollTop` no container do pane com easing de 120ms (scrollIntoView foi descartado, rolava a tira horizontal dos panes de lado) e `padding: 50vh` no editor. Os dois só reagem a caret/digitação (`selectionchange` + input do Vditor), nunca a roda/scrollbar: não brigam com quem rola na mão.
-- FASE 11, cifrão é dinheiro: math inline do Vditor DESLIGADO (`lute.SetInlineMath(false)` em `disableInlineMath`, no `after` de cada pane), senão "de R$297 a R$ 397" virava fórmula em serifa itálica que comia a frase. Bloco `$$...$$` segue funcionando. `preview.math.inlineDigit: false` fica como cinto de segurança, mas sozinho não segura.
-- Armadilha nova (fase 11): check de E2E que lê estado do config.json tem que zerar esse estado antes. O check do modo foco assumia `focusMode: false` e quebrava se o Biel estivesse usando o modo (rótulo "desligar", Enter desligava, próximo check estourava com índice -1). Mesma armadilha do zoom.
-- FASE 9, templates com variáveis: .md em `%APPDATA%\wired-md\templates\`, semeados do `templates\` do repo no primeiro boot (mesmo caminho dos temas). Quatro de fábrica: skill.md, subagent.md, claude-md.md e nota.md. Variáveis `{{data}}`, `{{hora}}`, `{{titulo}}`, `{{pasta}}`, `{{cursor}}` e `{{pergunta:label}}` (perguntada no dialog do app, uma vez por label); marcador desconhecido fica intacto. Entradas: ação na palette, botão na toolbar da sidebar e "novo a partir de template aqui" no menu de pasta. Cancelar em qualquer passo não cria arquivo, porque a criação é o último passo. A pasta é relida a cada abertura do seletor.
-- Armadilha nova (fase 9): `executeJavaScript` do Electron ESPERA a promise devolvida, então no E2E chamada de função async do renderer vai como `void f()`; sem isso o teste congela sem FAIL.
-- FASE 8, painel de propriedades: arquivo que começa com bloco YAML `---` ganha um painel editável no topo do pane, com validação por schema (skill, subagent, genérico) em linha de aviso âmbar, nunca popup. Vista DUPLA sincronizada: o bloco continua visível no documento (esconder o nó do Vditor foi descartado, ele é contenteditable e o cursor entraria nele invisível) e os dois lados se atualizam. Parser `yaml` rodando no preload; o bloco só é reescrito quando alguém edita uma propriedade, preservando ordem, comentários, chaves desconhecidas e mapas aninhados. Toggle na palette ("propriedades: mostrar/ocultar") com `frontmatterPanel` no config.json. Fixture versionado: `exemplos\exemplo-skill.md`.
-- FASE 7, busca full-text: Ctrl+Shift+F busca por conteúdo em todos os .md da pasta da nota, com ripgrep empacotado (`@vscode/ripgrep`) e fallback em Node puro. Pulo até o trecho é melhor esforço (Vditor IR é WYSIWYG, sem "ir pra linha N").
-- Armadilha viva das duas últimas fases: janela coberta por outra faz o Chromium parar de renderizar no Windows (oclusão), o que congela viewport e transições. Os modos de teste sobem com `disable-features=CalculateNativeWinOcclusion`; não remover.
-- CLAUDE.md do projeto documenta arquitetura, armadilhas e os hooks de teste. README pra quem chega de fora.
-- Branding: `docs\branding\naming.md` (Runa rejeitada pelo Biel; na mesa: Lore, Sutra, Axon, Tomo, Trama, e sobram Navi/Mantra/Koan/Glifo). Ícones: 3 PNG prontos em `docs\branding\icones\` + contact-sheet `icones.html`; 3 ainda estavam renderizando no gpt-image-2, conferir se pousaram.
-- `docs\pesquisa-features.md`: pesquisa de features amadas (já implementadas a ponte claude, palette, switcher, busca full-text, frontmatter com schema, templates com variáveis e foco/typewriter; ficam no radar: git visível no editor, tabelas estilo planilha, wikilinks e backlinks).
+## current state
 
-## atalho e associação (12/08)
+- Repo: github.com/gabrielsilvestri/wired-md, branch main. `npm test` is 64/64
+  PASS (the count was 59 at phase 11 and grew to 64 with the breadcrumb checks);
+  `npm run smoke` green.
+- The E2E suite is the definition of "it still works". It writes
+  `docs/screenshot.png` and restores every fixture it touches.
+- Known noise, all benign: node-pty can print "AttachConsole failed" from the
+  conpty agent while tearing down (exit code stays 0), and in dev the Electron CSP
+  warning and a disk cache warning show up on boot.
 
-`launcher\wired-md.vbs` roda o app direto do código-fonte, sem janela de console, e aceita um `.md` como argumento. Atalho na área de trabalho (`wired-md.lnk`) aponta pra ele via `wscript.exe`, com ícone `launcher\wired-md.ico` (placeholder feito do `runa-pedra.png`, multi-tamanho de 16 a 256; troca quando o ícone for escolhido). `launcher\wired-md.cmd` é o wrapper que o diálogo "abrir com" do Windows aceita (ele só lista `.exe`, `.bat` e `.cmd`) e é o que ficou como padrão pra `.md`: ProgID `Applications\wired-md.cmd` em `HKCU\Software\Classes`, com `DefaultIcon` (é ele que dá ícone aos arquivos `.md` no Explorer), `FriendlyAppName` e `SupportedTypes`. O ícone dos arquivos é `launcher\wired-md-doc.ico`: folha com canto dobrado, fundo transparente, gradiente teal do app e linhas de texto em `#0D1216`. Ele é DESENHADO, não redimensionado: `launcher\gerar-icone-doc.ps1` (GDI+) redesenha o vetor em cada um dos 10 tamanhos, e abaixo de 24px troca as 4 linhas por 2 barras grossas, senão vira borrão. Pra regerar: rodar o script e remontar o `.ico`. O `wired-md.ico` (glifo runa) segue como ícone do app no atalho. Atenção: o caminho do app está hardcoded no `.vbs`, então renomear a pasta (quando o nome for decidido) exige editar as duas linhas de lá e refazer o atalho.
+## next steps
 
-## próximos passos
-
-1. Biel escolher o nome (aí renomear pasta, repo, package.json, título) e o ícone.
-2. Feedback dele usando o app de verdade, principalmente o painel de propriedades em SKILL.md e subagente reais.
-3. Candidatas de feature: renomear chave e adicionar chave nova pelo painel de propriedades (a v1 só edita valor), gerenciar templates de dentro do app (hoje é só a pasta), tabelas estilo planilha e wikilinks/backlinks. Empacotamento (electron-builder, instalador) nunca foi feito: hoje roda só por `npm start` ou pelo launcher.
+1. The product name is still open (renaming the folder means editing the two
+   hardcoded lines in the personal `launcher\wired-md.vbs` and rebuilding the
+   shortcut; the portable copy in `scripts/windows/` derives its own path).
+2. Feature candidates already on the radar: git state visible in the editor,
+   spreadsheet style tables, wikilinks and backlinks, renaming and adding keys
+   from the properties panel, managing templates from inside the app.
+3. Packaging (electron-builder, an installer) has never been done: today the app
+   runs from source through `npm start` or the launcher.

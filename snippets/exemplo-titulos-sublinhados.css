@@ -1,8 +1,0 @@
-/* Snippet de exemplo: sublinha todos os títulos, não só o h1.
-   Ligue e desligue no painel de configurações (engrenagem). */
-
-.vditor-reset h2,
-.vditor-reset h3 {
-  border-bottom: 1px solid var(--rule-soft);
-  padding-bottom: 0.25em;
-}

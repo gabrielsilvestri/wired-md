@@ -1,38 +1,38 @@
-# {{pasta}}
+# {{folder}}
 
 {{cursor}}
 
-Uma frase sobre o que este diretório é, para quem chega sem contexto nenhum.
+One sentence on what this directory is, for someone arriving with no context at all.
 
-## Objetivo
+## Goal
 
-- o problema que isto resolve
-- o que está deliberadamente fora do escopo
+- the problem this solves
+- what is deliberately out of scope
 
-## O que mede sucesso
+## What counts as success
 
-A régua concreta do funcionando, do jeito que dá pra verificar rodando.
+The concrete bar for working, phrased so it can be checked by running something.
 
-## Como rodar
+## How to run
 
 ```
-comando de instalação
-comando que sobe a coisa
+install command
+command that brings it up
 ```
 
-## Estrutura
+## Layout
 
-- `caminho/`: o que mora aqui
-- `caminho/arquivo`: por que ele existe
+- `path/`: what lives here
+- `path/file`: why it exists
 
-## Armadilhas
+## Traps
 
-- a pegadinha da plataforma (encoding, caminho com espaço, build nativa)
-- a decisão que parece errada e é de propósito, com o motivo
+- the platform gotcha (encoding, path with spaces, native build)
+- the decision that looks wrong and is deliberate, with the reason
 
-## Convenções
+## Conventions
 
-- português com acento correto em toda a interface e no conteúdo
-- nunca usar travessão em texto corrido
+- the whole product, the UI and the docs are English only
+- no em dash and no en dash in prose: parentheses, commas or colons instead
 
-Última revisão: {{data}}.
+Last reviewed: {{date}}.

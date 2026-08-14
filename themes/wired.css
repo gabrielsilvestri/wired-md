@@ -1,5 +1,5 @@
-/* Tema padrão "wired": dark, paleta do dashboard da lain.
-   Um tema define só as variáveis; a estrutura fica em styles.css. */
+/* Default theme "wired": dark. A theme only defines the variables; the
+   structure lives in styles.css. */
 
 :root {
   --bg:#101216; --bg-2:#191d23; --bg-3:#222732;
@@ -7,9 +7,9 @@
   --ink:#bcc2c9; --ink-dim:#9fa6b0; --ink-faint:#9098a3;
   --accent:#4fc7bb; --accent-soft:#83cdc6; --accent-ink:#5bbcb2; --accent-dim:#3a8c85;
   --accent-rgb:79,199,187;
-  /* opacidade do modo foco medida pra este fundo: 4,66:1 no texto esmaecido */
+  /* focus mode opacity, measured against this background: 4.66:1 on dimmed text */
   --focus-dim:0.62;
   --green:#5fc890; --amber:#d5a95a; --red:#e88080;
-  /* tinta do destaque de busca, do aviso e do selo de schema, medidas na faixa 4.5:1 a 11:1 */
+  /* ink for the search highlight, the warning and the schema badge, all measured inside 4.5:1 to 11:1 */
   --search-hit-ink:#83cdc6; --warn-ink:#d5a95a; --schema-ink:#83cdc6;
 }

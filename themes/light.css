@@ -1,0 +1,20 @@
+/* Simple light theme. Contained contrast: text between 4.5:1 and 11:1 against
+   the background, with no pure black and no pure white. */
+
+:root {
+  --bg:#f2f0ea; --bg-2:#e9e6de; --bg-3:#dedad0;
+  --rule:#b3aca0; --rule-soft:#ddd8ce; --rule-row:#c8c2b6; --leader:#beb8ac;
+  --ink:#3c424a; --ink-dim:#565d66; --ink-faint:#6a7079;
+  --accent:#1f7a72; --accent-soft:#2a6b64; --accent-ink:#22706a; --accent-dim:#5b9c96;
+  --accent-rgb:31,122,114;
+  /* a light background loses contrast faster: 0.76 gives 4.66:1 on dimmed text */
+  --focus-dim:0.76;
+  --green:#2e7d4f; --amber:#8a6a24; --red:#a94747;
+  /* a light background loses contrast fast, so the search highlight ink and the
+     schema warning ink are darkened to stay above 4.5:1 (the owner's floor).
+     search-hit #1d514c: 5.78:1 over bg-2, 5.23:1 over bg-3.
+     warn #78591c: 5.19:1 over bg-2.
+     schema badge #215a54: 5.67:1 over bg-3 (raw accent-soft only gave 4.44:1).
+     All of them stay in the accent and amber families. */
+  --search-hit-ink:#1d514c; --warn-ink:#78591c; --schema-ink:#215a54;
+}

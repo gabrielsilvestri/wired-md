@@ -29,7 +29,7 @@ If it helps, add a screenshot.
 - Windows version:
 - Node version (`node -v`):
 - Running from source or a packaged build:
-- Did the E2E suite pass on your machine (`$env:WIRED_E2E='1'; npx electron . exemplos\demo.md`)?
+- Did the E2E suite pass on your machine (`npm test`)?
 
 ## Anything else
 

@@ -29,7 +29,7 @@ boot. Commands are shown for PowerShell.
 buffer, config, and themes, then exits on its own):
 
 ```
-$env:WIRED_SMOKE = '1'; npm start
+npm run smoke        # or: $env:WIRED_SMOKE='1'; npm start
 ```
 
 **End to end test** (drives the real renderer with real keyboard input:
@@ -38,7 +38,7 @@ frontmatter, templates, focus and typewriter modes, the claude bridge, and
 more; prints PASS/FAIL per flow and exits 0 only when everything is green):
 
 ```
-$env:WIRED_E2E = '1'; npx electron . exemplos\demo.md
+npm test             # or: $env:WIRED_E2E='1'; npx electron . examples\demo.md
 ```
 
 The E2E suite is the source of truth for "does it still work". Run it before
@@ -47,8 +47,13 @@ terminal shell startup, can be timing sensitive; a re run confirms it is not a
 regression). It also writes `docs/screenshot.png` and restores the demo fixture
 at the end.
 
+The suite lives in `tests/e2e/`: `driver.js` holds the plumbing (js/key/sleep,
+PASS-FAIL, the terminal polling helpers) and each `tests/e2e/checks/NN-name.js`
+owns one feature's checks, running in file name order.
+
 If you add or change behavior, add or update the matching E2E checks in the
-same change.
+same change. A check that reads state out of `config.json` must reset that
+state first: the suite runs against the real user config.
 
 ## Commit and branch conventions
 
@@ -57,12 +62,12 @@ of the change, grouped by the milestone or fix they belong to. Examples from
 history:
 
 ```
-fase 8: frontmatter como painel de propriedades com validação por schema
-conserta contraste do tema claro e YAML de template com aspas
+frontmatter as a properties panel with schema validation
+fix the light theme contrast and the quoted YAML in templates
 ```
 
-You may write commit messages in English or Portuguese; keep them short and
-descriptive. Do not use an em dash or an en dash anywhere (see Style below).
+Commit messages are English, short and descriptive. Do not use an em dash or an
+en dash anywhere (see Style below).
 
 Branch model:
 
@@ -79,9 +84,10 @@ These are not optional; they are what keeps the project coherent.
 - **No em dash and no en dash**, in code, comments, UI text, docs, or commit
   messages. Use parentheses, a comma, a colon, or a separate sentence instead.
   This applies to English as well.
-- **Correct Portuguese accents in the UI.** The interface is written in
-  Portuguese today, and every word that takes an orthographic accent must carry
-  it, including inside HTML, JSON, and CSS.
+- **English only.** The product, the UI strings, the identifiers, the comments
+  and the docs are all English. That is a product decision, not a preference:
+  this is an open source editor and a mixed language codebase costs every reader
+  something.
 - **Text contrast between 4.5:1 and 11:1.** The maintainer has astigmatism, so
   contrast that is too high hurts as much as contrast that is too low. Do not
   introduce a text color without measuring it against its background; the
@@ -94,17 +100,14 @@ These are not optional; they are what keeps the project coherent.
 
 ## Language of the codebase
 
-The code and UI are currently in Portuguese (comments, identifiers, and
-interface strings). Standardizing to English is open work, not yet done. If you
-touch a file, do not mix the two arbitrarily; follow what is already there, and
-raise standardization as its own discussion rather than smuggling it into an
-unrelated change.
+English, everywhere: identifiers, comments, UI strings, template files, example
+notes and docs. There is no second language to keep in sync.
 
 ## Architecture
 
 Before a non trivial change, read [`CLAUDE.md`](CLAUDE.md): it documents the
-architecture, the phase by phase build history, and the known traps that cost
-real debugging time. The developer state notes live in `docs/dev/`.
+current architecture and the known traps that cost real debugging time. The
+developer state notes live in `docs/dev/`.
 
 ## Code of conduct
 

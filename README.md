@@ -26,9 +26,9 @@ Everything below is implemented and covered by the end to end test suite.
 - **Full text search across the folder.** Ctrl+Shift+F searches file *contents* in every markdown file under the open note's folder, powered by a bundled ripgrep binary with a pure Node fallback. Grouped results with highlighted snippets, keyboard navigable.
 - **claude bridge, per note.** A sparkles button in each pane header opens the embedded terminal, brings up `claude`, runs `/cd` into the note's folder, and types the file path into the prompt *without sending it*, so you finish the question. The palette can send the current selection the same way. It never sends on its own: spending a token is your call.
 - **Frontmatter as a properties panel.** A file that starts with a YAML `---` block gets an editable properties panel at the top of the pane: text fields for strings and numbers, comma separated fields for lists, checkboxes for booleans, and a read only box for anything the panel cannot represent (which is left untouched in the file). It validates against a schema chosen automatically (`skill`, `subagent`, or generic), flagging a missing `name`, an empty `description`, a likely key typo, or an odd `model`, as a quiet inline warning, never a popup. The YAML block stays visible and the two views stay in sync both ways, preserving key order, comments, and nested maps on round trip.
-- **New file from template, with variables.** Templates are `.md` files seeded into your user folder on first boot (skill, subagent, `CLAUDE.md`, and a dated note ship by default). Variables like `{{data}}`, `{{hora}}`, `{{titulo}}`, `{{pasta}}`, `{{cursor}}` (where the caret lands), and `{{pergunta:label}}` (asked once in an in app dialog) are filled in on creation. Cancel at any step and nothing is written.
+- **New file from template, with variables.** Templates are `.md` files seeded into your user folder on first boot (skill, subagent, `CLAUDE.md`, and a dated note ship by default). Variables like `{{date}}`, `{{time}}`, `{{title}}`, `{{folder}}`, `{{cursor}}` (where the caret lands), and `{{ask:label}}` (asked once in an in app dialog) are filled in on creation. Cancel at any step and nothing is written.
 - **Focus mode and typewriter mode.** Two independent toggles (F8 and F9). Focus dims every block except the one you are editing; typewriter keeps the current line vertically centered. The dim opacity is *measured*, not guessed, so faded text always clears the 4.5:1 contrast floor in whatever theme is active. Neither mode fights manual scrolling.
-- **Themes and CSS snippets, Obsidian style.** Themes are `.css` files that define only the color variables (`wired` dark and `claro` ship by default), living in `%APPDATA%\wired-md\themes\`. Snippets are `.css` files you toggle on and off individually, layered over the theme. Accent color, document font, code font, and text size are live controls in the settings panel; everything persists to `%APPDATA%\wired-md\config.json`.
+- **Themes and CSS snippets, Obsidian style.** Themes are `.css` files that define only the color variables (`wired` dark and `light` ship by default), living in `%APPDATA%\wired-md\themes\`. Snippets are `.css` files you toggle on and off individually, layered over the theme. Accent color, document font, code font, and text size are live controls in the settings panel; everything persists to `%APPDATA%\wired-md\config.json`.
 - **Studio typography, offline.** Geist, Geist Mono, Mona Sans, Inter, and Satoshi are bundled locally, no network needed. UI uses Geist, code and terminal use Geist Mono, document body defaults to Mona Sans.
 - **Frameless window with a custom title bar.** Icon only chrome (no text menus), custom window controls, a draggable title bar, and window size, position, and maximized state persisted between sessions.
 - **Embedded terminal.** Ctrl+` opens a terminal in the current file's directory, resizable by dragging its top edge (height persisted). Backend is node-pty with a pipe based fallback if the native build is unavailable.
@@ -77,13 +77,13 @@ The full design rationale for these lives in [`docs/pesquisa-features.md`](docs/
 
 ## Architecture
 
-Electron main plus a Vditor based renderer, with the YAML parser running in the preload and a bundled ripgrep binary for search. The full architecture, the phase by phase build history, and the known traps are documented in [`CLAUDE.md`](CLAUDE.md).
+Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`src/renderer/modules/`, no bundler), with the YAML parser running in the preload and a bundled ripgrep binary for search. Third party browser assets are vendored into `src/renderer/vendor/` on install. The full architecture and the known traps are documented in [`CLAUDE.md`](CLAUDE.md).
 
 ## Testing
 
 ```
-$env:WIRED_SMOKE = '1'; npm start          # quick non interactive smoke test
-$env:WIRED_E2E   = '1'; npx electron . exemplos\demo.md   # full end to end suite
+npm run smoke   # quick non interactive smoke test
+npm test        # full end to end suite (64 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.

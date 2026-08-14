@@ -1,0 +1,8 @@
+/* Example snippet: underlines every heading, not just the h1.
+   Toggle it on and off in the settings panel (the gear). */
+
+.vditor-reset h2,
+.vditor-reset h3 {
+  border-bottom: 1px solid var(--rule-soft);
+  padding-bottom: 0.25em;
+}

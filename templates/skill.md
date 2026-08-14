@@ -1,36 +1,36 @@
 ---
-name: {{pergunta:nome da skill em kebab-case}}
-description: {{pergunta:o que a skill faz e quando usar (frase única, com os gatilhos de invocação)}}
+name: {{ask:skill name in kebab-case}}
+description: {{ask:what the skill does and when to use it (one sentence, with the trigger phrases)}}
 ---
 
-# {{pergunta:nome da skill em kebab-case}}
+# {{ask:skill name in kebab-case}}
 
 {{cursor}}
 
-O que esta skill entrega, em uma frase, e por que ela existe separada do resto.
+What this skill delivers, in one sentence, and why it exists apart from the rest.
 
-## Quando usar
+## When to use
 
-- gatilho explícito ("roda a skill X", "faz Y")
-- situação que dispara sozinha, mesmo sem o usuário citar o nome
-- o caso de borda que costuma ser confundido com outra coisa
+- an explicit trigger ("run skill X", "do Y")
+- the situation that fires on its own, even when the user never says the name
+- the edge case that usually gets confused with something else
 
-## Quando NÃO usar
+## When NOT to use
 
-- o caso vizinho e para onde mandar em vez disso
+- the neighbouring case, and where to send it instead
 
-## Como funciona
+## How it works
 
-1. o que se confirma com o usuário ANTES de começar (o que não tem default seguro)
-2. o passo que produz o entregável
-3. a verificação: rodar de verdade, não ler e achar que está certo
+1. what gets confirmed with the user BEFORE starting (whatever has no safe default)
+2. the step that produces the deliverable
+3. the verification: run it for real, do not read it and assume it is right
 
-## Armadilhas
+## Traps
 
-- a que já custou uma sessão inteira, com o sintoma pelo qual se reconhece de novo
+- the one that already cost a whole session, with the symptom that identifies it again
 
-## Pronto quando
+## Done when
 
-- a régua objetiva do acabado, verificável por quem não escreveu isto
+- the objective bar for finished, verifiable by someone who did not write this
 
-Criado em {{data}} às {{hora}}, na pasta {{pasta}}.
+Created on {{date}} at {{time}}, in the folder {{folder}}.

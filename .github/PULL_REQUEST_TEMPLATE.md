@@ -9,7 +9,7 @@ Closes #
 ## Checklist
 
 - [ ] Branch cut from `develop`, PR targets `develop`.
-- [ ] E2E suite is green (`$env:WIRED_E2E='1'; npx electron . exemplos\demo.md`), run twice.
+- [ ] E2E suite is green (`npm test`), run twice.
 - [ ] Added or updated E2E checks for any behavior change.
 - [ ] No em dash or en dash anywhere (code, comments, UI, docs).
 - [ ] Correct Portuguese accents in any UI text touched.
