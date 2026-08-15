@@ -55,6 +55,11 @@ function disableInlineMath(vd) {
 // scripts/sync-vendor.mjs), never at node_modules directly.
 const VDITOR_CDN = 'vendor/vditor';
 
+// The content theme Vditor injects at runtime lives with the app, not with the
+// vendor copy: `path/current.css` is what Vditor loads.
+const VDITOR_CONTENT_THEME_PATH = 'vditor-theme';
+const VDITOR_CONTENT_THEME = 'wired';
+
 function vditorOptions(pane) {
   return {
     mode: 'ir',
@@ -66,8 +71,18 @@ function vditorOptions(pane) {
     toolbarConfig: { hide: true },
     cache: { enable: false },
     preview: {
-      theme: { current: 'dark', path: VDITOR_CDN + '/dist/css/content-theme' },
-      hljs: { style: 'native', lineNumber: false },
+      // Our own content theme (src/renderer/vditor-theme/wired.css), NOT the
+      // vendored one: the vendored dark.css loads after styles.css and was
+      // overruling this app's own colors, including the blue slab behind every
+      // code block. The file itself carries the reasoning.
+      theme: { current: VDITOR_CONTENT_THEME, path: VDITOR_CONTENT_THEME_PATH },
+      // Vditor validates this name against its own list and silently falls back
+      // to "github" (a LIGHT theme) when it does not match, which is what
+      // "native" did here: light syntax colors over a dark surface, down to
+      // #24292e body text at 1.1:1. The name is honest now, and it barely
+      // matters, because styles.css paints every hljs token from theme
+      // variables on top of whatever this stylesheet says.
+      hljs: { style: 'github', lineNumber: false },
       markdown: { toc: true, mark: true },
       // A digit right after the opening marker would be math ("$300$"). Here it
       // is a price, so it stays off (the real switch is the SetInlineMath call

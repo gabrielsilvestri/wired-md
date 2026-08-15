@@ -137,9 +137,17 @@ async function run({ window: win, app, filePath }) {
   const ctx = createContext({ window: win, app, filePath });
   try {
     await ctx.sleep(3000);
+    // WIRED_ONLY is a development shortcut: a comma separated list of
+    // substrings, so a single check can be driven without paying for the whole
+    // suite. It is never set by `npm test`, which always runs everything.
+    const only = (process.env.WIRED_ONLY || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const files = fs
       .readdirSync(CHECKS_DIR)
       .filter((f) => /^\d+-.*\.js$/.test(f))
+      .filter((f) => only.length === 0 || only.some((s) => f.indexOf(s) !== -1))
       .sort();
     for (const f of files) {
       const mod = require(path.join(CHECKS_DIR, f));
