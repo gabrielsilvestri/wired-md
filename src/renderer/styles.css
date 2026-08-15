@@ -942,7 +942,18 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 0.4em 1em;
 }
 
-.vditor-reset code:not(.hljs):not(.highlight-chroma) {
+/* --- code, inline and block ---
+   Two stylesheets land AFTER this one at runtime and both used to win here: the
+   content theme (now ours, see src/renderer/vditor-theme/wired.css) and the
+   highlight.js theme Vditor lazy loads. Every selector below therefore names
+   `.vditor-content` as well, which costs nothing and puts these rules out of
+   reach of any vendor rule that arrives later.
+
+   Inline code is the pill; `:not(pre) >` is what keeps the pill off the two
+   code elements that are BLOCKS: the rendered preview and, in IR, the editable
+   source of the block the caret is inside. Those two have to look identical,
+   which is the rule right after this one. */
+.vditor-content .vditor-reset :not(pre) > code:not(.hljs):not(.highlight-chroma) {
   background: var(--bg-3);
   color: var(--accent-soft);
   font-family: var(--font-code);
@@ -951,18 +962,124 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   padding: 1px 5px;
 }
 
-/* The ONE place specificity has to do real work. Vditor lazy loads the
-   highlight.js theme at runtime, so `.hljs { background: ... }` is appended to
-   the head AFTER styles.css and wins any tie. `.vditor-reset pre > code` is
-   (0,1,2) and would lose to a late `.hljs` on equal-ish footing, which is why
-   this used to carry `!important`. Naming the class in the selector makes it
-   (0,2,2), which outranks `.hljs` (0,1,0) no matter who loads last. */
-.vditor-reset pre > code,
-.vditor-reset pre > code.hljs {
+/* The two faces of a code block: `pre.vditor-ir__preview > code.hljs` (what you
+   read) and `pre.vditor-ir__marker--pre > code` (what you edit, revealed by
+   Vditor when the caret enters the block). A YAML frontmatter block only ever
+   has the second one, which is why it read as a blue slab in the document while
+   every other block looked fine. Same surface, same font, same metrics, so
+   entering a block does not change how it looks. */
+/* `:not(.highlight-chroma)` is not a filter, it is a counterweight: Vditor's own
+   index.css styles the editable source through
+   `code:not(.hljs):not(.highlight-chroma)` (padding 0.2em 0.4em, font-size 85%),
+   and without a third simple selector here that rule outranks this one and the
+   source keeps inline-code metrics while the preview has block ones. */
+.vditor-content .vditor-reset pre > code:not(.highlight-chroma),
+.vditor-content .vditor-reset pre > code.hljs {
+  display: block;
   background: var(--bg-2);
+  color: var(--ink);
   font-family: var(--font-code);
   font-size: 0.85em;
+  line-height: 1.6;
   border-radius: 6px;
+  padding: 12px 14px;
+}
+
+/* --- editing a code block happens IN PLACE ---
+   Vditor IR reveals the editable source ABOVE the rendered preview and leaves
+   both on screen, so the block appears twice, once styled and once not. Hiding
+   the preview exactly while its node carries `--expand` (the class Vditor puts
+   on the node holding the caret) leaves a single block that switches from
+   rendered to editable under the caret and back when it leaves. It is CSS
+   only: no listener to fight typing, and the height barely moves, because the
+   source that appears is about as tall as the preview that goes. */
+.vditor-ir .vditor-ir__node--expand > .vditor-ir__preview { display: none; }
+
+/* The fence and the language tag, visible only while the block is open. They
+   are markers, not code, and they read at marker weight. */
+.vditor-ir .vditor-ir__node--expand[data-type="code-block"]:before,
+.vditor-ir .vditor-ir__node--expand[data-type="code-block"]:after,
+.vditor-ir .vditor-ir__node--expand[data-type="yaml-front-matter"]:before,
+.vditor-ir .vditor-ir__node--expand[data-type="yaml-front-matter"]:after {
+  color: var(--ink-faint);
+  font-family: var(--font-code);
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+/* --- syntax colors ---
+   Vditor picks a highlight.js theme by name from its own list and falls back to
+   "github" when the name is not on it, which is a LIGHT theme: #24292e body
+   text over this app's dark surface measures 1.1:1, and the red keyword 3.6:1.
+   Rather than shopping for a theme per app theme (five of them, none measured),
+   every token is painted from a theme variable that scripts/measure-contrast.mjs
+   ALREADY asserts on --bg-2, which is the surface a code block has. The first
+   rule wipes the vendor theme's colors; the ones after it paint ours. */
+.vditor-content .vditor-reset pre > code.hljs [class*="hljs-"] { color: inherit; }
+
+.vditor-content .vditor-reset pre > code.hljs .hljs-comment,
+.vditor-content .vditor-reset pre > code.hljs .hljs-quote {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-keyword,
+.vditor-content .vditor-reset pre > code.hljs .hljs-selector-tag,
+.vditor-content .vditor-reset pre > code.hljs .hljs-literal,
+.vditor-content .vditor-reset pre > code.hljs .hljs-type,
+.vditor-content .vditor-reset pre > code.hljs .hljs-built_in,
+.vditor-content .vditor-reset pre > code.hljs .hljs-doctag {
+  color: var(--accent-ink);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-string,
+.vditor-content .vditor-reset pre > code.hljs .hljs-regexp,
+.vditor-content .vditor-reset pre > code.hljs .hljs-addition,
+.vditor-content .vditor-reset pre > code.hljs .hljs-char,
+.vditor-content .vditor-reset pre > code.hljs .hljs-template-tag {
+  color: var(--green);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-number,
+.vditor-content .vditor-reset pre > code.hljs .hljs-symbol,
+.vditor-content .vditor-reset pre > code.hljs .hljs-bullet,
+.vditor-content .vditor-reset pre > code.hljs .hljs-meta,
+.vditor-content .vditor-reset pre > code.hljs .hljs-link {
+  color: var(--amber);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-title,
+.vditor-content .vditor-reset pre > code.hljs .hljs-name,
+.vditor-content .vditor-reset pre > code.hljs .hljs-section,
+.vditor-content .vditor-reset pre > code.hljs .hljs-class,
+.vditor-content .vditor-reset pre > code.hljs .hljs-selector-id,
+.vditor-content .vditor-reset pre > code.hljs .hljs-selector-class {
+  color: var(--accent-soft);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-attr,
+.vditor-content .vditor-reset pre > code.hljs .hljs-attribute,
+.vditor-content .vditor-reset pre > code.hljs .hljs-property,
+.vditor-content .vditor-reset pre > code.hljs .hljs-variable,
+.vditor-content .vditor-reset pre > code.hljs .hljs-template-variable,
+.vditor-content .vditor-reset pre > code.hljs .hljs-params,
+.vditor-content .vditor-reset pre > code.hljs .hljs-subst,
+.vditor-content .vditor-reset pre > code.hljs .hljs-tag,
+.vditor-content .vditor-reset pre > code.hljs .hljs-operator,
+.vditor-content .vditor-reset pre > code.hljs .hljs-punctuation {
+  color: var(--ink-dim);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-deletion {
+  color: var(--red);
+}
+.vditor-content .vditor-reset pre > code.hljs .hljs-emphasis { font-style: italic; }
+.vditor-content .vditor-reset pre > code.hljs .hljs-strong { font-weight: 600; }
+
+/* --- text selection ---
+   The browser default is a saturated blue that turns a selected code block into
+   a slab (it is what a stale selection left behind in a screenshot, and it is
+   why "the code block is blue" has TWO possible causes). The accent at 0.26
+   over --bg-2 keeps --ink inside the 4.5:1 to 11:1 band; the pair is measured in
+   scripts/measure-contrast.mjs like every other. */
+.vditor-content .vditor-reset ::selection,
+.vditor-content .vditor-reset::selection {
+  background: rgba(var(--accent-rgb), 0.26);
+  color: inherit;
 }
 
 .vditor-ir .vditor-ir__marker { color: var(--ink-faint); opacity: 0.7; }

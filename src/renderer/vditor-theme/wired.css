@@ -1,0 +1,36 @@
+/* The Vditor "content theme": the stylesheet Vditor injects at RUNTIME for the
+   rendered document, pointed at by `preview.theme.path` in modules/panes.js.
+   Until this file existed, that option pointed at the vendored
+   vendor/vditor/dist/css/content-theme/dark.css, which was the single worst
+   stylesheet in the app:
+
+     - it loads AFTER styles.css, so at equal specificity it WON, silently
+       taking over rules this app had already themed;
+     - `.vditor-reset code:not(.hljs):not(.highlight-chroma)` there is
+       `rgba(66, 133, 244, .36)`, a saturated blue. That is where the blue slab
+       over every YAML frontmatter block and every code block being edited came
+       from, with nothing selected and nothing clicked;
+     - `.vditor-reset a` was hardcoded to #4285f4, h1 and h2 got a #d1d5da
+       border, tables got #2f363d rows: four theme variables overruled by a
+       vendor file, in five themes at once.
+
+   The answer is not a specificity war. This app already themes every one of
+   those elements in styles.css from theme variables, so the content theme only
+   has to carry what styles.css does NOT define: the GitHub callout palette that
+   Vditor's own index.css reads through custom properties. Everything else is
+   deliberately absent, which is what lets styles.css win by simply existing.
+
+   The file name is the value of `preview.theme.current`. */
+
+.vditor-reset {
+  --callout-note-color: var(--accent);
+  --callout-note-background-color: color-mix(in srgb, var(--accent) 14%, transparent);
+  --callout-tip-color: var(--green);
+  --callout-tip-background-color: color-mix(in srgb, var(--green) 14%, transparent);
+  --callout-important-color: var(--accent-soft);
+  --callout-important-background-color: color-mix(in srgb, var(--accent-soft) 14%, transparent);
+  --callout-warning-color: var(--amber);
+  --callout-warning-background-color: color-mix(in srgb, var(--amber) 14%, transparent);
+  --callout-caution-color: var(--red);
+  --callout-caution-background-color: color-mix(in srgb, var(--red) 14%, transparent);
+}

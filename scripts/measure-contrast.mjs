@@ -145,7 +145,12 @@ const INK_PLACED = [
 // the declared surface.
 const INK_OVER_FILL = [
   ['--search-hit-ink', '--accent', 0.18, '--bg-2', 'search highlight in a row'],
-  ['--search-hit-ink', '--accent', 0.18, '--bg-3', 'search highlight in the selected row']
+  ['--search-hit-ink', '--accent', 0.18, '--bg-3', 'search highlight in the selected row'],
+  // The text selection in the editor. The browser default is a saturated blue
+  // slab; this is the accent instead, and it has to leave selected text
+  // readable on the page and on the surface of a code block.
+  ['--ink', '--accent', 0.26, '--bg', 'selected text in the document'],
+  ['--ink', '--accent', 0.26, '--bg-2', 'selected text inside a code block']
 ];
 
 // Printed, never failed: a divider is not reading text.

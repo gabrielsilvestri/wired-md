@@ -127,7 +127,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
-npm test        # full end to end suite (117 checks)
+npm test        # full end to end suite (125 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.
