@@ -152,7 +152,22 @@ async function run(ctx) {
   // 5. The frontmatter block: the same quiet surface. In IR it has no preview at
   //    all, only the editable source, which is why it was blue in the document
   //    with nothing clicked.
-  const fm = await js(probe(FM_PANE, 'yaml-front-matter'));
+  //    In the tabs world nothing before this check keeps example-skill.md open,
+  //    so the check opens it itself (and closes it again, leaving the layout as
+  //    it found it).
+  let openedFm = false;
+  let fm = await js(probe(FM_PANE, 'yaml-front-matter'));
+  if (!fm) {
+    const fmPath = await js(
+      `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf(${JSON.stringify(CODE_PANE)})!==-1;});return p?p.path.replace(/demo\\.md$/, ${JSON.stringify(FM_PANE)}):null;})()`
+    );
+    if (fmPath) {
+      await js(`void openPath(${JSON.stringify(fmPath)})`);
+      await sleep(900);
+      openedFm = true;
+      fm = await js(probe(FM_PANE, 'yaml-front-matter'));
+    }
+  }
   const fmBg = rgb(fm && fm.src && fm.src.bg);
   check(
     'frontmatter: the YAML block reads as the same quiet code surface, with no preview to duplicate it',
@@ -163,6 +178,13 @@ async function run(ctx) {
   // Nothing here edits anything, so no pane may come out of it dirty.
   const dirty = await js(`panes.filter(function(x){return x.dirty;}).map(function(x){return x.path;})`);
   check('code blocks: reading and entering a block leaves every pane clean', dirty.length === 0, JSON.stringify(dirty));
+
+  if (openedFm) {
+    await js(
+      `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf(${JSON.stringify(FM_PANE)})!==-1;});if(p)void closePane(p);})()`
+    );
+    await sleep(400);
+  }
 
   if (previous) {
     await js(
