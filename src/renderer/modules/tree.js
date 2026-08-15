@@ -23,6 +23,7 @@ const recentListEl = document.getElementById('recent-list');
 const recentSection = document.getElementById('recent-section');
 const sidebarEmpty = document.getElementById('sidebar-empty');
 const sidebarRootName = document.getElementById('sidebar-root-name');
+const sidebarRootPath = document.getElementById('sidebar-root-path');
 const treeSearchWrap = document.getElementById('tree-search-wrap');
 const treeSearchInput = document.getElementById('tree-search');
 
@@ -175,6 +176,27 @@ export function renderTree() {
   renderTreeLevel(fileTreeEl, view, 0);
 }
 
+// A path is unreadable when the end is cut off, because the end is the part
+// that identifies it. Cutting the MIDDLE keeps the drive and the last folders,
+// which is what orients someone with several similar trees.
+export function middleTruncate(text, max) {
+  if (!text || text.length <= max) return text || '';
+  const keepRight = Math.floor((max - 1) * 0.62);
+  const keepLeft = max - 1 - keepRight;
+  return text.slice(0, keepLeft) + '…' + text.slice(text.length - keepRight);
+}
+
+// The folder that CONTAINS the root of the tree. At a drive root there is no
+// parent, and the row simply goes away instead of repeating the name.
+function setRootPath(dir) {
+  if (!sidebarRootPath) return;
+  const parent = dir ? dirName(dir) : null;
+  const show = !!parent && parent !== dir;
+  sidebarRootPath.textContent = show ? middleTruncate(parent, 44) : '';
+  sidebarRootPath.title = show ? dir : '';
+  sidebarRootPath.style.display = show ? '' : 'none';
+}
+
 export async function refreshSidebar() {
   renderRecents();
   const p = activePane();
@@ -183,6 +205,7 @@ export async function refreshSidebar() {
     lastTree = null;
     sidebarRootName.textContent = 'no folder';
     sidebarRootName.title = '';
+    setRootPath(null);
     renderTree();
     updateAllBreadcrumbs();
     return;
@@ -196,9 +219,12 @@ export async function refreshSidebar() {
     window.wired.watchDir(dir);
     scheduleGitRefresh(); // another folder can be another repository (or none)
   }
-  // Header: the root folder name, with the full path in the tooltip.
+  // Header: the root folder name, with the full path in the tooltip, and the
+  // parent path under it so "examples" is never just "examples" (with many
+  // files open, WHERE the folder lives is half of the orientation).
   sidebarRootName.textContent = baseName(dir);
   sidebarRootName.title = dir;
+  setRootPath(dir);
   const res = await window.wired.dirTree(dir);
   const tree = res.tree || { dirs: [], files: [] };
   treeFiles = flattenTree(tree, []);

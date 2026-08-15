@@ -7,14 +7,23 @@ import { activePane, baseName } from './state.js';
 const titlebarTitle = document.getElementById('titlebar-title');
 const winMaxBtn = document.getElementById('win-max');
 
+// The product name has ONE source: the app name Electron reads out of
+// package.json. Nothing in the renderer spells it out again, so renaming the
+// product is a single edit.
+export const APP_NAME = window.wired.appName || 'wired-md';
+
 export function updateChrome() {
   const p = activePane();
   const isDirty = !!(p && p.dirty);
-  const name = p && p.path ? baseName(p.path) : 'no file';
+  // With no file open the bar carries the product name, not the word "no file":
+  // an empty editor is the app at rest, not an error.
+  const named = !!(p && p.path);
+  const name = named ? baseName(p.path) : APP_NAME;
   titlebarTitle.textContent = (isDirty ? '● ' : '') + name;
-  titlebarTitle.title = (p && p.path) || '';
+  titlebarTitle.title = (p && p.path) || APP_NAME;
   titlebarTitle.classList.toggle('dirty', isDirty);
-  window.wired.setTitle((isDirty ? '● ' : '') + name + ' | wired-md');
+  titlebarTitle.classList.toggle('is-product', !named);
+  window.wired.setTitle(named ? (isDirty ? '● ' : '') + name + ' | ' + APP_NAME : APP_NAME);
 }
 
 function setMaxState(isMax) {

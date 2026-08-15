@@ -35,16 +35,39 @@ export async function loadConfig() {
 }
 
 // --- pane registry ---
-// Each pane owns its Vditor instance, its path and its dirty flag.
+// A PANE is one open file: its Vditor instance, its path and its dirty flag.
+// Every pane belongs to a GROUP (an editor group in the VS Code sense): a
+// column with its own tab bar, showing one pane at a time. Groups sit side by
+// side, separated by a draggable resizer.
 
-export const MAX_PANES = 4;
-export const panes = []; // { id, el, titleEl, path, dirty, vditor, ready, pendingPath }
+export const MAX_GROUPS = 3; // horizontal side by side only, no grid
+export const panes = []; // { id, groupId, el, tabEl, titleEl, path, dirty, vditor, ready }
+export const groups = []; // { id, el, tabsEl, bodyEl, size }
 
 let activePaneId = null;
 let paneSeq = 0;
+let groupSeq = 0;
 
 export function nextPaneId() {
   return ++paneSeq;
+}
+
+export function nextGroupId() {
+  return ++groupSeq;
+}
+
+export function groupById(id) {
+  return groups.find((g) => g.id === id) || null;
+}
+
+export function panesOfGroup(id) {
+  return panes.filter((p) => p.groupId === id);
+}
+
+// The group that owns the active pane; with no pane open, the first group.
+export function activeGroup() {
+  const p = activePane();
+  return (p && groupById(p.groupId)) || groups[0] || null;
 }
 
 export function getActivePaneId() {
@@ -59,8 +82,8 @@ export function activePane() {
   return panes.find((p) => p.id === activePaneId) || panes[0] || null;
 }
 
-// Order of use, most recent first: decides which panes stay open when they no
-// longer all fit comfortably in the window.
+// Order of use, most recent first: which tab a group falls back to when the
+// current one closes, and which pane wins when a file is already open.
 let paneMru = [];
 
 export function touchMru(id) {

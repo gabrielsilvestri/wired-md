@@ -5,7 +5,7 @@ The marketing landing for wired-md: a single, self-contained `index.html` (CSS a
 ## What it is
 
 - One hero with a Minecraft-style splash line that reshuffles from a pool of flavor texts on every page load.
-- Feature sections drawn from the real product (inline rendering, frontmatter validation, palette and full-text search, the claude bridge, focus and typewriter modes, sliding panes, templates, themes).
+- Feature sections drawn from the real product (inline rendering, frontmatter validation, palette and full-text search, the claude bridge, focus and typewriter modes, tabs with drag to split, templates, themes).
 - An install section that is honest: cloning and running works today, packaged installers are marked as roadmap, not as live links.
 - A "buy me a coffee" banner and GitHub links.
 

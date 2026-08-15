@@ -26,6 +26,21 @@ async function run(ctx) {
     await sleep(900);
   };
 
+  // `git status` is a spawn, so how long it takes depends on the machine and on
+  // what else the app is doing right then. The badge is POLLED until it says
+  // what the tree on disk says, instead of slept at for a fixed amount and hoped
+  // for (the same trap the terminal check fell into).
+  const waitBadge = async (needle, letter) => {
+    let seen = null;
+    for (let i = 0; i < 25; i++) {
+      seen = await badgeOf(needle);
+      if (seen && ((seen.row && seen.letter === letter) || (!seen.row && letter === null))) return seen;
+      await sleep(300);
+      if (i % 3 === 2) await js('void gitRefresh()');
+    }
+    return seen;
+  };
+
   // A new .md inside the repo is untracked.
   fs.writeFileSync(untracked, '# git badge e2e\n\nA file the suite created.\n', 'utf8');
   // A tracked file the suite modifies.
@@ -33,8 +48,8 @@ async function run(ctx) {
   await refresh();
 
   const repo = await js('gitRepoRoot');
-  const fresh = await badgeOf('git-badge-e2e.md');
-  const modified = await badgeOf('demo.md');
+  const fresh = await waitBadge('git-badge-e2e.md', '?');
+  const modified = await waitBadge('demo.md', 'M');
 
   check(
     'git: the tree row of a new file carries the untracked badge and the row of a modified file carries M',
@@ -46,6 +61,13 @@ async function run(ctx) {
   // is about the note that was just modified, so put it there first.
   await ctx.openPath(demoPath);
   await refresh();
+  // Same wait for the badge inside the pane header.
+  for (let i = 0; i < 25; i++) {
+    const got = await js(`(function(){var h=activePane().el.querySelector('.pane-header .git-badge');return h?h.textContent:null;})()`);
+    if (got === 'M') break;
+    await sleep(300);
+    if (i % 3 === 2) await js('void gitRefresh()');
+  }
   const header = await js(
     `(function(){var p=activePane();var h=p.el.querySelector('.pane-header');var b=h.querySelector('.git-badge');` +
       `var d=h.querySelector('.pane-diff');` +
@@ -62,8 +84,8 @@ async function run(ctx) {
   fs.writeFileSync(demoPath, demoBefore, 'utf8');
   await refresh();
 
-  const afterFresh = await badgeOf('git-badge-e2e.md');
-  const afterDemo = await badgeOf('demo.md');
+  const afterFresh = await waitBadge('git-badge-e2e.md', null);
+  const afterDemo = await waitBadge('demo.md', null);
   check(
     'git: with the repository clean again, both badges are gone and no residue is left behind',
     !fs.existsSync(untracked) && fs.readFileSync(demoPath, 'utf8') === demoBefore &&

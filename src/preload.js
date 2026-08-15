@@ -144,7 +144,12 @@ function fmAdd(raw, key, kind) {
   }
 }
 
+// The product name, read once at preload time (sendSync, because the title bar
+// paints before any promise could resolve). Single source: package.json.
+const appName = ipcRenderer.sendSync('app:name');
+
 contextBridge.exposeInMainWorld('wired', {
+  appName,
   openDialog: () => ipcRenderer.invoke('dialog:open'),
   saveAsDialog: (suggested) => ipcRenderer.invoke('dialog:saveAs', suggested),
 

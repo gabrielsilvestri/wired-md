@@ -23,6 +23,13 @@ async function run({ window: win, app }) {
     console.log('[smoke] backend=' + (term ? term.kind : 'none'));
     console.log('[smoke] buffer:\n' + buf);
     console.log('[smoke] echo ok: ' + /hi_wired_42/.test(buf));
+    // Booting with no file on the command line is exactly the case where the
+    // saved session is reopened, and this run is the only place that exercises
+    // it, so the heartbeat says what came back.
+    const layout = await js(
+      `JSON.stringify({groups:groups.map(function(g){return g.tabs.map(function(p){return p.path?p.path.split(/[\\\\/]/).pop():'untitled';});}),active:currentPath?currentPath.split(/[\\\\/]/).pop():null,empty:!document.getElementById('editor-empty').classList.contains('hidden')})`
+    );
+    console.log('[smoke] layout: ' + layout);
     const cfg = await js('JSON.stringify(config)');
     console.log('[smoke] config: ' + cfg);
     const themes = await js(`window.wired.listThemes()`);

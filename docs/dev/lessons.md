@@ -76,3 +76,19 @@
   and writes them back, because an EOL only diff is invisible in review.
 - 2026-08-14: sliding panes died on first real contact: the owner opened every file in the folder and some collapsed into unreadable spines with confusing interaction. Root cause: the pattern was adopted from its looks in another app and never tested against the real "open many files" flow. Product decision: tabs with drag-to-split and user-sized groups replace sliding panes entirely.
 - 2026-08-14: a breadcrumb that shows only the folder name fails at orientation: with many files the owner needs to see WHERE on disk the folder lives, and to tell folder segments from the file name at a glance. Root cause: minimalism won over orientation without checking established patterns first.
+- 2026-08-14: with tabs, a brand new pane is NOT ready to receive a document: the
+  Vditor `after` hook answers a few frames later. Leaving the path in a
+  `pendingPath` for that hook to pick up broke every caller that awaited
+  `openPath` and then touched the editor (the template flow places a caret right
+  after, and it landed nowhere). Root cause: treating "the pane exists" as "the
+  editor exists". `openInPane` now waits for `pane.ready`.
+- 2026-08-14: closing a tab that is NOT the one on screen must not change which
+  tab is on screen. The first version reassigned the group's current tab on
+  every close, so a cleanup that closed a background file silently swapped the
+  document in front of the user (and in front of the next check, which then read
+  the wrong editor).
+- 2026-08-14: an assertion about "the active document" that never says which
+  document it wants is a check waiting to break: with tabs the previous check no
+  longer replaces what is in the editor, so whatever it opened is still in front.
+  The focus mode check now puts its fixture in front on purpose.
+

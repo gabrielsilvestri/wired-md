@@ -223,9 +223,18 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   border-bottom: 1px solid var(--rule-soft);
 }
 
-/* name of the root folder of the open note (ellipsis; full path in the tooltip) */
-#sidebar-root-name {
+/* The folder of the open note: its name on top, where it lives underneath.
+   Two lines, never two wraps: each one truncates on its own. */
+#sidebar-root {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  user-select: none;
+}
+
+#sidebar-root-name {
   min-width: 0;
   font-size: 11px;
   font-weight: 500;
@@ -234,7 +243,20 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  user-select: none;
+}
+
+/* The parent path, dimmed: orientation, not a label. It is already truncated in
+   the MIDDLE by the renderer (the end of a path is the part that identifies
+   it), so it only has to refuse to wrap. */
+#sidebar-root-path {
+  min-width: 0;
+  font-size: 10px;
+  letter-spacing: 0.01em;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
 }
 
 #btn-root-explorer { flex: 0 0 auto; }
@@ -477,14 +499,48 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   user-select: none;
 }
 
-/* No pane at all is not reachable today (the app always keeps one open), but
-   the state exists in the layout and an unstyled void would be a blank window. */
-#panes:empty::after {
-  content: 'No note open. Ctrl+O opens a file, Ctrl+N starts a new one.';
-  margin: auto;
-  font-size: 12px;
-  color: var(--ink-faint);
+/* --- the editor empty state ---
+   No file in front of you is the app at rest, not a failure, and the old
+   treatment (one gray sentence floating in a void) said the opposite. It is a
+   layer over the editor area: it never takes the pointer, so an untitled tab
+   underneath still receives the first keystroke and the art gets out of the way
+   as soon as there is a word on the page.
+
+   The portrait is DECORATION, which is why it sits at --ink-faint and is
+   exempt from the reading floor; the instruction under it is text and is not
+   (--ink-dim, 6.89:1 in wired and 5.34:1 in light over --bg). */
+
+#editor-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  pointer-events: none;
   user-select: none;
+  z-index: 2;
+}
+
+#editor-empty.hidden { display: none; }
+
+#lain-art {
+  margin: 0;
+  font-family: var(--font-code);
+  font-size: 11px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+  opacity: 0.55;
+  white-space: pre;
+}
+
+#empty-hint {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
 }
 
 #sidebar-empty { display: none; }
@@ -498,7 +554,24 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   min-width: 0;
 }
 
-/* --- sliding panes (files side by side, Obsidian style) --- */
+/* The groups and the empty state layer share this box, so the art centers on
+   the editor area and never on the terminal under it. */
+#editor-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+/* --- editor groups and tabs ---
+   #panes is a row of GROUPS. A group is a column: a tab bar on top and one
+   visible pane under it. Groups are separated by a resizer the user drags, and
+   their widths are flex-grow numbers (persisted), so the window can be resized
+   without the proportions the user chose being thrown away.
+
+   This replaced the sliding panes. Those collapsed whatever no longer fit into
+   40px vertical spines, which is elegant with three files and unusable with
+   ten: the file you wanted became an unreadable stripe you had to hunt for. */
 
 #panes {
   flex: 1;
@@ -507,82 +580,114 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
 }
 
-/* An open pane takes the flexible width; a collapsed one becomes a 40px spine.
-   The slide is the flex-grow and flex-basis transition (~200ms). */
-.pane {
+.group {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-right: 1px solid var(--rule-soft);
-  transition: flex-grow var(--t-slow) var(--ease), flex-basis var(--t-slow) var(--ease);
+  position: relative;
 }
 
-.pane:last-child { border-right: none; }
+.group:last-child { border-right: none; }
 
-.pane.collapsed {
-  flex: 0 0 40px;
-  cursor: pointer;
+/* The handle between two groups. It is wider than the line it sits on, because
+   a 1px grab target is a 1px promise. */
+.group-resizer {
+  flex: 0 0 5px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  z-index: 8;
 }
 
-.pane.collapsed .pane-header,
-.pane.collapsed .fm-panel,
-.pane.collapsed .pane-editor { display: none; }
+.group-resizer:hover { background: rgba(var(--accent-rgb), 0.25); }
 
-/* --- spine of a collapsed pane: X on top, dirty dot, vertical title --- */
+body.resizing-groups { cursor: col-resize; user-select: none; }
+body.resizing-groups .group-resizer { background: rgba(var(--accent-rgb), 0.35); }
 
-.pane-spine { display: none; }
-
-.pane.collapsed .pane-spine {
+.group-body {
+  flex: 1;
+  min-height: 0;
   display: flex;
+  overflow: hidden;
+}
+
+/* One pane per group is on screen; the other tabs stay in the DOM with their
+   editor state intact. */
+.pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: none;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  height: 100%;
-  padding: 6px 0 12px;
+  overflow: hidden;
+}
+
+.pane.current { display: flex; }
+
+/* --- the tab bar --- */
+
+.tab-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--bg-2);
+  border-bottom: 1px solid var(--rule-soft);
+  scrollbar-width: none; /* the tabs scroll, they do not wrap */
   user-select: none;
 }
 
-.pane.collapsed:hover .pane-spine { background: var(--bg-3); }
+.tab-bar::-webkit-scrollbar { height: 0; }
 
-/* The spine is a click target the width of a scrollbar, so it has to admit
-   that it is one. On hover the surface lifts, the title takes full ink and an
-   accent hairline runs up the leading edge: enough to read as "this opens",
-   nowhere near enough to be a moving part in the corner of your eye. */
-.pane.collapsed .pane-spine {
-  box-shadow: inset 2px 0 0 transparent;
-  transition: background var(--t-fast) var(--ease), box-shadow var(--t-med) var(--ease);
+.tab {
+  flex: 0 0 auto;
+  max-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px 5px 10px;
+  border-right: 1px solid var(--rule-soft);
+  background: var(--bg-2);
+  color: var(--ink-faint);
+  cursor: pointer;
+  box-shadow: inset 0 2px 0 transparent;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
+              box-shadow var(--t-med) var(--ease);
 }
 
-.pane.collapsed:hover .pane-spine { box-shadow: inset 2px 0 0 var(--accent-dim); }
+.tab:hover { background: var(--bg-3); color: var(--ink-dim); }
 
-.spine-title {
-  writing-mode: vertical-rl;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--ink-dim);
+/* The active tab does not whisper: it takes the page surface (so it reads as
+   the sheet you are on), full ink, and an accent rule along its top edge. */
+.tab.active {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.tab-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-height: 100%;
-  transition: color var(--t-fast) var(--ease), letter-spacing var(--t-med) var(--ease);
+  font-size: 11px;
+  letter-spacing: 0.02em;
 }
 
-.pane.collapsed:hover .spine-title { color: var(--ink); letter-spacing: 0.07em; }
+.tab.dirty .tab-label { color: var(--amber); }
 
-/* Amber unsaved dot, visible on the spine too. It scales in from nothing the
-   first time the file goes dirty (a 120ms pop, once) instead of appearing
-   between two frames. It does NOT pulse or blink: this is a status, and a
-   status that moves forever is a status you learn to stop seeing. */
+/* Amber unsaved dot. It scales in from nothing the first time the file goes
+   dirty (a 120ms pop, once) instead of appearing between two frames. It does
+   NOT pulse or blink: this is a status, and a status that moves forever is a
+   status you learn to stop seeing. */
 @keyframes dot-in {
   from { transform: scale(0); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
 }
 
-.spine-dot {
+.tab-dot {
   flex: 0 0 auto;
   width: 6px;
   height: 6px;
@@ -592,15 +697,77 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   transition: transform var(--t-med) var(--ease), background var(--t-fast) var(--ease);
 }
 
-.spine-dot.on {
+.tab.dirty .tab-dot {
   background: var(--amber);
   transform: scale(1);
   animation: dot-in var(--t-med) var(--ease);
 }
 
-/* The pane title carries the same signal in the expanded state: the amber is
-   already there, so only the fade between the two inks is animated. */
-.pane-title { transition: color var(--t-med) var(--ease); }
+/* The X appears on hover and on the active tab, so a bar of ten tabs is a list
+   of names rather than a row of buttons. It keeps its slot either way, because
+   a tab that changes width under the pointer is a tab you misclick. */
+.tab-close {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.tab:hover .tab-close,
+.tab.active .tab-close { color: var(--ink-faint); }
+.tab-close:hover { background: var(--bg-3); color: var(--red); }
+
+.tab-new {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+
+.tab-new:hover { background: var(--bg-3); color: var(--ink); }
+
+/* --- dragging a tab --- */
+
+.tab.dragging { opacity: 0.45; }
+
+/* Where the tab would land inside this bar. */
+.tab.drop-before { box-shadow: inset 2px 0 0 var(--accent), inset 0 2px 0 transparent; }
+.tab.drop-after { box-shadow: inset -2px 0 0 var(--accent), inset 0 2px 0 transparent; }
+.tab.active.drop-before { box-shadow: inset 2px 0 0 var(--accent), inset 0 2px 0 var(--accent); }
+.tab.active.drop-after { box-shadow: inset -2px 0 0 var(--accent), inset 0 2px 0 var(--accent); }
+
+/* Where the split would open: half of the editor area lights up. */
+.group.drop-left .group-body,
+.group.drop-right .group-body { position: relative; }
+
+.group.drop-left .group-body::after,
+.group.drop-right .group-body::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid var(--accent-dim);
+  pointer-events: none;
+}
+
+.group.drop-left .group-body::after { left: 0; }
+.group.drop-right .group-body::after { right: 0; }
 
 .pane-header {
   flex: 0 0 auto;
@@ -615,33 +782,19 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
 }
 
-/* The file name has priority: it shrinks LAST (low shrink). The breadcrumb
-   absorbs the squeeze first (high shrink) and, once it is spent, the name
-   truncates with an ellipsis. The header never overflows horizontally. */
-.pane-title {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  color: var(--ink-faint);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.pane.active .pane-title { color: var(--ink-dim); }
-.pane-title.dirty { color: var(--amber); }
 .pane.active .pane-header { box-shadow: inset 0 -1px 0 var(--accent-dim); }
 
-/* breadcrumb of the note folder, filling the gap in the middle of the header */
+/* --- breadcrumb: folder trail, then the file ---
+   The folder segments are DIM (--ink-faint, 4.93:1 in wired and 4.72:1 in
+   light over bg-2) and the file name is full --ink, so the two are never the
+   same kind of thing at a glance. The folders absorb the squeeze first (high
+   shrink); the file name truncates last, and the header never overflows. */
 .pane-crumbs {
   flex: 1 100 auto;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   overflow: hidden;
   white-space: nowrap;
   font-size: 11px;
@@ -653,23 +806,46 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ink-dim); /* 6.89:1 in wired and 5.34:1 in light, over bg-2 */
+  color: var(--ink-faint);
 }
-
-/* the last segment (the folder holding the note) never shrinks before the others */
-.crumb-seg:last-child { flex: 0 1 auto; }
 
 .crumb-seg.clickable { cursor: pointer; }
 .crumb-seg.clickable:hover { color: var(--ink); text-decoration: underline; }
 
-/* discreet separator: a divider, not reading text */
-/* separator between the names: legible teal, not decoration below the floor.
-   --accent-soft over the header --bg-2: 9.27:1 in wired and 4.97:1 in light,
-   inside 4.5:1 to 11:1 (--accent-dim with opacity broke through the floor). */
+/* Separator: a chevron, because a slash between two words reads as text and
+   made "examples / bc-e2e / note.md" look like one long name. It is structure,
+   drawn at the weight of structure. */
 .crumb-sep {
   flex: 0 0 auto;
-  color: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  color: var(--leader);
 }
+
+/* The file at the end of the trail: an icon, full ink, and the last thing to
+   give up its width. */
+.crumb-file {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.crumb-file-ico { flex: 0 0 auto; color: var(--ink-faint); }
+
+.crumb-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane.dirty-file .crumb-file { color: var(--amber); }
+
+/* Pushes the sparkles and the close button to the right edge. */
+.pane-header-spacer { flex: 1 1 0; min-width: 0; }
 
 .pane-folder,
 .pane-close,

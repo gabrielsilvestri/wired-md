@@ -1,6 +1,6 @@
-// Final shot for the README: a wide window, the sidebar visible and three panes
-// (with the sidebar at 320px the ruler leaves two open and one as a spine). The
-// third pane is the file with frontmatter, so the properties panel is in frame.
+// Final shot for the README: a wide window, the sidebar visible and three
+// editor groups side by side, each with its own tab bar. The third one holds
+// the file with frontmatter, so the properties panel is in frame.
 //
 // OPT IN: the PNG is only written with WIRED_SHOTS=1. Re-encoding it on every
 // run made a plain `npm test` leave the working tree dirty. The layout it sets

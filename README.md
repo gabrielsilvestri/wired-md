@@ -9,7 +9,7 @@ A desktop markdown editor for people who write markdown *for AI*: `CLAUDE.md` fi
 
 > The product name is not final yet. Until it is decided, the project uses its repository and package name, `wired-md`.
 
-![Screenshot of wired-md editing a markdown file with sliding panes and the file tree](docs/screenshot.png)
+![Screenshot of wired-md editing a markdown file in three editor groups, each with its own tab bar, beside the file tree](docs/screenshot.png)
 
 ## Why
 
@@ -20,11 +20,12 @@ If you spend your day writing instructions for agents, a general note app gets i
 Everything below is implemented and covered by the end to end test suite.
 
 - **Inline WYSIWYG editing (Typora style).** Markdown becomes the document as you type, no side by side preview pane. Powered by Vditor's instant rendering mode.
-- **Sliding panes.** Up to four files open side by side (Obsidian / Andy Matuschak style). The active pane stays wide; panes that no longer fit collapse into a 40px vertical spine you click to expand. The layout recomputes on window resize. Ctrl+click a file in the tree or in Recents to open it beside the current one.
-- **Obsidian style file tree.** The sidebar shows the folder of the open note (markdown only), refreshes itself when files change on disk, and has a Recents section. Header with the root folder name and a shortcut to Explorer; a toolbar for new file, new folder, sort, collapse all, and a filter box; a right click menu for rename, duplicate, export, copy path, and delete (always to the Recycle Bin, never a hard unlink). Resizable and hideable.
+- **Tabs, and drag a tab to split.** Every open file is a tab: name, unsaved dot, a close button on hover, middle click to close, `Ctrl+W` for the active one. The bar scrolls sideways instead of wrapping, however many files you open. Drag a tab onto the left or right half of the editor and the view splits into side by side groups (three at most), each with its own tab bar and its own current file, separated by a resizer you drag: the widths are yours and survive a restart. Drop a tab on another group's bar to move it there, drag inside a bar to reorder, and an emptied group collapses and hands its width to the neighbour. Ctrl+click a file in the tree or in Recents to open it in the group beside.
+- **The layout comes back.** The groups, their tabs and the file that was in front are remembered, so reopening the editor is not a blank slate. A file passed on the command line always wins over the saved session.
+- **Obsidian style file tree.** The sidebar shows the folder of the open note (markdown only), refreshes itself when files change on disk, and has a Recents section. Header with the root folder name, the parent path under it (dimmed and truncated in the middle, full path in the tooltip) and a shortcut to Explorer; a toolbar for new file, new folder, sort, collapse all, and a filter box; a right click menu for rename, duplicate, export, copy path, and delete (always to the Recycle Bin, never a hard unlink). Resizable and hideable.
 - **Command palette and quick switcher.** Ctrl+Shift+P for actions, Ctrl+P for files, both with fuzzy subsequence search. Enter runs or opens, Ctrl+Enter opens beside, Esc closes.
 - **Full text search across the folder.** Ctrl+Shift+F searches file *contents* in every markdown file under the open note's folder, powered by a bundled ripgrep binary with a pure Node fallback. Grouped results with highlighted snippets, keyboard navigable.
-- **claude bridge, per note.** A sparkles button in each pane header opens the embedded terminal, brings up `claude`, runs `/cd` into the note's folder, and types the file path into the prompt *without sending it*, so you finish the question. The palette can send the current selection the same way. It never sends on its own: spending a token is your call.
+- **claude bridge, per note.** A sparkles button in each editor header opens the embedded terminal, brings up `claude`, runs `/cd` into the note's folder, and types the file path into the prompt *without sending it*, so you finish the question. The palette can send the current selection the same way. It never sends on its own: spending a token is your call.
 - **Frontmatter as a properties panel.** A file that starts with a YAML `---` block gets an editable properties panel at the top of the pane: text fields for strings and numbers, comma separated fields for lists, checkboxes for booleans, and a read only box for anything the panel cannot represent (which is left untouched in the file). It validates against a schema chosen automatically (`skill`, `subagent`, or generic), flagging a missing `name`, an empty `description`, a likely key typo, or an odd `model`, as a quiet inline warning, never a popup. The YAML block stays visible and the two views stay in sync both ways, preserving key order, comments, and nested maps on round trip.
 - **Spreadsheet style table editing.** Tab moves to the next cell and grows the table when it runs off the last one, Shift+Tab goes back, Enter drops to the row below in the same column. A floating icon toolbar over the table (and a palette command for each) adds, deletes, moves and aligns rows and columns, so you never type a pipe. Every transform is applied to a single table node behind a round trip guard that verifies the rest of the document came back byte for byte identical before the change is kept.
 - **Git state where the writing happens.** A letter badge (`M`, `A`, `?`, `D`, `R`) on each tree row and in the pane header, plus a read only diff view whose added and removed line colors are derived from the active theme and measured for contrast. Untracked files show as fully added. No staging and no commit UI: the embedded terminal already covers that. Outside a repository, or with no git on PATH, the feature is simply absent.
@@ -77,7 +78,8 @@ node scripts/smoke-installed.mjs "%LOCALAPPDATA%\Programs\wired-md\wired-md.exe"
 
 - `Ctrl+N` new file, `Ctrl+O` open, `Ctrl+S` save, `Ctrl+Shift+S` save as.
 - `Ctrl+P` quick switcher (files), `Ctrl+Shift+P` command palette (actions), `Ctrl+Shift+F` full text search. Enter opens or runs, `Ctrl+Enter` opens beside, `Esc` closes.
-- `Ctrl+click` a file in the tree or Recents to open it in a pane beside the current one.
+- `Ctrl+W` closes the active tab.
+- `Ctrl+click` a file in the tree or Recents to open it in the group beside the current one.
 - `Ctrl+=` / `Ctrl+-` / `Ctrl+0` change document font size; `Ctrl+scroll` over the text also works.
 - `Ctrl+\`` toggles the embedded terminal.
 - `F8` focus mode, `F9` typewriter mode.
@@ -127,7 +129,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
-npm test        # full end to end suite (117 checks)
+npm test        # full end to end suite (136 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.

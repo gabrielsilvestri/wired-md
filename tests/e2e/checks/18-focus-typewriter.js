@@ -7,6 +7,12 @@ const EDITOR = '#panes .pane.active .vditor-ir .vditor-reset';
 async function run(ctx) {
   const { js, type, sleep, check, fs, path, win, forget, openPath, readConfigFile, demoPath, rootDir } = ctx;
 
+  // The marker assertions need a document with several blocks under the caret,
+  // and by now the active tab is whatever the previous check left in front. The
+  // fixture is put in front on purpose rather than assumed.
+  await openPath(demoPath);
+  await sleep(400);
+
   // Both modes are zeroed first: the user's real config may have either one on,
   // and then the palette label would read "turn off" and Enter would turn the
   // mode off instead of on (the same trap as setFontZoom(15) in the zoom check).

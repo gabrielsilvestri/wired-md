@@ -5,12 +5,13 @@
 // drives the app through. That surface is deliberate and small: the tests speak
 // to the app the way a user would, and this is the seam that lets them.
 
-import { config, loadConfig, saveConfig, panes, activePane, baseName, dirName } from './modules/state.js';
+import { config, loadConfig, saveConfig, panes, groups, activePane, activeGroup, baseName, dirName } from './modules/state.js';
 import { applyTheme, applyCustom, applySnippets, focusDimFor, relLuminance, contrastRatio } from './modules/theme.js';
-import { initTitlebar, updateChrome } from './modules/titlebar.js';
+import { initTitlebar, updateChrome, APP_NAME } from './modules/titlebar.js';
 import {
-  createFirstPane, openPath, openInPane, setDirty, setPaneDirty, closePane, closeActivePane,
-  save, saveAs, newFile, openViaDialog, relayoutPanes,
+  initPanes, openPath, openInPane, setDirty, setPaneDirty, closePane, closeActivePane,
+  save, saveAs, newFile, openViaDialog, createGroup, moveTabToGroup, dropTabOnGroupHalf,
+  restoreSession, sessionSnapshot, updateEmptyState, setActivePane,
   getSuppressExplorer, setSuppressExplorer, getLastNoteFolderReveal, setLastNoteFolderReveal
 } from './modules/panes.js';
 import {
@@ -73,6 +74,11 @@ window.addEventListener(
       e.preventDefault();
       newFile();
     }
+    // Ctrl+W closes the tab in front of you, the way every tabbed editor does.
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      closeActivePane();
+    }
     if (e.ctrlKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       openViaDialog(false);
@@ -132,7 +138,13 @@ window.addEventListener(
   true
 );
 
-window.wired.onOpenFilePath((p) => openPath(p, false));
+// A file handed over at launch (argv, the shell association, a second instance)
+// wins over the saved session: it is what the person asked for right now.
+let bootFileSeen = false;
+window.wired.onOpenFilePath((p) => {
+  bootFileSeen = true;
+  openPath(p, false);
+});
 
 // --- compat surface for the end to end suite ---
 // Every name the checks in tests/e2e/checks touch. Read only values are plain
@@ -154,6 +166,9 @@ expose({
   dirty: { get: () => !!(activePane() && activePane().dirty) },
   xterm: { get: () => getXterm() },
   panes,
+  groups,
+  activeGroup,
+  APP_NAME,
   config,
   PALETTE_ACTIONS,
   expandedDirs,
@@ -183,7 +198,13 @@ expose({
   setPaneDirty,
   closePane,
   closeActivePane,
-  relayoutPanes,
+  setActivePane,
+  createGroup,
+  moveTabToGroup,
+  dropTabOnGroupHalf,
+  restoreSession,
+  sessionSnapshot,
+  updateEmptyState,
   save,
   saveAs,
   newFile,
@@ -239,7 +260,7 @@ initTitlebar();
 initTree();
 initTerminal();
 initSettings();
-createFirstPane();
+initPanes();
 
 (async function boot() {
   await loadConfig();
@@ -252,4 +273,11 @@ createFirstPane();
   refreshAllFmPanels();
   applyFocusMode();
   applyTypewriterMode();
+  updateEmptyState();
+  // The launch file arrives on its own channel and can land a beat after the
+  // config does, so the session is restored only once it is clear that nothing
+  // was handed over.
+  setTimeout(() => {
+    if (!bootFileSeen && panes.length === 0) restoreSession();
+  }, 350);
 })();

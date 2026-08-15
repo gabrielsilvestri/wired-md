@@ -12,7 +12,7 @@ tree. What is left is a naming decision, not engineering.
   `src/renderer/modules/` (ES modules, one per feature, no bundler). Third party
   browser assets are vendored into `src/renderer/vendor/` by
   `scripts/sync-vendor.mjs`, gitignored and regenerated on install and start.
-- **117 check end to end suite** in `tests/e2e/checks/NN-name.js`, plus a smoke
+- **136 check end to end suite** in `tests/e2e/checks/NN-name.js`, plus a smoke
   run, plus `scripts/measure-contrast.mjs` as a standalone contrast gate.
 - **Features.** Spreadsheet style table editing, properties panel v2 (rename a
   key, add a key), template management from inside the app, git badges and a read
@@ -23,11 +23,12 @@ tree. What is left is a naming decision, not engineering.
   user, ripgrep and node-pty unpacked beside the archive, and the seed folders
   read straight out of `app.asar`. `scripts/smoke-installed.mjs` drives an
   installed build from outside over the DevTools protocol and is green.
-- **Suite hygiene.** `npm test` no longer touches the working tree: both
+- **Suite hygiene.** `npm test` no longer touches the working tree: the three
   screenshot writing checks are opt in behind `WIRED_SHOTS=1`, and the tables
   fixture is restored byte for byte including its line endings.
-- **Accessibility on dynamic markup.** Pane spines, unsaved dots, frontmatter
-  warning rows, terminal buttons and the two sidebar empty states.
+- **Accessibility on dynamic markup.** Tabs (tablist, aria-selected, a close
+  button that names the file), unsaved dots, frontmatter warning rows, terminal
+  buttons and the two sidebar empty states.
 
 ## how to verify it in one sitting
 

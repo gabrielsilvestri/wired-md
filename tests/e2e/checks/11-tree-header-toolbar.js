@@ -6,11 +6,18 @@ async function run(ctx) {
   const { js, sleep, check, fs, path, forget, openPath, readConfigFile, demoPath, rootDir } = ctx;
 
   const header = await js(
-    `(function(){var n=document.getElementById('sidebar-root-name');var b=document.getElementById('btn-root-explorer');return {name:n?n.textContent:null,tip:n?n.title:null,btn:!!b&&!!b.querySelector('svg')&&(b.title||'').length>0};})()`
+    `(function(){var n=document.getElementById('sidebar-root-name');var p=document.getElementById('sidebar-root-path');var b=document.getElementById('btn-root-explorer');` +
+    `var cs=n?getComputedStyle(n):null;var ps=p?getComputedStyle(p):null;` +
+    `return {name:n?n.textContent:null,tip:n?n.title:null,path:p?p.textContent:null,pathTip:p?p.title:null,` +
+    `nowrap:!!ps&&ps.whiteSpace==='nowrap',dimmer:!!cs&&!!ps&&cs.color!==ps.color,` +
+    `btn:!!b&&!!b.querySelector('svg')&&(b.title||'').length>0};})()`
   );
+  const parentDir = path.dirname(rootDir);
   check(
-    'sidebar header: root name, tooltip and Explorer button',
-    !!header && header.name === path.basename(rootDir) && header.tip === rootDir && header.btn,
+    'sidebar header: root name, the parent path under it (dimmed, single line, full path in the tooltip) and the Explorer button',
+    !!header && header.name === path.basename(rootDir) && header.tip === rootDir &&
+      header.path && parentDir.endsWith(header.path.split('…').pop()) && header.pathTip === rootDir &&
+      header.nowrap && header.dimmer && header.btn,
     JSON.stringify(header)
   );
 

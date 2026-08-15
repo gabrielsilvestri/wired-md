@@ -143,6 +143,14 @@ ipcMain.on('window:close', () => {
 
 ipcMain.handle('window:isMaximized', () => (mainWindow ? mainWindow.isMaximized() : false));
 
+// The product name, straight out of package.json through Electron. It is
+// answered SYNCHRONOUSLY because the preload hands it to the renderer as a
+// plain string: the title bar needs it on its first paint, and a promise there
+// would mean the window briefly showing a name that has to be corrected.
+ipcMain.on('app:name', (ev) => {
+  ev.returnValue = app.getName();
+});
+
 // Title of the OS window (file name plus the modified marker).
 ipcMain.on('window:setTitle', (_ev, title) => {
   if (mainWindow) mainWindow.setTitle(title);

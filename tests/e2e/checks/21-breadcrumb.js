@@ -1,6 +1,8 @@
-// Breadcrumb in the pane header: the note's folder relative to the tree root,
-// clickable segments that reveal the folder, the folder button, the collapsed
-// middle on a deep path, and no horizontal overflow in a narrow window.
+// Breadcrumb in the pane header: the Explorer button FIRST, then the folder
+// trail (dim, chevron separated, each segment carrying its full path) and the
+// file at the end in full ink with its own icon. Plus the clickable segments,
+// the middle collapse on a deep path, and no horizontal overflow when the
+// window is narrow.
 
 async function run(ctx) {
   const { js, sleep, check, fs, path, win, forget, openPath, demoPath, rootDir } = ctx;
@@ -20,21 +22,52 @@ async function run(ctx) {
   await sleep(1400);
 
   // The tree re-roots to the folder of the ACTIVE note. Opening the note in the
-  // subfolder and then demo.md beside it puts the root back at examples, and the
-  // inactive pane (note-bc) then shows a two segment relative path.
+  // subfolder and then going back to demo.md puts the root back at examples, so
+  // the other tab shows a two segment relative path.
   await openPath(bcNote);
   await sleep(400);
-  await js(`void openPath(${JSON.stringify(demoPath)}, true)`);
-  await sleep(1200);
+  await openPath(demoPath);
+  await sleep(900);
 
+  // 1. Order in the header, and the shape of the trail.
   const crumbs = await js(
-    `(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});if(!p)return null;var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];var fb=p.folderBtn;return {segs:segs.map(function(s){return s.textContent;}),seps:p.crumbEl.querySelectorAll('.crumb-sep').length,tip:p.crumbEl.title,clickable:segs.map(function(s){return s.classList.contains('clickable');}),folderBtn:!!fb&&!!fb.querySelector('svg')&&(fb.title||'').length>0&&fb.style.display!=='none',root:treeRoot};})()`
+    `(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});if(!p)return null;` +
+    `var h=p.el.querySelector('.pane-header');var kids=[...h.children].map(function(k){return k.className.split(' ')[0];});` +
+    `var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];` +
+    `var seps=[...p.crumbEl.querySelectorAll('.crumb-sep')];` +
+    `var file=p.crumbEl.querySelector('.crumb-file');` +
+    `return {order:kids,segs:segs.map(function(s){return s.textContent;}),tips:segs.map(function(s){return s.title;}),` +
+    `seps:seps.length,sepIsIcon:seps.every(function(s){return !!s.querySelector('svg')&&s.textContent==='';}),` +
+    `file:file?file.querySelector('.crumb-file-name').textContent:null,fileIcon:!!(file&&file.querySelector('svg')),` +
+    `fileTip:file?file.title:null,clickable:segs.map(function(s){return s.classList.contains('clickable');}),` +
+    `folderBtn:!!p.folderBtn.querySelector('svg')&&(p.folderBtn.title||'').length>0&&p.folderBtn.style.display!=='none',` +
+    `root:treeRoot};})()`
   );
   check(
-    'breadcrumb: the pane shows the note folder relative to the root (examples / bc-e2e), clickable, with a folder button',
-    !!crumbs && crumbs.segs.join('/') === 'examples/bc-e2e' && crumbs.seps === 1 && crumbs.tip === bcDir &&
+    'breadcrumb: the Explorer button comes first, then the folder trail (examples > bc-e2e) with chevrons, then the file',
+    !!crumbs && crumbs.order[0] === 'pane-folder' && crumbs.order[1] === 'pane-crumbs' &&
+      crumbs.segs.join('/') === 'examples/bc-e2e' && crumbs.seps === 2 && crumbs.sepIsIcon &&
+      crumbs.file === 'note-bc.md' && crumbs.fileIcon && crumbs.fileTip === bcNote &&
+      crumbs.tips.join('|') === rootDir + '|' + bcDir &&
       crumbs.clickable.every(Boolean) && crumbs.folderBtn && crumbs.root === rootDir,
     JSON.stringify(crumbs)
+  );
+
+  // 2. Folder and file are not the same kind of thing at a glance, and both
+  //    inks are inside the contrast band the maintainer reads in.
+  const inks = await js(
+    `(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});` +
+    `var seg=getComputedStyle(p.crumbEl.querySelector('.crumb-seg')).color;` +
+    `var file=getComputedStyle(p.crumbEl.querySelector('.crumb-file')).color;` +
+    `var bg=getComputedStyle(p.el.querySelector('.pane-header')).backgroundColor;` +
+    `var rgb=function(s){var m=String(s).match(/[\\d.]+/g);return [Number(m[0]),Number(m[1]),Number(m[2])];};` +
+    `return {seg:seg,file:file,segRatio:contrastRatio(rgb(seg),rgb(bg)),fileRatio:contrastRatio(rgb(file),rgb(bg))};})()`
+  );
+  check(
+    'breadcrumb: the folder segments are dimmer than the file name, and both stay between 4.5:1 and 11:1',
+    !!inks && inks.seg !== inks.file && inks.segRatio >= 4.5 && inks.segRatio <= 11 &&
+      inks.fileRatio >= 4.5 && inks.fileRatio <= 11 && inks.fileRatio > inks.segRatio,
+    JSON.stringify(inks)
   );
 
   await js(
@@ -63,20 +96,23 @@ async function run(ctx) {
     JSON.stringify({ fired, folderTarget })
   );
 
-  // The pane with the deep note has to be the inactive one, with the root at
-  // examples, so the path has the four segments that collapse into three.
+  // A deep path collapses in the middle, with the hidden folders in a tooltip.
   await js(`(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcNote)};});if(p){setPaneDirty(p,false);closePane(p);}})()`);
   await sleep(400);
-  await js(`void openPath(${JSON.stringify(bcDeepNote)}, true)`);
-  await sleep(1000);
+  await openPath(bcDeepNote);
+  await sleep(700);
   await openPath(demoPath);
-  await sleep(400);
+  await sleep(700);
   const deep = await js(
-    `(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcDeepNote)};});if(!p)return null;if(p.el.classList.contains('collapsed'))return {collapsed:true};var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];var mid=segs[1];return {segs:segs.map(function(s){return s.textContent;}),seps:p.crumbEl.querySelectorAll('.crumb-sep').length,midTitle:mid?mid.title:null,root:treeRoot};})()`
+    `(function(){var p=panes.find(function(x){return x.path===${JSON.stringify(bcDeepNote)};});if(!p)return null;` +
+    `var segs=[...p.crumbEl.querySelectorAll('.crumb-seg')];var mid=segs[1];` +
+    `return {segs:segs.map(function(s){return s.textContent;}),seps:p.crumbEl.querySelectorAll('.crumb-sep').length,` +
+    `midTitle:mid?mid.title:null,file:p.crumbEl.querySelector('.crumb-file-name').textContent,root:treeRoot};})()`
   );
   check(
-    'breadcrumb: a deep path collapses the middle (examples / … / deep) with a tooltip listing what was hidden',
-    !!deep && !deep.collapsed && deep.segs.join('/') === 'examples/…/deep' && deep.seps === 2 && deep.midTitle === 'bc-e2e / mid' && deep.root === rootDir,
+    'breadcrumb: a deep path collapses the middle (examples > … > deep) with a tooltip listing what was hidden',
+    !!deep && deep.segs.join('/') === 'examples/…/deep' && deep.seps === 3 && deep.midTitle === 'bc-e2e / mid' &&
+      deep.file === 'note-deep.md' && deep.root === rootDir,
     JSON.stringify(deep)
   );
 
@@ -84,11 +120,12 @@ async function run(ctx) {
   win.setSize(460, 840);
   await sleep(700);
   const overflow = await js(
-    `(function(){var hs=[...document.querySelectorAll('#panes .pane:not(.collapsed) .pane-header')];var bad=hs.filter(function(h){return h.scrollWidth>h.clientWidth+1;}).map(function(h){return h.scrollWidth+'/'+h.clientWidth;});var tb=document.getElementById('titlebar');return {n:hs.length,bad:bad,titlebarOverflow:tb.scrollWidth>tb.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>window.innerWidth};})()`
+    `(function(){var hs=[...document.querySelectorAll('#panes .pane.current .pane-header')];var bad=hs.filter(function(h){return h.scrollWidth>h.clientWidth+1;}).map(function(h){return h.scrollWidth+'/'+h.clientWidth;});var bars=[...document.querySelectorAll('#panes .tab-bar')];var tb=document.getElementById('titlebar');return {n:hs.length,bad:bad,barScrolls:bars.every(function(b){return b.scrollHeight<=b.clientHeight+1;}),titlebarOverflow:tb.scrollWidth>tb.clientWidth+1,bodyOverflow:document.documentElement.scrollWidth>window.innerWidth};})()`
   );
   check(
-    'breadcrumb: the pane header does not overflow horizontally in a narrow window (scrollWidth == clientWidth)',
-    !!overflow && overflow.n >= 1 && overflow.bad.length === 0 && !overflow.titlebarOverflow && !overflow.bodyOverflow,
+    'breadcrumb: neither the pane header nor the tab bar overflows in a narrow window',
+    !!overflow && overflow.n >= 1 && overflow.bad.length === 0 && overflow.barScrolls &&
+      !overflow.titlebarOverflow && !overflow.bodyOverflow,
     JSON.stringify(overflow)
   );
 

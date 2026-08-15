@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Sliding panes are gone; files open in tabs.** Every open file is a tab with
+  its name, its unsaved dot and a close button (middle click and `Ctrl+W` close
+  too), in a bar that scrolls sideways instead of wrapping. Dragging a tab onto
+  the left or right half of the editor splits the view into side by side groups
+  (three at most), each with its own tab bar, separated by a resizer whose sizes
+  are persisted; dropping a tab on another group's bar moves it, dragging inside
+  a bar reorders, and an emptied group collapses into its neighbour. The old
+  behavior collapsed whatever no longer fit into 40px vertical spines, which
+  turned "open every file in the folder" into a row of unreadable stripes.
+- The session layout (groups, tabs and the file in front) is saved and reopened,
+  unless a file was passed on the command line.
+- The breadcrumb in the editor header now reads left to right as Explorer
+  button, folder trail (dim, chevron separated, each segment with its full path
+  in the tooltip) and the file itself, with an icon and full ink. Folder and file
+  used to look like the same kind of thing.
+- The sidebar header shows the parent path of the open folder under its name,
+  dimmed and truncated in the middle, with the whole path in the tooltip.
+- With no file open the editor is no longer a void with one gray sentence: it
+  carries an ASCII portrait of Lain and the hint under it, and the title bar
+  carries the product name (read from the app itself) instead of "no file".
+
 ### Added
 
 - Git status where the writing happens: a letter badge (`M`, `A`, `?`, `D`,

@@ -31,8 +31,11 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m7 11 2-2-2-2"/><path d="M11 13h4"/></svg>
       </button>
     </div>
+    <!-- The title is written by modules/titlebar.js: the file name when one is
+         open, and otherwise the product name it reads from the app itself. No
+         copy of the product name is spelled out in this file. -->
     <div id="titlebar-center">
-      <span id="titlebar-title">wired-md</span>
+      <span id="titlebar-title"></span>
     </div>
     <div id="titlebar-controls">
       <button id="win-min" title="Minimize" aria-label="Minimize">
@@ -49,8 +52,15 @@
   </header>
   <div id="app">
     <aside id="sidebar">
+      <!-- The header answers two questions at once: which folder this tree is,
+           and WHERE on disk it lives. The name stays prominent; the parent path
+           sits under it, dimmed and truncated in the middle, with the whole path
+           in the tooltip. -->
       <div id="sidebar-header">
-        <span id="sidebar-root-name" title="">no folder</span>
+        <div id="sidebar-root">
+          <span id="sidebar-root-name" title="">no folder</span>
+          <span id="sidebar-root-path" title=""></span>
+        </div>
         <button class="tb-btn" id="btn-root-explorer" title="Open the folder in Explorer" aria-label="Open the folder in Explorer">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg>
         </button>
@@ -95,7 +105,31 @@
     </aside>
     <div id="sidebar-resizer" title="Drag to resize"></div>
     <div id="main-col">
-      <div id="panes" class="single"></div>
+      <!-- The editor area holds the groups and the layer that shows when none
+           of them has a file in it. -->
+      <div id="editor-area">
+      <div id="panes"></div>
+      <!-- Empty state: no file in the editor. The art is decoration (it never
+           takes the pointer, so an untitled tab underneath still receives the
+           first keystroke) and the line under it is the instruction. -->
+      <div id="editor-empty" class="hidden" aria-hidden="true">
+        <pre id="lain-art">       ▄▄▄▄▄▄▄▄▄▄▄▄
+     ▄██████████████▄
+    ██████████████████
+   ████████████████████
+   ███▀▀▀▀▀▀▀▀▀▀▀▀▀▀███
+   ██                ██
+   ██  ▀██▀    ▀██▀  ██
+   ██                ██
+   ██       ▄▄       ██
+   ██     ▀▀▀▀▀▀     ██
+   ██                ██
+   ▀█▄              ▄█▀
+    ▀██▄▄▄▄▄▄▄▄▄▄▄▄██▀
+      ▀█▌      ▐█▀</pre>
+        <p id="empty-hint">open a .md file or just start writing...</p>
+      </div>
+      </div>
       <div id="terminal-panel" class="hidden">
         <div id="terminal-resizer" title="Drag to resize the terminal"></div>
         <div id="terminal-bar">

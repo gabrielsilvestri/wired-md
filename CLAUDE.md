@@ -23,7 +23,7 @@ and `npm test` green twice in a row.
 ```
 npm install     # postinstall vendors the browser assets into src/renderer/vendor
 npm start
-npm test        # end to end suite, 117 checks
+npm test        # end to end suite, 136 checks
 npm run smoke   # fast non interactive heartbeat
 npm run dist    # Windows installer into dist/ (see Packaging)
 ```
@@ -63,9 +63,9 @@ packaging/           build resources (the .ico files the installer uses)
 scripts/smoke-installed.mjs   drives an INSTALLED build over CDP
 ```
 
-Renderer modules: `state` (config, pane registry, MRU), `panes` (Vditor
-instances, layout, breadcrumb, open and save), `tree` (sidebar, recents, file
-operations), `dialogs`, `context-menu`, `palette`, `search`, `frontmatter`,
+Renderer modules: `state` (config, the pane and group registries, MRU), `panes`
+(Vditor instances, tabs, editor groups, drag to split, breadcrumb, open and
+save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `palette`, `search`, `frontmatter`,
 `templates`, `focus-typewriter`, `terminal`, `ai-bridge`, `theme` (color math),
 `titlebar`, `settings`, `icons`. No bundler: Electron loads `file://` ES modules
 directly.
@@ -98,6 +98,24 @@ These cost real debugging time. None of them are optional.
   become an italic formula that eats the sentence. There is no equivalent option
   on the Vditor options object; `preview.math.inlineDigit: false` alone does not
   hold. Block math (`$$...$$`) still works.
+- **A pane is a tab, a group is a column.** Every open file owns a `.pane`
+  (header, properties panel, Vditor), and panes live in GROUPS, each with a tab
+  bar showing one pane at a time. `.pane.current` is the one visible in its
+  group; `.pane.active` is the one the app is focused on (always current too).
+  Groups are horizontal only, three at most, sized by a resizer and persisted in
+  `config.session`. The sliding panes that came before died on first contact:
+  ten open files became ten unreadable 40px spines.
+- **Zero tabs is a real state.** Closing the last tab leaves the group empty and
+  the editor shows `#editor-empty` (the Lain portrait plus one hint line), a
+  layer with `pointer-events: none` so an untitled tab underneath still takes the
+  first keystroke. Anything reading `activePane()` has to survive it being null.
+- **The product name has one source**, `app.getName()` (package.json), handed to
+  the renderer by the preload as `window.wired.appName` and re-exported as
+  `APP_NAME` by `modules/titlebar.js`. Never type the name into the renderer.
+- **A brand new pane is not ready yet.** Vditor answers `after` a few frames
+  later, so `openInPane` waits for `pane.ready` before setting the value.
+  Whoever awaits `openPath` (the template flow places a caret right after) has
+  to find the document already in the editor.
 - **Frontmatter warnings are an inline amber row**, never a popup, and they never
   block typing or saving. Invalid YAML degrades the panel to a raw read only view.
 - **Focus and typewriter react to the caret and to typing only** (selectionchange
