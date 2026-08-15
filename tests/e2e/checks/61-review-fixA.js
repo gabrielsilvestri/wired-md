@@ -36,8 +36,10 @@ function focusBlock(paneKey, type) {
 function rectOf(paneKey, type) {
   return `(function(){
     var p = panes.find(function(x){ return x.path && x.path.indexOf(${JSON.stringify(paneKey)}) !== -1; });
+    if (!p) return null;
     var ed = p.el.querySelector('.vditor-ir pre.vditor-reset');
-    var n = ed.querySelector('[data-type=' + JSON.stringify(${JSON.stringify(type)}) + ']');
+    var n = ed ? ed.querySelector('[data-type=' + JSON.stringify(${JSON.stringify(type)}) + ']') : null;
+    if (!n) return null;
     var r = n.getBoundingClientRect();
     var pad = 16;
     return {
@@ -67,6 +69,21 @@ async function run(ctx) {
     var s=window.getSelection();if(s)s.removeAllRanges();return null;})()`);
   await sleep(500);
 
+  // In the tabs world nothing before this file keeps example-skill.md open, so
+  // the shot opens it itself and closes it again afterwards.
+  let openedFm = false;
+  const hasFm = await js(`!!panes.find(function(x){return x.path&&x.path.indexOf('example-skill.md')!==-1;})`);
+  if (!hasFm) {
+    const fmPath = await js(
+      `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('demo.md')!==-1;});return p?p.path.replace(/demo\\.md$/,'example-skill.md'):null;})()`
+    );
+    if (fmPath) {
+      await js(`void openPath(${JSON.stringify(fmPath)})`);
+      await sleep(900);
+      openedFm = true;
+    }
+  }
+
   const written = [];
   const shoot = async (name, paneKey, type) => {
     await js(focusBlock(paneKey, type));
@@ -85,16 +102,23 @@ async function run(ctx) {
   // The same code block with the caret inside it: before the fix this is where
   // the source appeared ABOVE the rendered preview and the block showed twice.
   await js(
-    `(function(){var p=activePane();var ed=p.el.querySelector('.vditor-ir pre.vditor-reset');ed.focus();ed.querySelector('[data-type="code-block"] .vditor-ir__preview').click();return null;})()`
+    `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('demo.md')!==-1;});if(!p)return null;var ed=p.el.querySelector('.vditor-ir pre.vditor-reset');if(!ed)return null;ed.focus();var prev=ed.querySelector('[data-type="code-block"] .vditor-ir__preview');if(prev)prev.click();return null;})()`
   );
   await sleep(700);
   await shoot('code-block-editing', 'demo.md', 'code-block');
 
   // Caret out again, and nothing left dirty for the checks that follow.
   await js(
-    `(function(){var p=activePane();var ed=p.el.querySelector('.vditor-ir pre.vditor-reset');var kids=[].slice.call(ed.children);var t=kids.find(function(k){return k.tagName==='P';})||kids[0];var r=document.createRange();r.selectNodeContents(t);r.collapse(true);var s=getSelection();s.removeAllRanges();s.addRange(r);t.click();document.dispatchEvent(new Event('selectionchange'));return null;})()`
+    `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('demo.md')!==-1;});if(!p)return null;var ed=p.el.querySelector('.vditor-ir pre.vditor-reset');if(!ed)return null;var kids=[].slice.call(ed.children);var t=kids.find(function(k){return k.tagName==='P';})||kids[0];if(!t)return null;var r=document.createRange();r.selectNodeContents(t);r.collapse(true);var s=getSelection();s.removeAllRanges();s.addRange(r);t.click();document.dispatchEvent(new Event('selectionchange'));return null;})()`
   );
   await sleep(400);
+
+  if (openedFm) {
+    await js(
+      `(function(){var p=panes.find(function(x){return x.path&&x.path.indexOf('example-skill.md')!==-1;});if(p)void closePane(p);})()`
+    );
+    await sleep(400);
+  }
 
   check(
     'review shots for fixA written to docs/review-fixA',
