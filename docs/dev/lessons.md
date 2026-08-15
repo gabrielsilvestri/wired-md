@@ -74,3 +74,5 @@
   deliverable. Both shot writing checks are now opt in behind `WIRED_SHOTS=1`,
   and a fixture check that normalized line endings now keeps the original bytes
   and writes them back, because an EOL only diff is invisible in review.
+- 2026-08-14: sliding panes died on first real contact: the owner opened every file in the folder and some collapsed into unreadable spines with confusing interaction. Root cause: the pattern was adopted from its looks in another app and never tested against the real "open many files" flow. Product decision: tabs with drag-to-split and user-sized groups replace sliding panes entirely.
+- 2026-08-14: a breadcrumb that shows only the folder name fails at orientation: with many files the owner needs to see WHERE on disk the folder lives, and to tell folder segments from the file name at a glance. Root cause: minimalism won over orientation without checking established patterns first.
