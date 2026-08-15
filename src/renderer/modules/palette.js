@@ -47,7 +47,7 @@ registerPaletteAction({ label: 'search in folder', hint: 'Ctrl+Shift+F', run: ()
 registerPaletteAction({ label: 'properties: show or hide', run: () => toggleFrontmatterPanel() });
 registerPaletteAction({ label: () => 'focus mode: ' + (config.focusMode ? 'turn off' : 'turn on'), hint: 'F8', run: () => toggleFocusMode() });
 registerPaletteAction({ label: () => 'typewriter mode: ' + (config.typewriterMode ? 'turn off' : 'turn on'), hint: 'F9', run: () => toggleTypewriterMode() });
-registerPaletteAction({ label: 'close current pane', run: () => closeActivePane() });
+registerPaletteAction({ label: 'close tab', hint: 'Ctrl+W', run: () => closeActivePane() });
 registerPaletteAction({ label: 'toggle terminal', hint: 'Ctrl+`', run: () => toggleTerminal() });
 registerPaletteAction({
   label: 'terminal: cd to the note folder',

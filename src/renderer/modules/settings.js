@@ -372,6 +372,7 @@ const SHORTCUTS = [
   ['files', [
     ['Ctrl+O', 'Open a file'],
     ['Ctrl+N', 'New file'],
+    ['Ctrl+W', 'Close the active tab'],
     ['Ctrl+S', 'Save'],
     ['Ctrl+Shift+S', 'Save as']
   ]],
