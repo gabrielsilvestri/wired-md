@@ -41,6 +41,18 @@ npm run dist                                             # dist\wired-md Setup <
 node scripts/smoke-installed.mjs "<installed exe>"       # 6 PASS
 ```
 
+## next build, and it is PRIORITY
+
+1. **Find and replace in the open note (Ctrl+F).** The app has no in-document
+   find at all. `src/renderer/app.js:96` binds Ctrl+Shift+F, which opens the
+   full text search ACROSS files (`modules/search.js`); Ctrl+F does nothing, and
+   Vditor does not supply one. Scope: a find bar over the active pane, next and
+   previous match, match count, case and whole word toggles, Escape to close,
+   then replace and replace all. Watch the traps: global shortcuts listen in the
+   CAPTURE phase, the bar has to follow `.pane.active` and survive zero tabs, and
+   highlight colors need the 4.5:1 to 11:1 measurement like any other text color.
+   Add an E2E check in `tests/e2e/checks/` in the same commit.
+
 ## pending, and it is the owner's call
 
 1. **The final name and the icon.** Everything ships under `wired-md`, the

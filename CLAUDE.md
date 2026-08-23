@@ -12,6 +12,15 @@ agent notes.
 - An embedded terminal so `claude` runs in the folder of the note you are in.
 - Plain files on disk, no database, no proprietary format.
 
+### Not goals (decided 2026-08-14, do not re-propose)
+
+- **Wikilinks and backlinks never enter.** wired-md is not Obsidian; it is an
+  editor for LLM output and skills. Linking notes to each other is somebody
+  else's product.
+- **"CLI" means wired-md driven from a terminal so any AI can pilot it**
+  (`wired open/new/list/focus` plus the skill in the repo), not a configurable
+  bridge. See "The CLI is a source checkout feature" below for where that stands.
+
 ## What counts as success
 
 Open a real .md, edit with inline preview, switch theme, accent and font live,
