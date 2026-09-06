@@ -32,7 +32,7 @@ and `npm test` green twice in a row.
 ```
 npm install     # postinstall vendors the browser assets into src/renderer/vendor
 npm start
-npm test        # end to end suite, 144 checks
+npm test        # end to end suite, 175 checks
 npm run smoke   # fast non interactive heartbeat
 npm run dist    # Windows installer into dist/ (see Packaging)
 ```
@@ -79,7 +79,7 @@ Renderer modules: `state` (config, the pane and group registries, MRU), `panes`
 (Vditor instances, tabs, editor groups, drag to split, breadcrumb, open and
 save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `palette`, `search`, `frontmatter`,
 `templates`, `focus-typewriter`, `terminal`, `ai-bridge`, `theme` (color math),
-`titlebar`, `settings`, `icons`. No bundler: Electron loads `file://` ES modules
+`titlebar`, `settings`, `icons`, `find` (in-note search and replace). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -153,6 +153,14 @@ These cost real debugging time. None of them are optional.
 - **Vditor lazy loads its own assets** relative to the `cdn` option, which points
   at `src/renderer/vendor/vditor`. That is why the vendor script copies the whole
   `dist`, not a hand picked subset. `index.html` never references `node_modules`.
+- **Vditor's focus background has its own token.** Keep
+  `--textarea-background-color: var(--bg)` on `.vditor`. Without it, clicking
+  into any theme switches the entire document to Vditor's built-in `#2f363d`.
+- **Find highlights must never enter the editable DOM.** `modules/find.js`
+  uses CSS Custom Highlights and searches IR text while excluding syntax
+  markers and duplicate previews. Replacements edit a detached clone, convert
+  it with Lute and commit a single Vditor undo step. The frozen Vditor undo
+  internals are used to flush pending typing without recording caret-only steps.
 - **Two Vditor stylesheets arrive AFTER `styles.css` and win any tie**: the
   content theme (`preview.theme`) and the highlight.js theme (`preview.hljs`).
   The content theme is ours now (`src/renderer/vditor-theme/wired.css`) precisely

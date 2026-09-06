@@ -25,6 +25,7 @@ Everything below is implemented and covered by the end to end test suite.
 - **Obsidian style file tree.** The sidebar shows the folder of the open note (markdown only), refreshes itself when files change on disk, and has a Recents section. Header with the root folder name, the parent path under it (dimmed and truncated in the middle, full path in the tooltip) and a shortcut to Explorer; a toolbar for new file, new folder, sort, collapse all, and a filter box; a right click menu for rename, duplicate, export, copy path, and delete (always to the Recycle Bin, never a hard unlink). Resizable and hideable.
 - **Command palette and quick switcher.** Ctrl+Shift+P for actions, Ctrl+P for files, both with fuzzy subsequence search. Enter runs or opens, Ctrl+Enter opens beside, Esc closes.
 - **Full text search across the folder.** Ctrl+Shift+F searches file *contents* in every markdown file under the open note's folder, powered by a bundled ripgrep binary with a pure Node fallback. Grouped results with highlighted snippets, keyboard navigable.
+- **Find and replace in the note.** Ctrl+F opens a compact search bar above the active note; Ctrl+H reveals replacement. Enter and Shift+Enter move between matches, with case and whole-word filters, one-match or replace-all actions, and undo/redo. Searches document text, including code and tables, while leaving Markdown syntax and link destinations intact. Escape closes the bar.
 - **claude bridge, per note.** A sparkles button in each editor header opens the embedded terminal, brings up `claude`, runs `/cd` into the note's folder, and types the file path into the prompt *without sending it*, so you finish the question. The palette can send the current selection the same way. It never sends on its own: spending a token is your call.
 - **Frontmatter as a properties panel.** A file that starts with a YAML `---` block gets an editable properties panel at the top of the pane: text fields for strings and numbers, comma separated fields for lists, checkboxes for booleans, and a read only box for anything the panel cannot represent (which is left untouched in the file). It validates against a schema chosen automatically (`skill`, `subagent`, or generic), flagging a missing `name`, an empty `description`, a likely key typo, or an odd `model`, as a quiet inline warning, never a popup. The YAML block stays visible and the two views stay in sync both ways, preserving key order, comments, and nested maps on round trip.
 - **Spreadsheet style table editing.** Tab moves to the next cell and grows the table when it runs off the last one, Shift+Tab goes back, Enter drops to the row below in the same column. A floating icon toolbar over the table (and a palette command for each) adds, deletes, moves and aligns rows and columns, so you never type a pipe. Every transform is applied to a single table node behind a round trip guard that verifies the rest of the document came back byte for byte identical before the change is kept.
@@ -79,6 +80,7 @@ node scripts/smoke-installed.mjs "%LOCALAPPDATA%\Programs\wired-md\wired-md.exe"
 - `Ctrl+N` new file, `Ctrl+O` open, `Ctrl+S` save, `Ctrl+Shift+S` save as.
 - `Ctrl+P` quick switcher (files), `Ctrl+Shift+P` command palette (actions), `Ctrl+Shift+F` full text search. Enter opens or runs, `Ctrl+Enter` opens beside, `Esc` closes.
 - `Ctrl+W` closes the active tab.
+- `Ctrl+F` finds text in the current note; `Ctrl+H` opens replacement. `Enter` / `Shift+Enter` in the search field (or `F3` / `Shift+F3` with the bar open) go to the next / previous match. `Enter` in the replacement field replaces one match. `Esc` closes the bar.
 - `Ctrl+click` a file in the tree or Recents to open it in the group beside the current one.
 - `Ctrl+=` / `Ctrl+-` / `Ctrl+0` change document font size; `Ctrl+scroll` over the text also works.
 - `Ctrl+\`` toggles the embedded terminal.
@@ -129,7 +131,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
-npm test        # full end to end suite (144 checks)
+npm test        # full end to end suite (175 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.

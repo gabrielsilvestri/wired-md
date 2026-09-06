@@ -1,0 +1,30 @@
+.note-find {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  background: var(--bg-2);
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+  min-width: 0;
+}
+.note-find-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.note-find.hidden, .note-find-row.hidden { display: none; }
+.note-find-row + .note-find-row { margin-top: 6px; }
+.note-find-field { display: flex; align-items: center; gap: 8px; flex: 1 1 130px; min-width: 0; }
+.note-find-field input {
+  width: 100%; min-width: 50px; height: 28px; box-sizing: border-box;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 4px 6px; font: inherit;
+}
+.note-find .tb-btn { flex: 0 0 28px; width: 28px; height: 28px; color: var(--ink); }
+.note-find .tb-btn[aria-pressed="true"] { background: var(--bg-3); outline: 1px solid var(--accent); }
+.note-find :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.note-find .tb-btn:disabled { opacity: .5; cursor: default; }
+#note-find-word { text-decoration: underline; text-underline-offset: 3px; }
+#note-find-count { color: var(--ink); padding: 0 4px; white-space: nowrap; }
+#note-find-expand[aria-expanded="true"] svg { transform: rotate(90deg); }
+/* Existing measured ink/surface pairs, opaque so code syntax colors cannot
+   reduce contrast. No highlight markup ever enters the saved Markdown. */
+::highlight(note-find-matches) { color: var(--ink); background-color: var(--bg-3); text-decoration: underline; }
+::highlight(note-find-current) { color: var(--bg-2); background-color: var(--ink); text-decoration: underline; }
+#editor-area > .note-find { position: absolute; top: 0; left: 0; right: 0; z-index: 3; }

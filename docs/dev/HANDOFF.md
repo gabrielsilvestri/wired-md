@@ -1,74 +1,37 @@
-# HANDOFF (live session state; overwrite it, do not pile up)
+# HANDOFF (live session state)
 
-## where the project stands (2026-08-14)
+## Current development (2026-09-04)
 
-The app is feature complete for its own definition of the job, it has a real
-Windows installer, and the suite is green twice in a row with a clean working
-tree. What is left is a naming decision, not engineering.
+The owner asked to continue development, then prioritized the document's gray
+background when clicking to type and the missing Ctrl+F editing action.
 
-## what the five agent pass delivered
+- Fixed the focus background: Vditor's `--textarea-background-color` now uses
+  the active theme's `--bg`. Before the fix, real clicks changed all five themes
+  to `#2f363d`. The regression check exercises those clicks in each theme.
+- Added in-note find (`Ctrl+F`) and replace (`Ctrl+H`) in `modules/find.js`, with
+  match count, navigation, case and Unicode whole-word options, one/all
+  replacement, undo/redo, active pane tracking and a safe zero-tab state.
+- Highlighting uses CSS Custom Highlights, not editable DOM wrappers. Search
+  includes prose, inline formatting, tables and code source once, excluding
+  Markdown markers and link destinations. Replacement text is literal.
+- Added `24-editor-focus.js` and `25-note-find.js` to the E2E suite. Profiles
+  used during development are isolated through `WIRED_USERDATA`.
 
-- **Modular codebase.** `src/main/` (CommonJS, one file per IPC area) and
-  `src/renderer/modules/` (ES modules, one per feature, no bundler). Third party
-  browser assets are vendored into `src/renderer/vendor/` by
-  `scripts/sync-vendor.mjs`, gitignored and regenerated on install and start.
-- **136 check end to end suite** in `tests/e2e/checks/NN-name.js`, plus a smoke
-  run, plus `scripts/measure-contrast.mjs` as a standalone contrast gate.
-- **Features.** Spreadsheet style table editing, properties panel v2 (rename a
-  key, add a key), template management from inside the app, git badges and a read
-  only diff view, five themes with an in app theme variable editor, and `wired`,
-  the experimental CLI that drives the live window from a terminal.
-- **A Windows installer.** `npm run dist` builds an NSIS package with
-  electron-builder: per user, no elevation, `.md` and `.markdown` associated per
-  user, ripgrep and node-pty unpacked beside the archive, and the seed folders
-  read straight out of `app.asar`. `scripts/smoke-installed.mjs` drives an
-  installed build from outside over the DevTools protocol and is green.
-- **Suite hygiene.** `npm test` no longer touches the working tree: the three
-  screenshot writing checks are opt in behind `WIRED_SHOTS=1`, and the tables
-  fixture is restored byte for byte including its line endings.
-- **Accessibility on dynamic markup.** Tabs (tablist, aria-selected, a close
-  button that names the file), unsaved dots, frontmatter warning rows, terminal
-  buttons and the two sidebar empty states.
+## Verification
 
-## how to verify it in one sitting
+Run `npm test` twice with an isolated `WIRED_USERDATA`, without `WIRED_ONLY`.
+There are 175 checks with the five bundled themes. Run
+`node scripts/measure-contrast.mjs` for the standalone theme contrast gate.
+The find check also measures both highlight colors and the bar in each theme.
 
-```
-$env:WIRED_USERDATA="$env:TEMP\wired-check"; npm test    # 117 PASS, twice
-git status --porcelain                                   # must be empty
-node scripts/measure-contrast.mjs                        # green
-npm start                                                # boots
-npm run dist                                             # dist\wired-md Setup <version>.exe
-node scripts/smoke-installed.mjs "<installed exe>"       # 6 PASS
-```
+## Remaining decisions
 
-## next build, and it is PRIORITY
+- Final product name and icon remain the owner's decision.
+- The CLI works from source; packaged installation still has no PATH shim.
+- In-app theme catalog and Windows code signing are still pending.
+- The personal, gitignored `launcher/wired-md.vbs` still points at the old
+  `D:\AI\Lain\wired-md` location. The portable launcher under `scripts/windows/`
+  derives its path; the personal launcher should do the same if used again.
 
-1. **Find and replace in the open note (Ctrl+F).** The app has no in-document
-   find at all. `src/renderer/app.js:96` binds Ctrl+Shift+F, which opens the
-   full text search ACROSS files (`modules/search.js`); Ctrl+F does nothing, and
-   Vditor does not supply one. Scope: a find bar over the active pane, next and
-   previous match, match count, case and whole word toggles, Escape to close,
-   then replace and replace all. Watch the traps: global shortcuts listen in the
-   CAPTURE phase, the bar has to follow `.pane.active` and survive zero tabs, and
-   highlight colors need the 4.5:1 to 11:1 measurement like any other text color.
-   Add an E2E check in `tests/e2e/checks/` in the same commit.
-
-## pending, and it is the owner's call
-
-1. **The final name and the icon.** Everything ships under `wired-md`, the
-   repository and package name. Deciding the name means, in this order: rename
-   the folder, the GitHub repo, `name` in `package.json`, `productName` and
-   `appId` in `electron-builder.yml`, the file association names, the window
-   title, the README and the badge links; then fix the two hardcoded absolute
-   paths in the personal `launcher\wired-md.vbs` and rebuild the shortcut. The
-   portable copy in `scripts/windows/` derives its own path and needs nothing.
-   The icons currently in `packaging/` are placeholders from `launcher/`.
-2. **The CLI in a packaged install.** `wired` works from a source checkout
-   (`npm link`), because `bin/wired.js` finds Electron in `node_modules`. An
-   installed app has none. The instance marker now records `exe`
-   (`process.execPath`), which is what a packaged CLI would launch, but nothing
-   puts a shim on PATH yet.
-3. **A theme catalog.** Browsing and installing themes from inside the app,
-   instead of dropping a `.css` into the themes folder by hand.
-4. **Code signing.** The installer is unsigned, so SmartScreen warns on any
-   machine that is not the owner's.
+No dependency versions were changed. No release, installation, or publication
+was performed as part of this development pass.

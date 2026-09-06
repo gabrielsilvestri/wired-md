@@ -1039,7 +1039,9 @@ body.resizing-groups .group-resizer { background: rgba(var(--accent-rgb), 0.35);
   min-height: 0;
 }
 
-.vditor { border: none; background: var(--bg); }
+/* Vditor's :focus rules use this token instead of the resting background.
+   Bind it to the paper so clicking to type keeps the current theme's color. */
+.vditor { --textarea-background-color: var(--bg); border: none; background: var(--bg); }
 .vditor .vditor-toolbar { display: none; }
 .vditor-content { background: var(--bg); }
 

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Find in the current note (`Ctrl+F`) and replace (`Ctrl+H`), with match counts,
+  next/previous navigation, case and Unicode whole-word filters, and replacement
+  of one or all matches. Searches prose, inline formatting, tables and code
+  without counting rendered code twice. Replacements support undo and redo.
+
+### Fixed
+
+- Clicking into the document keeps the selected theme's paper color. Vditor's
+  focus background token now follows `--bg` instead of its built-in dark gray.
+  A real mouse-click regression check covers all five bundled themes.
+
 ### Changed
 
 - **Sliding panes are gone; files open in tabs.** Every open file is a tab with
