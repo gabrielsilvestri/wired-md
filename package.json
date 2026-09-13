@@ -10,7 +10,8 @@
     "postinstall": "node scripts/sync-vendor.mjs",
     "prestart": "node scripts/sync-vendor.mjs",
     "start": "electron .",
-    "test": "node scripts/test.js",
+    "test": "node --test tests/test-runner.js && node scripts/test-packaged-cli.js && node scripts/test.js",
+    "test:cli": "node --test tests/test-runner.js && node scripts/test-packaged-cli.js",
     "smoke": "node scripts/test.js --smoke",
     "dist": "node scripts/sync-vendor.mjs && electron-builder --win",
     "smoke:installed": "node scripts/smoke-installed.mjs"

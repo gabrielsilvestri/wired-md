@@ -44,6 +44,8 @@ Everything below is implemented and covered by the end to end test suite.
 
 Windows 11, x64. Download the installer (`wired-md Setup <version>.exe`) and run it. It installs **per user**: no administrator prompt, nothing written under `Program Files`, and it registers `.md` and `.markdown` so the app appears in "Open with". Your notes, config, themes, snippets and templates live in `%APPDATA%\wired-md` and survive an uninstall.
 
+The installer also adds its installation directory to your user PATH. New terminals can run `wired` without a separate Node.js or npm installation. Uninstall removes only the PATH entry created by wired-md and preserves entries owned by other software.
+
 ### From source
 
 Requirements: Windows 11 and a recent Node.js.
@@ -91,7 +93,7 @@ node scripts/smoke-installed.mjs "%LOCALAPPDATA%\Programs\wired-md\wired-md.exe"
 The editor can be driven from a terminal, so an AI agent working in a shell can put the right note in front of you. This is an experiment: the surface is small on purpose and may change.
 
 ```
-npm link                                         # puts `wired` on PATH
+npm link                                         # source checkouts only; the installer configures PATH itself
 
 wired open <file>                                # open a .md (starts the editor if it is not running)
 wired focus <file>                               # bring a file that is already open to the front
@@ -103,12 +105,11 @@ There is no daemon, no server and no port: the app is single instance, and a sec
 
 `skills/wired-md/SKILL.md` is a skill file that teaches an AI agent (Claude Code or any CLI agent) to use this.
 
-This works from a **source checkout**, where `npm link` finds the Electron binary in `node_modules`. An installed build has no `node_modules` next to it, so putting `wired` on PATH from the installer is future work; the app records its own executable path in `cli-instance.json` so that wiring has what it needs.
+In a source checkout, `npm link` runs the CLI with Node.js and finds Electron in `node_modules`. In an installed build, `wired.cmd` runs the CLI from `app.asar` through the bundled Electron runtime. The installed command does not require Node.js or npm on the user's PATH.
 
 ## Roadmap
 
 - **A final name and icon.** The project still ships under its repository name.
-- **The CLI in a packaged install.** `wired` works from a source checkout today; putting it on PATH from an installed build is not wired up yet.
 - **A theme catalog.** Browsing and installing community themes from inside the app, the way snippets and templates already work from disk.
 
 The full design rationale for the features that shipped lives in [`docs/pesquisa-features.md`](docs/pesquisa-features.md).
@@ -131,6 +132,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 
 ```
 npm run smoke   # quick non interactive smoke test
+npm run test:cli # focused CLI, PATH and unit checks
 npm test        # full end to end suite (175 checks)
 ```
 

@@ -25,6 +25,10 @@ const os = require('os');
 const APP_ROOT = path.join(__dirname, '..');
 const cli = require(path.join(APP_ROOT, 'src', 'main', 'cli.js'));
 
+function isPackagedCli() {
+  return path.basename(APP_ROOT).toLowerCase() === 'app.asar';
+}
+
 function userDataDir() {
   if (process.env.WIRED_USERDATA) return path.resolve(process.env.WIRED_USERDATA);
   if (process.platform === 'win32') return path.join(process.env.APPDATA || os.homedir(), 'wired-md');
@@ -37,6 +41,8 @@ function userDataDir() {
 function isRunning() {
   try {
     const raw = JSON.parse(fs.readFileSync(cli.instanceFile(userDataDir()), 'utf8'));
+    const expectedExe = electronBinary();
+    if (!expectedExe || !raw.exe || path.resolve(raw.exe).toLowerCase() !== path.resolve(expectedExe).toLowerCase()) return false;
     process.kill(raw.pid, 0); // signal 0 only tests whether the pid is alive
     return true;
   } catch {
@@ -75,6 +81,7 @@ function parseFlags(args) {
 }
 
 function electronBinary() {
+  if (isPackagedCli()) return process.execPath;
   try {
     return require(path.join(APP_ROOT, 'node_modules', 'electron'));
   } catch {
@@ -95,14 +102,23 @@ function dispatch(cmd) {
   // process with no window and no single instance lock.
   const env = Object.assign({}, process.env);
   delete env.ELECTRON_RUN_AS_NODE;
-  const child = spawn(electron, [APP_ROOT, cli.encodeCommand(cmd)], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-    env
+  // A development Electron invocation needs the application directory. The
+  // installed executable already knows its app.asar, so it only receives the
+  // command token. This also makes the packaged CLI independent of Node/npm.
+  const args = isPackagedCli() ? [cli.encodeCommand(cmd)] : [APP_ROOT, cli.encodeCommand(cmd)];
+  return new Promise((resolve, reject) => {
+    const child = spawn(electron, args, {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      env
+    });
+    child.once('error', reject);
+    child.once('spawn', () => {
+      child.unref();
+      resolve();
+    });
   });
-  child.unref();
-  return child;
 }
 
 // Polls the reply file the live instance writes. Short waits when the app is
@@ -138,6 +154,7 @@ function replyPath() {
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) usage(0);
+  if (argv[0] === '-h' || argv[0] === '--help') usage(0);
   const command = argv[0];
   const flags = parseFlags(argv.slice(1));
   if (flags.help) usage(0);
@@ -150,14 +167,16 @@ async function main() {
     const file = flags._[0];
     if (!file) usage(1);
     const abs = path.resolve(cwd, file);
-    if (!fs.existsSync(abs)) {
+    let isFile = false;
+    try { isFile = fs.statSync(abs).isFile(); } catch {}
+    if (!isFile) {
       console.error('wired: file not found: ' + abs);
       process.exit(1);
     }
-    dispatch({ cmd: 'open', file: abs, cwd, reply });
+    await dispatch({ cmd: 'open', file: abs, cwd, reply });
     const res = await waitForReply(reply, running ? 25000 : 45000);
-    if (res && res.ok === false) {
-      console.error('wired: ' + res.error);
+    if (!res || res.ok === false) {
+      console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));
       process.exit(1);
     }
     console.log(abs);
@@ -174,7 +193,7 @@ async function main() {
   if (command === 'focus') {
     const file = flags._[0];
     if (!file) usage(1);
-    dispatch({ cmd: 'focus', file: path.resolve(cwd, file), cwd, reply });
+    await dispatch({ cmd: 'focus', file: path.resolve(cwd, file), cwd, reply });
     const res = await waitForReply(reply, 25000);
     if (!res || res.ok === false) {
       console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));
@@ -185,7 +204,7 @@ async function main() {
   }
 
   if (command === 'list') {
-    dispatch({ cmd: 'list', cwd, reply });
+    await dispatch({ cmd: 'list', cwd, reply });
     const res = await waitForReply(reply, 25000);
     if (!res || res.ok === false) {
       console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));
@@ -203,7 +222,7 @@ async function main() {
   }
 
   if (command === 'new') {
-    dispatch({ cmd: 'new', template: flags.template || null, title: flags.title || 'untitled', cwd, reply });
+    await dispatch({ cmd: 'new', template: flags.template || null, title: flags.title || 'untitled', cwd, reply });
     const res = await waitForReply(reply, 25000);
     if (!res || res.ok === false) {
       console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));
@@ -216,7 +235,11 @@ async function main() {
   usage(1);
 }
 
-main().catch((err) => {
-  console.error('wired: ' + (err && err.message ? err.message : err));
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error('wired: ' + (err && err.message ? err.message : err));
+    process.exit(1);
+  });
+}
+
+module.exports = { isPackagedCli, parseFlags, waitForReply };

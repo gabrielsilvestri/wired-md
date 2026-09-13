@@ -49,6 +49,13 @@ files:
   # holds the conpty runtime node-pty can load, so it is NOT excluded).
   - "!node_modules/node-pty/{deps,src,scripts}/**"
 
+extraFiles:
+  - from: packaging/wired.cmd
+    to: wired.cmd
+extraResources:
+  - from: packaging/wired-path.ps1
+    to: wired-path.ps1
+
 # Everything here is a binary that cannot be executed from inside an archive.
 # @vscode/ripgrep ships rg.exe in a per platform subpackage; node-pty ships the
 # prebuilt .node files plus the conpty agent (OpenConsole.exe and conpty.dll),
@@ -71,6 +78,7 @@ win:
 # Per user install: no elevation prompt, no admin rights, nothing written under
 # Program Files. That is a hard requirement, not a preference.
 nsis:
+  include: packaging/installer.nsh
   oneClick: false
   perMachine: false
   allowElevation: false

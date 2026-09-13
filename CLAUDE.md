@@ -32,18 +32,23 @@ and `npm test` green twice in a row.
 ```
 npm install     # postinstall vendors the browser assets into src/renderer/vendor
 npm start
-npm test        # end to end suite, 175 checks
+npm test        # runner and packaged CLI checks, then the end to end suite
+npm run test:cli # runner and packaged CLI checks without Electron
 npm run smoke   # fast non interactive heartbeat
 npm run dist    # Windows installer into dist/ (see Packaging)
 ```
 
-`npm test` must leave `git status --porcelain` empty. The three screenshot
-writing checks are opt in behind `WIRED_SHOTS=1`; that is also how
-`docs/screenshot.png` is regenerated on purpose. `WIRED_ONLY=60-,61-` runs only
-the checks whose file name matches, which is for development and never for a
-verification run.
+`npm test` and `npm run smoke` create and remove an isolated temporary user data
+folder by default. Set `WIRED_USERDATA` explicitly to retain a profile for
+debugging; the runner never removes an explicit profile. `npm test` must leave
+`git status --porcelain` empty. Screenshot writing checks are opt in behind
+`WIRED_SHOTS=1`; that is also how `docs/screenshot.png` is regenerated on
+purpose. `WIRED_ONLY=60-,61-` runs only the checks whose file name matches,
+which is for development and never for a verification run.
 
-Direct invocation still works: `$env:WIRED_E2E='1'; npx electron . examples\demo.md`.
+Direct invocation still works, but it bypasses the runner's automatic profile
+isolation. Set both variables when using it:
+`$env:WIRED_USERDATA='<temporary path>'; $env:WIRED_E2E='1'; npx electron . examples\demo.md`.
 
 ## Layout
 
@@ -147,9 +152,9 @@ These cost real debugging time. None of them are optional.
 - **`executeJavaScript` awaits the promise the code returns.** In the E2E, calling
   an async renderer function goes as `void f()`; without that the test hangs with
   no FAIL at all, app alive and file already written.
-- **A check that reads `config.json` state must reset that state first.** The
-  suite runs against the real user config, so a mode the owner left on flips a
-  toggle label and cascades into the next check.
+- **A check that reads `config.json` state must reset that state first.** An
+  earlier check can leave a mode on, flip a toggle label and cascade into the
+  next check even inside the isolated test profile.
 - **Vditor lazy loads its own assets** relative to the `cdn` option, which points
   at `src/renderer/vendor/vditor`. That is why the vendor script copies the whole
   `dist`, not a hand picked subset. `index.html` never references `node_modules`.
@@ -219,10 +224,12 @@ ship in the installer. It is the only thing that can catch the traps below.
   gitignored but generated, and `index.html` loads Vditor and xterm from there.
   The mirror copies under `node_modules` are excluded instead: nothing in main or
   preload requires them, and keeping both doubles the download.
-- **The CLI is a source checkout feature.** `bin/wired.js` finds Electron through
-  `node_modules/electron`, which does not exist beside an installed app. The
-  instance marker file records `exe` (`process.execPath`) so a future packaged
-  CLI has something to launch, but nothing wires it onto PATH yet.
+- **The installed CLI runs through Electron as Node.** `wired.cmd` sets
+  `ELECTRON_RUN_AS_NODE=1` and executes `bin/wired.js` inside `app.asar` with
+  the installed executable. The CLI removes that variable before launching the
+  GUI. Source checkouts still find Electron through `node_modules/electron`.
+  The NSIS helper edits the full HKCU PATH through the registry API, tracks
+  ownership across upgrades and moved installs, and removes only its own entry.
 
 ## Conventions
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The per-user Windows installer now provides `wired` on the user PATH. The
+  command runs through the Electron runtime already shipped with wired-md, so
+  installed use requires no separate Node.js or npm. Upgrade, moved-install and
+  uninstall handling preserve unrelated PATH entries and preexisting entries.
+- Focused packaged CLI checks cover PATH ownership transitions and a real
+  `win-unpacked` command smoke with Unicode paths, cold open, list, focus, new
+  and expected errors.
 - Find in the current note (`Ctrl+F`) and replace (`Ctrl+H`), with match counts,
   next/previous navigation, case and Unicode whole-word filters, and replacement
   of one or all matches. Searches prose, inline formatting, tables and code
@@ -16,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `wired open` now exits with an error when the editor does not answer, instead
+  of printing a path as if the open had succeeded. It also rejects directories.
 - Clicking into the document keeps the selected theme's paper color. Vditor's
   focus background token now follows `--bg` instead of its built-in dark gray.
   A real mouse-click regression check covers all five bundled themes.

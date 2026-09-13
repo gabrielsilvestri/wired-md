@@ -29,23 +29,29 @@ boot. Commands are shown for PowerShell.
 buffer, config, and themes, then exits on its own):
 
 ```
-npm run smoke        # or: $env:WIRED_SMOKE='1'; npm start
+npm run smoke
 ```
 
-**End to end test** (drives the real renderer with real keyboard input:
-Ctrl+S, theme and accent changes, snippets, panes, palette, search,
-frontmatter, templates, focus and typewriter modes, the claude bridge, and
-more; prints PASS/FAIL per flow and exits 0 only when everything is green):
+**Full test** (checks runner isolation and the packaged CLI helper, then drives
+the real renderer with real keyboard input: Ctrl+S, theme and accent changes,
+snippets, panes, palette, search, frontmatter, templates, focus and typewriter
+modes, the claude bridge, and more; exits 0 only when everything is green):
 
 ```
-npm test             # or: $env:WIRED_E2E='1'; npx electron . examples\demo.md
+npm test
 ```
+
+Use `npm run test:cli` to run the runner and packaged CLI checks without
+starting Electron.
 
 The E2E suite is the source of truth for "does it still work". Run it before
 opening a pull request, ideally twice in a row (a couple of checks, notably the
 terminal shell startup, can be timing sensitive; a re run confirms it is not a
-regression). It also writes `docs/screenshot.png` and restores the demo fixture
-at the end.
+regression). The runner creates and removes an isolated temporary user data
+folder by default. Set `WIRED_USERDATA` explicitly to retain a profile for
+debugging; the runner never removes an explicit profile. Screenshot writing is
+opt in with `WIRED_SHOTS=1`, including regeneration of `docs/screenshot.png`.
+The suite restores the demo fixture at the end.
 
 The suite lives in `tests/e2e/`: `driver.js` holds the plumbing (js/key/sleep,
 PASS-FAIL, the terminal polling helpers) and each `tests/e2e/checks/NN-name.js`
@@ -53,7 +59,7 @@ owns one feature's checks, running in file name order.
 
 If you add or change behavior, add or update the matching E2E checks in the
 same change. A check that reads state out of `config.json` must reset that
-state first: the suite runs against the real user config.
+state first so it does not depend on state left by an earlier check.
 
 ## Commit and branch conventions
 

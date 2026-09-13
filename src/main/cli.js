@@ -116,7 +116,9 @@ async function run(cmd, deps) {
 
   if (cmd.cmd === 'open') {
     const file = path.resolve(cmd.cwd || process.cwd(), cmd.file || '');
-    if (!fs.existsSync(file)) {
+    let isFile = false;
+    try { isFile = fs.statSync(file).isFile(); } catch {}
+    if (!isFile) {
       reply(cmd, { ok: false, error: 'file not found: ' + file });
       return;
     }

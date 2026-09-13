@@ -1,6 +1,6 @@
 # HANDOFF (live session state)
 
-## Current development (2026-09-04)
+## Current development (2026-09-11)
 
 The owner asked to continue development, then prioritized the document's gray
 background when clicking to type and the missing Ctrl+F editing action.
@@ -24,14 +24,19 @@ There are 175 checks with the five bundled themes. Run
 `node scripts/measure-contrast.mjs` for the standalone theme contrast gate.
 The find check also measures both highlight colors and the bar in each theme.
 
+The packaged CLI has focused checks in `npm run test:cli`. After `npm run dist`,
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-packaged-cli.ps1`
+tests the real `dist\win-unpacked\wired.cmd` with no Node.js on PATH. It uses a
+temporary profile and fixture, covers Unicode and spaces, waits until cold open
+appears in `list --json`, and checks `focus`, `new` and expected errors.
+
 ## Remaining decisions
 
 - Final product name and icon remain the owner's decision.
-- The CLI works from source; packaged installation still has no PATH shim.
 - In-app theme catalog and Windows code signing are still pending.
 - The personal, gitignored `launcher/wired-md.vbs` still points at the old
   `D:\AI\Lain\wired-md` location. The portable launcher under `scripts/windows/`
   derives its path; the personal launcher should do the same if used again.
 
-No dependency versions were changed. No release, installation, or publication
-was performed as part of this development pass.
+The NSIS installer and unpacked build were produced successfully. The unpacked
+CLI smoke passed; no global installation, release or publication was performed.
