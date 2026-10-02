@@ -23,6 +23,8 @@ import { hideCtxMenu, isCtxMenuOpen } from './modules/context-menu.js';
 import { openPalette, closePalette, isPaletteOpen, PALETTE_ACTIONS, registerPaletteAction, fuzzyScore } from './modules/palette.js';
 import { openSearch, closeSearch, isSearchOpen, getSearchHits, getSearchSel } from './modules/search.js';
 import { handleFindKey } from './modules/find.js';
+import './modules/outline.js';
+import './modules/statusbar.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
 import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterMode, caretBlock, scrollContainerOf } from './modules/focus-typewriter.js';

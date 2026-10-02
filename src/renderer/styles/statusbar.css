@@ -1,0 +1,12 @@
+.status-bar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 16px;
+  height: 24px; padding: 0 12px; box-sizing: border-box;
+  background: var(--bg-2); color: var(--ink-dim);
+  border-top: 1px solid var(--rule-soft);
+  font-size: 11px; white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.status-bar.hidden, .status-bar .hidden { display: none; }
+.status-bar #status-tokens { cursor: help; }
+.status-bar #status-selection { margin-left: auto; color: var(--accent-soft); }
