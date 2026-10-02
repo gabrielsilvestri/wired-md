@@ -165,14 +165,23 @@ function onDiskChange(info) {
     if (!pane.ready || !samePath(pane.path, info.path)) continue;
     const st = stateOf(pane);
     if (!info.exists) {
+      // The editor now holds the only copy of the text, which is exactly what
+      // unsaved means: the tab turns dirty, so closing it asks like any other
+      // unsaved tab instead of discarding the last copy in silence.
+      if (!st.gone) st.cleanBeforeGone = !pane.dirty;
       st.gone = true;
       st.pending = null; // nothing left on disk to reload from
+      setPaneDirty(pane, true);
       renderRow(pane);
       continue;
     }
+    const wasGone = st.gone;
     st.gone = false;
     if (info.content === st.base || info.content === st.writing) {
       // Our own save, or the disk went back to what we had: nothing to decide.
+      // A file that comes back unchanged (renamed back, restored by git) takes
+      // back the dirty flag its disappearance put on a clean tab.
+      if (wasGone && st.cleanBeforeGone) setPaneDirty(pane, false);
       st.pending = null;
       renderRow(pane);
       continue;

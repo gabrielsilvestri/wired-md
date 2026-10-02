@@ -229,6 +229,9 @@ async function run(ctx) {
       'disk sync: a deleted file keeps its tab open and shows the gone row',
       goneShown && (await js(`!!${pane(A)}`)) && (await valueOf(A)).includes('theirs three')
     );
+    // The editor holds the only copy now: the tab is unsaved, so closing it
+    // asks instead of discarding the text.
+    check('disk sync: a gone file marks its tab unsaved', await js(`${pane(A)}.dirty===true`));
     await shot('gone-wide');
     await js(`setActivePane(${pane(A)})`);
     key('S', ['control']);
@@ -237,7 +240,11 @@ async function run(ctx) {
 
     fs.renameSync(fileB, moved);
     const renamedAway = await waitFor(async () => (await rowOf(B)) === 'gone');
-    check('disk sync: a file renamed away on disk marks its pane gone without closing the tab', renamedAway && (await js(`!!${pane(B)}`)));
+    check('disk sync: a file renamed away on disk marks its pane gone without closing the tab', renamedAway && (await js(`!!${pane(B)}`)) && (await js(`${pane(B)}.dirty===true`)));
+    // Renamed back unchanged: the file is whole again and the clean tab is clean.
+    fs.renameSync(moved, fileB);
+    const back = await waitFor(async () => !(await rowOf(B)) && (await js(`${pane(B)}.dirty===false`)));
+    check('disk sync: a file renamed back unchanged clears the gone row and the unsaved mark', back);
   } finally {
     win.setSize(1360, 840);
     await js(`(function(){var p=document.getElementById('disk-sync-probe');if(p)p.remove();})()`);
