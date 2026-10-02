@@ -69,7 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `model` first and flags a `name` key (the file name is the command
   name). A `command` template ships with the others. Subagent and skill
   suggestions gained the keys Claude Code reads today, and a full `claude-`
-  model ID or `fable` no longer counts as an odd model.
+  model ID or `fable` no longer counts as an odd model. A skill whose
+  `description` and `when_to_use` together pass the documented 1,536
+  characters is flagged.
 - Settings > Terminal and AI holds the same AI CLI picker. The bridge still
   never presses Enter.
 - The per-user Windows installer now provides `wired` on the user PATH. The
