@@ -134,6 +134,7 @@ async function run(ctx) {
     );
     // Compare shows what landed on disk, raw text against raw text.
     await js(`${pane(A)}.el.querySelector('.disk-row .disk-compare').click()`);
+    await shot('compare-diff');
     const pendingDiff = await js(`({open:isDiffOpen(),title:document.getElementById('diff-title').textContent,adds:[...document.querySelectorAll('#diff-body .diff-add .diff-text')].map(function(e){return e.textContent;})})`);
     await js('closeDiff()');
     check(
