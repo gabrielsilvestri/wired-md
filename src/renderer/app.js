@@ -29,6 +29,7 @@ import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterM
 import { initTerminal, toggleTerminal, setTerminalHeight, cdTerminalToNote, getXterm, termType, termTypeRaw, getTermBuffer } from './modules/terminal.js';
 import { sendFileToClaude, sendSelectionToClaude } from './modules/ai-bridge.js';
 import { initSettings, openSettings, closeSettings, isSettingsOpen, reflectFontSize } from './modules/settings.js';
+import { initOnboarding } from './modules/onboarding.js';
 
 const panesEl = document.getElementById('panes');
 
@@ -282,4 +283,5 @@ initPanes();
   setTimeout(() => {
     if (!bootFileSeen && panes.length === 0) restoreSession();
   }, 350);
+  initOnboarding();
 })();

@@ -160,6 +160,11 @@ contextBridge.exposeInMainWorld('wired', {
   winIsMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   onMaximized: (cb) => ipcRenderer.on('window:maximized', (_ev, v) => cb(v)),
 
+  // first run welcome: the AI CLIs on PATH, the test mode gate, the footer links
+  detectAiClis: () => ipcRenderer.invoke('onboarding:detect'),
+  onboardingAutoOpen: () => ipcRenderer.invoke('onboarding:autoOpen'),
+  openProjectLink: (url) => ipcRenderer.invoke('onboarding:openLink', url),
+
   readFile: (p) => ipcRenderer.invoke('file:read', p),
   writeFile: (p, content) => ipcRenderer.invoke('file:write', p, content),
   dirTree: (root) => ipcRenderer.invoke('dir:tree', root),

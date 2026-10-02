@@ -48,14 +48,14 @@ async function run(ctx) {
     JSON.stringify(switching)
   );
 
-  // --- the placeholder section for a later agent is present and empty of controls ---
+  // --- the terminal and AI section holds the AI CLI picker (75-onboarding drives it) ---
   const ai = await js(
     `(function(){var p=document.getElementById('pane-ai');` +
-    `return {exists:!!p,controls:p?p.querySelectorAll('input,select,button').length:-1};})()`
+    `return {exists:!!p,picker:!!(p&&p.querySelector('#ai-cli-picker .cli-custom-input'))};})()`
   );
   check(
-    'the terminal and AI section exists as a placeholder with no controls yet',
-    !!ai && ai.exists && ai.controls === 0,
+    'the terminal and AI section holds the AI CLI picker',
+    !!ai && ai.exists && ai.picker,
     JSON.stringify(ai)
   );
 
