@@ -1,0 +1,25 @@
+/* Catalog theme "moss": dark.
+
+   Forest floor at dusk: a soft green black page, sage ink and a fern green
+   accent. Low saturation everywhere, so nothing on the page shouts.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#161c18; --bg-2:#1c231e; --bg-3:#242c26;
+  --rule:#435046; --rule-soft:#212923; --rule-row:#36423a; --leader:#3c4840;
+  /* 9.96 / 7.61 / 5.91 against --bg; the faint ink still gives 4.90 on --bg-3 */
+  --ink:#bcc8b7; --ink-dim:#a0b198; --ink-faint:#889d7e;
+  --accent:#6eba78; --accent-soft:#7bbd73; --accent-ink:#62ad84; --accent-dim:#35703d;
+  --accent-rgb:110,186,120;
+  /* measured against this background: 0.62 gives 4.62:1 on dimmed text */
+  --focus-dim:0.62;
+  --green:#5cb143; --amber:#c69633; --red:#e38576;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.83:1 over bg-2, 5.22:1 over bg-3 */
+  --search-hit-ink:#8fc789; --warn-ink:#c19331; --schema-ink:#64b25c;
+  /* glyph of the close button over its red hover fill: 6.80:1 over --red */
+  --win-close-ink:#2a0d09;
+}

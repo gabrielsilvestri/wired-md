@@ -203,6 +203,9 @@ contextBridge.exposeInMainWorld('wired', {
   openSnippetsFolder: () => ipcRenderer.invoke('snippets:openFolder'),
   openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
   importTheme: () => ipcRenderer.invoke('themes:import'),
+  // the theme gallery (catalog shipped inside the app, installed on request)
+  listCatalogThemes: () => ipcRenderer.invoke('themes:catalog'),
+  installCatalogTheme: (name) => ipcRenderer.invoke('themes:installCatalog', name),
 
   // templates (new file from a template, and managing the template files)
   listTemplates: () => ipcRenderer.invoke('templates:list'),

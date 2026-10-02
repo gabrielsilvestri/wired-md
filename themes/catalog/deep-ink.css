@@ -1,0 +1,25 @@
+/* Catalog theme "deep-ink": dark.
+
+   Fountain pen ink: a deep navy page, blue white text and a clear sky blue
+   accent. Darker and more saturated than frost, for long night sessions.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#0d1424; --bg-2:#131b2e; --bg-3:#1b2439;
+  --rule:#36435f; --rule-soft:#18213a; --rule-row:#2b3650; --leader:#313d58;
+  /* 10.34 / 7.82 / 5.95 against --bg; the faint ink still gives 5.00 on --bg-3 */
+  --ink:#b5c3dd; --ink-dim:#96aace; --ink-faint:#7b93c2;
+  --accent:#55abef; --accent-soft:#4ea8ee; --accent-ink:#3c9fed; --accent-dim:#1065a8;
+  --accent-rgb:85,171,239;
+  /* measured against this background: 0.62 gives 4.65:1 on dimmed text */
+  --focus-dim:0.62;
+  --green:#34af7b; --amber:#cd9021; --red:#ef7777;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.76:1 over bg-2, 5.16:1 over bg-3 */
+  --search-hit-ink:#6eb7f1; --warn-ink:#c4891f; --schema-ink:#3fa0ed;
+  /* glyph of the close button over its red hover fill: 6.80:1 over --red */
+  --win-close-ink:#280505;
+}

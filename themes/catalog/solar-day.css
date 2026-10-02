@@ -1,0 +1,26 @@
+/* Catalog theme "solar-day": light.
+
+   Warm cream page with slate ink, in the spirit of the solarized light
+   palette. The accent is the deep blue of that family, darkened until it
+   clears the floor on every surface.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#fbf4e2; --bg-2:#f3ead2; --bg-3:#e9dfc4;
+  --rule:#c4b894; --rule-soft:#e6dcc2; --rule-row:#d5c9a8; --leader:#cdc19e;
+  /* 8.65 / 7.00 / 5.93 against --bg; the faint ink still gives 4.90 on --bg-3 */
+  --ink:#3a484d; --ink-dim:#45565b; --ink-faint:#4e6167;
+  --accent:#1c669a; --accent-soft:#1a5e8e; --accent-ink:#1c6c66; --accent-dim:#48a0de;
+  --accent-rgb:28,102,154;
+  /* measured against this background: 0.77 gives 4.67:1 on dimmed text */
+  --focus-dim:0.77;
+  --green:#576400; --amber:#775a00; --red:#b7211f;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.73:1 over bg-2, 5.23:1 over bg-3 */
+  --search-hit-ink:#154e76; --warn-ink:#735700; --schema-ink:#195a89;
+  /* glyph of the close button over its red hover fill: 6.46:1 over --red */
+  --win-close-ink:#ffffff;
+}

@@ -49,7 +49,15 @@ const AI_DEFAULTS = {
   aiCliCommand: 'claude'
 };
 
-const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS, AI_DEFAULTS);
+// The document column: line height and text width (a number of px, or 'full'
+// for the whole pane). The values match what styles.css used before they were
+// settings, so an existing profile reads exactly as it did.
+const READING_DEFAULTS = {
+  lineHeight: 1.65,
+  textWidth: 860
+};
+
+const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS, AI_DEFAULTS, READING_DEFAULTS);
 
 // Names that shipped before the project went English only. A config written by
 // an older build still points at them, so they are mapped on read instead of

@@ -34,6 +34,8 @@ import { initTerminal, toggleTerminal, setTerminalHeight, cdTerminalToNote, getX
 import { sendFileToClaude, sendSelectionToClaude } from './modules/ai-bridge.js';
 import { initSettings, openSettings, closeSettings, isSettingsOpen, reflectFontSize } from './modules/settings.js';
 import './modules/portrait.js';
+import { initGallery } from './modules/gallery.js';
+import { initReading } from './modules/reading.js';
 
 const panesEl = document.getElementById('panes');
 
@@ -268,6 +270,8 @@ initTitlebar();
 initTree();
 initTerminal();
 initSettings();
+initGallery();
+initReading();
 initPanes();
 
 (async function boot() {

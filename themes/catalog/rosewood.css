@@ -1,0 +1,26 @@
+/* Catalog theme "rosewood": dark.
+
+   Dusky plum black with soft rose headings, in the spirit of the rose pine
+   palette. The page carries only a trace of its violet, and the accent is
+   the dusty rose, never a neon.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#1c1a22; --bg-2:#23202a; --bg-3:#2c2834;
+  --rule:#4d4757; --rule-soft:#29252f; --rule-row:#3e3947; --leader:#45404f;
+  /* 9.97 / 7.64 / 5.87 against --bg; the faint ink still gives 4.90 on --bg-3 */
+  --ink:#c7c3d2; --ink-dim:#b0aabc; --ink-faint:#9a94a6;
+  --accent:#e984a0; --accent-soft:#eab8b5; --accent-ink:#db939a; --accent-dim:#934b61;
+  --accent-rgb:233,132,160;
+  /* measured against this background: 0.62 gives 4.63:1 on dimmed text */
+  --focus-dim:0.62;
+  --green:#4ca8b8; --amber:#de870f; --red:#ec7697;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.80:1 over bg-2, 5.22:1 over bg-3 */
+  --search-hit-ink:#e5a7a5; --warn-ink:#dc860f; --schema-ink:#dc8a87;
+  /* glyph of the close button over its red hover fill: 6.82:1 over --red */
+  --win-close-ink:#27050f;
+}

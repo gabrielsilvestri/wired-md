@@ -516,5 +516,6 @@ export function initSettings() {
   });
 }
 
-// The E2E drives the variable panel through these.
-export { renderThemeVars, selectTab };
+// The E2E drives the variable panel through these; the theme gallery refreshes
+// the selector with fillThemeSelect after an install.
+export { renderThemeVars, selectTab, fillThemeSelect };

@@ -1063,9 +1063,11 @@ body.resizing-groups .group-resizer { background: rgba(var(--accent-rgb), 0.35);
 .vditor-reset {
   font-family: var(--font-body);
   font-size: var(--font-size-body);
-  line-height: 1.65;
+  /* both set from the Editor settings (modules/reading.js); the fallbacks are
+     the defaults */
+  line-height: var(--doc-line-height, 1.65);
   color: var(--ink);
-  max-width: 860px;
+  max-width: var(--doc-max-width, 860px);
   margin: 0 auto;
 }
 
@@ -1076,8 +1078,9 @@ body.resizing-groups .group-resizer { background: rgba(var(--accent-rgb), 0.35);
    column to the left, leaving dead space on the right in a wide window.
    Repeating its own selector gives the centering back, and the same selector
    carries the padding and the background, so all three land at a specificity
-   Vditor's own rules cannot beat. `max-width: 860px` still applies, so the
-   column reflows when the pane is narrower. */
+   Vditor's own rules cannot beat. The max width (860px unless the text width
+   setting says otherwise) still applies, so the column reflows when the pane
+   is narrower. */
 .vditor-ir pre.vditor-reset {
   background: var(--bg);
   margin: 0 auto;

@@ -1,0 +1,25 @@
+/* Catalog theme "fog": light.
+
+   Cool gray light: an overcast page, graphite ink and a steady blue accent.
+   Neutral and quiet, closer to a well lit office than to paper.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#eef0f3; --bg-2:#e5e8ed; --bg-3:#d9dde4;
+  --rule:#aab1bc; --rule-soft:#d6dbe2; --rule-row:#c2c8d1; --leader:#bac1cb;
+  /* 9.59 / 7.36 / 5.85 against --bg; the faint ink still gives 4.90 on --bg-3 */
+  --ink:#373d46; --ink-dim:#464e5a; --ink-faint:#535d6b;
+  --accent:#295e9c; --accent-soft:#265791; --accent-ink:#275b98; --accent-dim:#7b9fcb;
+  --accent-rgb:41,94,156;
+  /* measured against this background: 0.74 gives 4.66:1 on dimmed text */
+  --focus-dim:0.74;
+  --green:#296546; --amber:#715619; --red:#9d3838;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.73:1 over bg-2, 5.22:1 over bg-3 */
+  --search-hit-ink:#204a7b; --warn-ink:#705618; --schema-ink:#25568f;
+  /* glyph of the close button over its red hover fill: 6.81:1 over --red */
+  --win-close-ink:#fefefe;
+}
