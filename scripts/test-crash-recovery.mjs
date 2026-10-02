@@ -81,40 +81,63 @@ async function until(cdp, expr, ms = 15000) {
 }
 
 const N = JSON.stringify(note);
-let child = launch([note]);
-let t = await target();
-if (!t) {
-  log('FAIL the app never exposed a renderer target');
-  process.exit(1);
-}
-let cdp = await connect(t.webSocketDebuggerUrl);
-log('opened', await until(cdp, `(function(){try{var p=panes.find(function(x){return x.path===${N}&&x.ready;});return !!p;}catch(e){return false;}})()`));
-await cdp.evaluate(`(function(){var p=panes.find(function(x){return x.path===${N};});p.vditor.setValue('# Crash\\n\\nunsaved before the crash\\n');setPaneDirty(p,true);return true;})()`);
-await sleep(3500);
-const snaps = fs.existsSync(path.join(profile, 'recovery')) ? fs.readdirSync(path.join(profile, 'recovery')) : [];
-log('snapshots after 3.5s:', snaps, snaps.map((n) => JSON.parse(fs.readFileSync(path.join(profile, 'recovery', n), 'utf8')).content));
-cdp.close();
-execSync('taskkill /f /t /pid ' + child.pid, { stdio: 'ignore' });
-await sleep(1500);
-log('disk after the crash:', JSON.stringify(fs.readFileSync(note, 'utf8')));
+let child = null;
+let cdp = null;
 
-child = launch([]);
-t = await target();
-if (!t) {
-  log('FAIL the relaunched app never exposed a renderer target');
-  process.exit(1);
+// Whatever happens, the instance this run started goes away with it: a leftover
+// would hold the CDP port and answer for the next run.
+function stop() {
+  try {
+    if (cdp) cdp.close();
+  } catch {}
+  cdp = null;
+  if (child && child.exitCode === null) {
+    try {
+      execSync('taskkill /f /t /pid ' + child.pid, { stdio: 'ignore' });
+    } catch {}
+  }
+  child = null;
 }
-cdp = await connect(t.webSocketDebuggerUrl);
-const back = await until(cdp, `(function(){try{var p=panes.find(function(x){return x.path===${N};});if(!p||!p.ready)return null;var s=p.el.querySelector('.pane-status');return {dirty:p.dirty,value:p.vditor.getValue(),status:s?s.textContent:''};}catch(e){return null;}})()`);
-log('after relaunch:', JSON.stringify(back));
-const ok = !!back && back.dirty && back.value.includes('unsaved before the crash') && /Recovered/.test(back.status);
-// Spellcheck is off, so Chromium never fetched a Hunspell dictionary.
-const dicts = fs.existsSync(path.join(profile, 'Dictionaries')) ? fs.readdirSync(path.join(profile, 'Dictionaries')) : [];
-log(dicts.length ? 'FAIL dictionaries were downloaded: ' + dicts.join(', ') : 'PASS no spellcheck dictionary was downloaded');
-log(ok ? 'PASS real crash recovery' : 'FAIL real crash recovery');
-cdp.close();
-execSync('taskkill /f /t /pid ' + child.pid, { stdio: 'ignore' });
+
+async function start(args) {
+  child = launch(args);
+  const t = await target();
+  if (!t) throw new Error('the app never exposed a renderer target');
+  cdp = await connect(t.webSocketDebuggerUrl);
+  return cdp;
+}
+
+let ok = false;
+let dicts = [];
 try {
-  fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
-} catch {}
+  await start([note]);
+  log('opened', await until(cdp, `(function(){try{var p=panes.find(function(x){return x.path===${N}&&x.ready;});return !!p;}catch(e){return false;}})()`));
+  const dirtied = await cdp.evaluate(`(function(){var p=panes.find(function(x){return x.path===${N};});p.vditor.setValue('# Crash\\n\\nunsaved before the crash\\n');setPaneDirty(p,true);return true;})()`);
+  // A script that fails to parse answers undefined, which would read as a
+  // recovery failure instead of a broken test.
+  if (dirtied !== true) throw new Error('could not make the note dirty over CDP');
+  await sleep(3500);
+  const snaps = fs.existsSync(path.join(profile, 'recovery')) ? fs.readdirSync(path.join(profile, 'recovery')) : [];
+  log('snapshots after 3.5s:', snaps, snaps.map((n) => JSON.parse(fs.readFileSync(path.join(profile, 'recovery', n), 'utf8')).content));
+  stop(); // the crash
+  await sleep(1500);
+  log('disk after the crash:', JSON.stringify(fs.readFileSync(note, 'utf8')));
+
+  await start([]);
+  const back = await until(cdp, `(function(){try{var p=panes.find(function(x){return x.path===${N};});if(!p||!p.ready)return null;var s=p.el.querySelector('.pane-status');return {dirty:p.dirty,value:p.vditor.getValue(),status:s?s.textContent:''};}catch(e){return null;}})()`);
+  log('after relaunch:', JSON.stringify(back));
+  ok = !!back && back.dirty && back.value.includes('unsaved before the crash') && /Recovered/.test(back.status);
+  // Spellcheck is off, so Chromium never fetched a Hunspell dictionary.
+  dicts = fs.existsSync(path.join(profile, 'Dictionaries')) ? fs.readdirSync(path.join(profile, 'Dictionaries')) : [];
+  log(dicts.length ? 'FAIL dictionaries were downloaded: ' + dicts.join(', ') : 'PASS no spellcheck dictionary was downloaded');
+  log(ok ? 'PASS real crash recovery' : 'FAIL real crash recovery');
+} catch (err) {
+  log('FAIL ' + (err && err.message ? err.message : String(err)));
+  ok = false;
+} finally {
+  stop();
+  try {
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch {}
+}
 process.exit(ok && !dicts.length ? 0 : 1);
