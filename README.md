@@ -51,7 +51,7 @@ Everything below is implemented and covered by the end to end test suite.
 
 ## Installation
 
-Windows 11, x64. Download the installer (`wired-md Setup <version>.exe`) and run it. It installs **per user**: no administrator prompt, nothing written under `Program Files`, and it registers `.md` and `.markdown` so the app appears in "Open with". Your notes, config, themes, snippets and templates live in `%APPDATA%\wired-md` and survive an uninstall.
+Windows 11, x64. No release is published yet: build the installer with `npm run dist` (see [Building the installer](#building-the-installer)) and run `dist\wired-md Setup <version>.exe`. It installs **per user**: no administrator prompt, nothing written under `Program Files`, and it registers `.md` and `.markdown` so the app appears in "Open with". Your notes, config, themes, snippets and templates live in `%APPDATA%\wired-md` and survive an uninstall.
 
 The installer also adds its installation directory to your user PATH. New terminals can run `wired` without a separate Node.js or npm installation. Uninstall removes only the PATH entry created by wired-md and preserves entries owned by other software.
 

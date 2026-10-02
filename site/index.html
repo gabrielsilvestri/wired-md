@@ -220,6 +220,8 @@
   .spec .cell h3{margin:0 0 8px;font-size:17px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:9px}
   .spec .cell h3 .m{font-family:var(--font-mono);font-size:12px;color:var(--accent);font-weight:500}
   .spec .cell p{margin:0;font-size:14.5px;color:var(--ink-dim);line-height:1.6}
+  /* two-column widths: an odd last cell spans the row instead of leaving a hole */
+  @media (max-width:861px){.spec .cell:last-child:nth-child(odd){grid-column:1/-1}}
 
   /* ---------- install ---------- */
   .install-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:clamp(24px,4vw,44px);align-items:start}
@@ -237,7 +239,7 @@
     position:relative;background:var(--bg);border:1px solid var(--rule-soft);border-radius:12px;
     overflow-x:auto;
   }
-  .code pre{margin:0;padding:18px 20px;font-family:var(--font-mono);font-size:13.5px;line-height:1.85;color:var(--ink);min-width:0}
+  .code pre{margin:0;padding:48px 20px 18px;font-family:var(--font-mono);font-size:13.5px;line-height:1.85;color:var(--ink);min-width:0}
   .code .cmt{color:var(--ink-faint)}
   .code .pr{color:var(--accent-dim);user-select:none}
   .copy{
@@ -377,17 +379,21 @@
         </div>
       </div>
 
-      <!-- band 3: find -->
+      <!-- band 3: what a CLAUDE.md costs -->
       <div class="band">
         <div class="band-copy">
-          <p class="eyebrow">Where did I write that rule</p>
-          <h2>Find anything, without leaving home row.</h2>
-          <p class="lead">A command palette for every action, a quick switcher for files, and full-text search across the folder powered by a bundled ripgrep. Fuzzy, fast, offline. The question "which CLAUDE.md said that?" gets an answer in a keystroke.</p>
+          <p class="eyebrow">What a CLAUDE.md really costs</p>
+          <h2>Count the tokens before claude does.</h2>
+          <p class="lead">A status bar counts words, characters and approximate tokens. In a <code style="font-family:var(--font-mono);color:var(--accent)">CLAUDE.md</code> or <code style="font-family:var(--font-mono);color:var(--accent)">AGENTS.md</code> it adds what every <code style="font-family:var(--font-mono);color:var(--accent)">@path</code> import brings in, four hops deep like Claude Code, and flags a broken one. Ctrl+click opens an import.</p>
         </div>
         <div class="band-art">
-          <div class="art-row"><span class="kbd">Ctrl</span><span class="lbl">+</span><span class="kbd">Shift</span><span class="lbl">+</span><span class="kbd on">P</span><span class="lbl">command palette</span></div>
-          <div class="art-row"><span class="kbd">Ctrl</span><span class="lbl">+</span><span class="kbd on">P</span><span class="lbl">quick switcher</span></div>
-          <div class="art-row"><span class="kbd">Ctrl</span><span class="lbl">+</span><span class="kbd">Shift</span><span class="lbl">+</span><span class="kbd on">F</span><span class="lbl">full-text search</span></div>
+          <div class="fm">
+            <span class="badge">CLAUDE.md</span>
+            <div class="frow"><span class="k">this file</span><span class="v">~1,970 tokens</span></div>
+            <div class="frow"><span class="k">@imports</span><span class="v">+ ~1,760 tokens, 3 files</span></div>
+            <div class="warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg> @docs/old-rules.md not found</div>
+          </div>
+          <div class="art-row"><span class="kbd">Ctrl</span><span class="lbl">+</span><span class="kbd on">click</span><span class="lbl">opens the import</span></div>
         </div>
       </div>
 
@@ -420,6 +426,26 @@
     <div class="wrap">
       <div class="spec">
         <div class="cell">
+          <h3>Open notes follow the disk</h3>
+          <p>When claude rewrites an open file, a clean tab reloads in place. A tab with unsaved edits asks: reload from disk, or keep yours. Nothing is overwritten silently.</p>
+        </div>
+        <div class="cell">
+          <h3>Your AI CLI, first run</h3>
+          <p>A welcome screen picks claude, codex, gemini, aider, opencode, cursor-agent, qwen or any command, each marked found on PATH or not. Then a theme and a font.</p>
+        </div>
+        <div class="cell">
+          <h3>Theme gallery <span class="m">+10</span></h3>
+          <p>Ten more themes inside the app, each previewed from its own colors and kept between 4.5:1 and 11:1 contrast. One click installs. CSS snippets on top.</p>
+        </div>
+        <div class="cell">
+          <h3>Links and images <span class="m">Ctrl+click</span></h3>
+          <p>Ctrl+click follows a link. Relative images render, and a pasted image is saved next to the note and linked.</p>
+        </div>
+        <div class="cell">
+          <h3>Palette &amp; search <span class="m">Ctrl+P</span></h3>
+          <p>A command palette, a quick switcher, and full-text search across the folder on a bundled ripgrep. Fuzzy and offline.</p>
+        </div>
+        <div class="cell">
           <h3>Focus &amp; typewriter <span class="m">F8 / F9</span></h3>
           <p>Dim every block but the one you're on, and pin the current line to the vertical center. The dim opacity is measured to hold contrast, not guessed.</p>
         </div>
@@ -432,16 +458,8 @@
           <p>New files from templates with variables and prompts. Ships with skeletons for SKILL.md, subagents, CLAUDE.md and a dated note.</p>
         </div>
         <div class="cell">
-          <h3>Themes &amp; snippets</h3>
-          <p>Obsidian-style theme files that set only the CSS variables, CSS snippets you toggle one at a time, plus live accent, font and size controls.</p>
-        </div>
-        <div class="cell">
-          <h3>Obsidian-style sidebar</h3>
-          <p>A real file tree that watches the disk, so a file claude just wrote appears on its own. Context menu, sort, collapse, filter, recents.</p>
-        </div>
-        <div class="cell">
-          <h3>Plain files, no lock-in</h3>
-          <p>Flat .md on your disk. No database, no sync, no plugin marketplace to slow the launch. What the market punishes is what wired-md skips.</p>
+          <h3>Plain files, a real tree</h3>
+          <p>Flat .md on your disk, no database, no sync. The sidebar is a file tree that watches the folder, so a file claude just wrote shows up on its own.</p>
         </div>
       </div>
     </div>
@@ -453,8 +471,8 @@
   <section id="install">
     <div class="wrap">
       <p class="eyebrow">Install</p>
-      <h2>One way works today. The rest are on the road.</h2>
-      <p class="lead">wired-md is early and honest about it. Cloning and running is the real path right now; packaged installers are coming.</p>
+      <h2>From source today. Releases later.</h2>
+      <p class="lead">wired-md is early and honest about it. Cloning and running is the main path. You can also build the Windows installer yourself, but no release is published yet and code signing is still pending.</p>
 
       <div style="height:clamp(36px,5vw,56px)"></div>
 
@@ -475,6 +493,11 @@
               <button class="copy" data-copy="open" type="button">Copy</button>
 <pre id="open-src"><span class="pr">$ </span>npx electron . path/to/file.md</pre>
             </div>
+            <p style="margin:16px 0 0">Or build your own installer. It installs per user, registers .md files and puts a <code style="font-family:var(--font-mono);color:var(--accent)">wired</code> command on your user PATH. Not code signed yet.</p>
+            <div class="code" style="margin-top:10px">
+              <button class="copy" data-copy="dist" type="button">Copy</button>
+<pre id="dist-src"><span class="pr">$ </span>npm run dist</pre>
+            </div>
           </div>
         </div>
 
@@ -485,12 +508,12 @@
             <div class="roadmap">
               <div class="opt">
                 <span class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></span>
-                <span class="ot"><b>Windows installer</b><span>Signed .exe, one double-click</span></span>
+                <span class="ot"><b>Signed installer</b><span>Code signing is pending</span></span>
                 <span class="soon">soon</span>
               </div>
               <div class="opt">
                 <span class="oi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg></span>
-                <span class="ot"><b>Direct download</b><span>Portable build, no toolchain</span></span>
+                <span class="ot"><b>Published release</b><span>A download, no clone or build</span></span>
                 <span class="soon">soon</span>
               </div>
               <div class="opt">
