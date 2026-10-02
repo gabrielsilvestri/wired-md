@@ -4,11 +4,12 @@ Current technical state and verification instructions live in
 [`docs/dev/HANDOFF.md`](docs/dev/HANDOFF.md). Stable project rules are in
 `CLAUDE.md`; delivered changes are in `CHANGELOG.md`.
 
-## Latest work (2026-09-11)
+## Latest work (2026-10-02)
 
-- The Windows installer now adds `wired` to the user PATH and removes only its owned entry on uninstall.
-- The installed CLI runs through the bundled Electron runtime, without Node.js or npm on the user's PATH.
-- The final NSIS build and a real `win-unpacked` CLI smoke passed. No installer was installed globally during validation.
+- Open notes follow their file on disk, with an inline conflict row when the tab has unsaved edits.
+- Outline, status bar with a token estimate, working links, relative images, image paste.
+- Theme gallery (ten catalog themes), line height and text width settings, first run welcome with the AI CLI picker.
+- The owner's braille Lain portrait in the empty state.
 
 ## Owner decisions still open
 

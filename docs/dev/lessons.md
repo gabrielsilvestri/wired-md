@@ -92,3 +92,36 @@
   longer replaces what is in the editor, so whatever it opened is still in front.
   The focus mode check now puts its fixture in front on purpose.
 
+- 2026-10-02: the README promised "write the file on disk and the editor picks
+  it up", but only the tree refreshed: an open note kept the old text and the
+  next Ctrl+S overwrote what claude had written. Root cause: the watcher was
+  verified for the tree and the promise was written about the documents.
+- 2026-10-02: a fixed sleep in a check is a guess about how busy the machine
+  is. Search, find and diff all went red in a full run with agents working in
+  parallel and green alone. Poll the condition (`until()` in the driver, two
+  animation frames for rAF driven UI), with a ceiling.
+- 2026-10-02: a plain `git status` writes `.git/index.lock`, and the app killed
+  some mid way, leaving locks that blocked the owner's commits. Root cause:
+  treating a read as side effect free. Read only git calls run with
+  `GIT_OPTIONAL_LOCKS=0`.
+- 2026-10-02: braille art is not text you can trust to a font: every stock
+  Windows font draws the blank cell narrower than a dense one, so the rows
+  sheared. Root cause: assuming a monospace family covers every block it
+  falls back on. The portrait is decoded into its dots and drawn as SVG.
+- 2026-10-02: "our own save did not trigger a reload" is only a real
+  assertion when the app exposes a counter for it. Unchanged editor text cannot
+  tell "no reload" from "reloaded with the same text".
+- 2026-10-02: a feature that must react to editor content observes the DOM, not
+  the Vditor input callback: `setValue` (templates, tests, disk reloads) never
+  fires it.
+- 2026-10-02: a contrast reading right after a theme switch can catch a color
+  mid transition (2.4:1 on a button that settles at 7). Read until two
+  consecutive measurements agree.
+- 2026-10-02: tuning theme inks to a target ratio by moving only lightness
+  keeps the saturation, so cream became mustard. Contrast is not the only
+  constraint; every new palette gets looked at in a screenshot.
+- 2026-10-02: a check that asserts a placeholder is empty is a promise the next
+  feature breaks. Assert what the section holds, not the absence of controls.
+- 2026-10-02: `forget()` closes one pane per key. A check that opens several
+  notes of a temp folder has to close all of them, or a later tab close puts
+  the deleted folder back at the tree root and an unrelated check fails.

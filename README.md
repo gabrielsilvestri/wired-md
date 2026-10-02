@@ -4,6 +4,7 @@
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2011-0078d4.svg)](#installation)
 [![Built with Electron](https://img.shields.io/badge/built%20with-Electron-47848f.svg)](https://www.electronjs.org/)
 [![Made with Claude](https://img.shields.io/badge/made%20with-Claude-cc9b7a.svg)](https://claude.ai/)
+[![Buy me a coffee](https://img.shields.io/badge/buy%20me%20a-coffee-ffdd00.svg)](https://buymeacoffee.com/gabrielsilvestri)
 
 A desktop markdown editor for people who write markdown *for AI*: `CLAUDE.md` files, skills, prompts, agent notes. It renders inline as you type (Typora style, no split preview) and keeps everything as plain `.md` files in your folder, so your notes stay yours.
 
@@ -36,6 +37,11 @@ Everything below is implemented and covered by the end to end test suite.
 - **Themes and CSS snippets, Obsidian style.** Themes are `.css` files that define only the color variables; five ship by default (`wired`, `carbon` and `ash` dark, `light` and `parchment` light), living in `%APPDATA%\wired-md\themes\`. A settings panel edits any theme variable by hand and warns inline when a color you picked leaves the readable contrast band. Snippets are `.css` files you toggle on and off individually, layered over the theme. Accent color, document font, code font, and text size are live controls in the settings panel; everything persists to `%APPDATA%\wired-md\config.json`.
 - **Studio typography, offline.** Geist, Geist Mono, Mona Sans, Inter, and Satoshi are bundled locally, no network needed. UI uses Geist, code and terminal use Geist Mono, document body defaults to Mona Sans.
 - **Frameless window with a custom title bar.** Icon only chrome (no text menus), custom window controls, a draggable title bar, and window size, position, and maximized state persisted between sessions.
+- **Open notes follow the disk.** When claude (or any other tool) rewrites a file you have open, a tab with no unsaved edits reloads in place, keeping your scroll position and focus. A tab you are editing shows an inline row to reload from disk or keep your version, so nothing is overwritten silently in either direction. A file deleted or renamed away keeps its tab open, and saving recreates it.
+- **A token estimate and an outline.** A status bar under the editor counts words, characters and approximate tokens (characters divided by four, honest about being an estimate), handy for keeping a `CLAUDE.md` or a `SKILL.md` small. The sidebar outlines the note's headings, follows the caret and jumps on click.
+- **Links go somewhere, images render.** Ctrl+click opens web links in the browser, other notes in a tab and `#headings` in place. Relative images render beside the note, and pasting or dropping an image saves it under `assets/` next to the note and links it. The window itself never navigates away.
+- **A theme gallery and reading settings.** Ten more themes ship inside the app, each previewed from its own colors and kept between 4.5:1 and 11:1 contrast; install or switch with one click, nothing downloaded and no file overwritten. Line height and text width are live settings.
+- **A first run welcome.** One screen to pick the AI CLI you call from the terminal (claude, codex, gemini, aider, opencode, cursor-agent, qwen or any command, each marked found on PATH or not), a theme with live preview and a document font. The palette brings it back, and the same CLI picker lives in Settings, terminal and AI.
 - **Embedded terminal.** Ctrl+` opens a terminal in the current file's directory, resizable by dragging its top edge (height persisted). Backend is node-pty with a pipe based fallback if the native build is unavailable.
 - **Dollar sign is money, not math.** Inline math is deliberately off, so `from R$297 to R$ 397` stays readable text instead of turning into an italic formula. Block math (`$$...$$`) still works.
 - **Plain files, no lock in.** No database, no proprietary format. Everything is `.md` on disk, readable and editable by anything else.
@@ -101,7 +107,7 @@ wired list [--json]                              # the files the editor has open
 wired new [--template <name>] [--title <title>]  # create a note from a template and open it
 ```
 
-There is no daemon, no server and no port: the app is single instance, and a second `wired` invocation hands its argv to the live window and exits. To CHANGE a note, write the file on disk with any tool: the editor watches the folder and picks the change up. The CLI never sends content.
+There is no daemon, no server and no port: the app is single instance, and a second `wired` invocation hands its argv to the live window and exits. To CHANGE a note, write the file on disk with any tool: every open note follows its file, reloading in place when the human has no unsaved edits there and asking them to choose when they do. The CLI never sends content.
 
 `skills/wired-md/SKILL.md` is a skill file that teaches an AI agent (Claude Code or any CLI agent) to use this.
 
@@ -110,7 +116,8 @@ In a source checkout, `npm link` runs the CLI with Node.js and finds Electron in
 ## Roadmap
 
 - **A final name and icon.** The project still ships under its repository name.
-- **A theme catalog.** Browsing and installing community themes from inside the app, the way snippets and templates already work from disk.
+- **Community themes.** The gallery installs the themes that ship with the app; themes contributed by others would join it the same way, measured by the same contrast gate.
+- **A signed installer.** The per user installer builds today; code signing is still to do.
 
 The full design rationale for the features that shipped lives in [`docs/pesquisa-features.md`](docs/pesquisa-features.md).
 
@@ -133,7 +140,7 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 ```
 npm run smoke   # quick non interactive smoke test
 npm run test:cli # focused CLI, PATH and unit checks
-npm test        # full end to end suite (175 checks)
+npm test        # full end to end suite (260 checks)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.

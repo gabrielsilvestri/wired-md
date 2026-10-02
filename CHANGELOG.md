@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An open note follows its file on disk. When another tool (claude in the
+  embedded terminal, an agent driving the `wired` CLI, another editor) changes
+  a file open in any tab or group, a tab with no unsaved edits reloads in place,
+  stays clean, keeps its scroll position and does not take the focus. A tab
+  with unsaved edits shows an inline row with "Reload from disk" and "Keep
+  mine" instead, and nothing is overwritten silently in either direction.
+  Ctrl+S never writes over a newer version on disk. A file deleted or renamed
+  away keeps its tab open with a row saying so, and the next save recreates it.
+- A status bar under the editor with words, characters and an approximate
+  token count (characters divided by four, labeled as an estimate; the
+  frontmatter counts for tokens but not for words), plus the words selected.
+- An outline section in the sidebar: the active note's headings, indented by
+  level, following the caret, jumping on click. Headings inside code fences
+  are skipped. Both the outline and the status bar toggle from the palette.
+- Links go somewhere. Ctrl+click opens http, https and mailto links in the
+  browser, relative Markdown links in a tab (a `#heading` suffix scrolls to
+  it) and `#anchors` in place; a missing note gets an inline status. The
+  window can no longer navigate away or open new windows.
+- Relative images (`![](assets/pic.png)`) render beside the note without the
+  Markdown changing. Pasting or dropping an image into a saved note writes it
+  to `assets/<note>-<stamp>.<ext>` next to the note and links it at the caret;
+  dropping a `.md` file opens it in a tab.
+- A theme gallery in Settings > Appearance (and "browse themes" in the
+  palette): ten themes that ship with the app (deep-ink, frost, low-glow,
+  moss, retro, rosewood, solar-night, fog, paper, solar-day), each previewed
+  from its own colors and kept inside the 4.5:1 to 11:1 contrast band.
+  Installing copies the file into your themes folder and never replaces one
+  already there. The contrast gate measures the catalog too.
+- Line height (1.4 to 2.0) and text width (560 to 1200px, or full width) in
+  Settings > Editor, live and persisted.
+- A first run welcome: pick the AI CLI the sparkles button brings up (claude,
+  codex, gemini, aider, opencode, cursor-agent, qwen, each marked found on
+  PATH or not, or any command), a theme with a live preview and the document
+  font. Skip or Esc closes it for good, and "welcome and setup" in the palette
+  brings it back. Its footer links to the repository and to Buy me a coffee.
+- Settings > Terminal and AI holds the same AI CLI picker. The bridge still
+  never presses Enter.
 - The per-user Windows installer now provides `wired` on the user PATH. The
   command runs through the Electron runtime already shipped with wired-md, so
   installed use requires no separate Node.js or npm. Upgrade, moved-install and

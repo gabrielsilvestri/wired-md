@@ -205,6 +205,10 @@ async function run(ctx) {
   })()`);
   check('drop: dragging a file over the window is accepted (no navigation)', prevented === true);
 
+  // forget() closes ONE pane per key, and this check leaves several notes of
+  // its folder open (a.md, b.md). A survivor would put the deleted folder back
+  // at the tree root the next time a later check closes a tab.
+  await js(`[...panes].filter((x) => x.path && x.path.indexOf('links-check') !== -1).forEach((x) => { setPaneDirty(x, false); closePane(x); })`);
   await forget(['links-check']);
   await openPath(demoPath);
   fs.rmSync(dir, { recursive: true, force: true });

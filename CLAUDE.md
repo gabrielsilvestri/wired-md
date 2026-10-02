@@ -62,6 +62,9 @@ src/main/            Electron main process (CommonJS)
   ipc/search.js      full text search (ripgrep binary, plain Node fallback)
   ipc/customization.js  config, themes, snippets, templates
   ipc/terminal.js    node-pty, with the pipe based fallback
+  ipc/filewatch.js   one fs.watch per parent folder of every open file
+  ipc/assets.js      external links (allowlisted schemes) and pasted images
+  ipc/onboarding.js  AI CLI detection on PATH and the first run gate
 src/preload.js       contextBridge surface plus the YAML frontmatter parser
 src/renderer/
   index.html         the whole DOM, loading the vendored assets
@@ -84,7 +87,10 @@ Renderer modules: `state` (config, the pane and group registries, MRU), `panes`
 (Vditor instances, tabs, editor groups, drag to split, breadcrumb, open and
 save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `palette`, `search`, `frontmatter`,
 `templates`, `focus-typewriter`, `terminal`, `ai-bridge`, `theme` (color math),
-`titlebar`, `settings`, `icons`, `find` (in-note search and replace). No bundler: Electron loads `file://` ES modules
+`titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
+(open notes following the disk), `outline`, `statusbar`, `links` (links, images,
+paste and drop), `gallery` (theme catalog), `reading` (line height and width),
+`onboarding`, `portrait` (the empty state art). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -182,6 +188,37 @@ These cost real debugging time. None of them are optional.
   `pre.vditor-ir__preview > code` (what you read). Both have to be styled, and
   the preview is hidden while the node is expanded, otherwise the block shows up
   twice at once.
+- **An open note's disk base is the raw disk text, never `getValue()`.**
+  `pane.disk.base` (modules/disk-sync.js) is what was last read or written.
+  Vditor normalizes Markdown, so comparing the disk with the editor value would
+  turn every own save into a conflict. Watchers are per parent FOLDER (atomic
+  saves replace the file node) and gated on mtime plus size before every read
+  (Windows reports access time changes, which would loop). Ctrl+S during an
+  unresolved conflict writes nothing on purpose; "Keep mine" is the way through.
+- **Content observers watch the DOM, not the Vditor input callback.**
+  `setValue` (templates, tests, disk reloads) never fires `input`, so the
+  outline and the status bar use a MutationObserver on `#panes`.
+- **Links follow on Ctrl+click only.** Vditor opens links on a plain click
+  unless `link: { isOpen: false }`, which panes.js sets. Relative images work
+  through `lute.SetLinkBase` (the note's folder as a file URL) in `openInPane`
+  and `saveAs`; only the rendered src changes. Every shell escape goes through
+  `assets.openExternal` (http, https, mailto), which under `WIRED_E2E` records
+  to `assets.externalLog` instead of opening a browser. In the E2E,
+  `HTMLElement.click()` inherits the modifiers of the last real input event;
+  dispatch a `new MouseEvent('click')` for a plain click.
+- **The first run welcome never auto opens under `WIRED_E2E` or
+  `WIRED_SMOKE`**: every run boots a fresh profile and the modal would cover
+  every check. The palette action still opens it. AI CLI detection reads PATH
+  folders and never runs a CLI.
+- **The theme catalog is not seeded only because the seed does not recurse.**
+  `themes/catalog` lives under `themes/`; a recursive seed would install all
+  ten on first boot. `electron-builder.yml` ships it through `themes/**/*`.
+- **Line height and text width are inline on `<html>`** (`--doc-line-height`,
+  `--doc-max-width`), so a theme cannot override them; a snippet styles
+  `.vditor-reset` directly.
+- **The empty state portrait is braille drawn as SVG** (modules/portrait.js).
+  No stock Windows font gives every braille cell one width, so as text the rows
+  shear. The `<pre id="lain-art">` is the source; edit the art there.
 - **node-pty needs build tools on Windows.** If the native build fails, the
   fallback is a pseudo terminal over `child_process` pipes, with xterm.js only
   rendering and the renderer doing local echo.

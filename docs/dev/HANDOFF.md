@@ -1,42 +1,51 @@
 # HANDOFF (live session state)
 
-## Current development (2026-09-11)
+## Current development (2026-10-02)
 
-The owner asked to continue development, then prioritized the document's gray
-background when clicking to type and the missing Ctrl+F editing action.
+The owner asked for six hours of autonomous development. Five features landed,
+each built in its own worktree and merged into main with its E2E check:
 
-- Fixed the focus background: Vditor's `--textarea-background-color` now uses
-  the active theme's `--bg`. Before the fix, real clicks changed all five themes
-  to `#2f363d`. The regression check exercises those clicks in each theme.
-- Added in-note find (`Ctrl+F`) and replace (`Ctrl+H`) in `modules/find.js`, with
-  match count, navigation, case and Unicode whole-word options, one/all
-  replacement, undo/redo, active pane tracking and a safe zero-tab state.
-- Highlighting uses CSS Custom Highlights, not editable DOM wrappers. Search
-  includes prose, inline formatting, tables and code source once, excluding
-  Markdown markers and link destinations. Replacement text is literal.
-- Added `24-editor-focus.js` and `25-note-find.js` to the E2E suite. Profiles
-  used during development are isolated through `WIRED_USERDATA`.
+- **Disk sync** (`modules/disk-sync.js`, `ipc/filewatch.js`, check 26): open
+  notes follow their file on disk; dirty tabs get a reload or keep mine row;
+  Ctrl+S never writes over a newer disk version; gone files keep their tab.
+- **Outline and status bar** (`modules/outline.js`, `modules/statusbar.js`,
+  check 27): heading outline in the sidebar, word, character and token
+  estimate counts.
+- **Links and images** (`modules/links.js`, `ipc/assets.js`, check 28):
+  Ctrl+click links, navigation guard, relative images, paste and drop.
+- **Theme gallery and reading settings** (`modules/gallery.js`,
+  `modules/reading.js`, `themes/catalog/`, check 74).
+- **First run welcome** (`modules/onboarding.js`, `ipc/onboarding.js`, check
+  75) and the AI CLI picker in Settings > Terminal and AI.
+
+Also on main: the owner's braille Lain portrait in the empty state
+(`modules/portrait.js`), polling instead of fixed sleeps in the search, find
+and diff checks, and `GIT_OPTIONAL_LOCKS=0` on every read only git call.
 
 ## Verification
 
-Run `npm test` twice with an isolated `WIRED_USERDATA`, without `WIRED_ONLY`.
-There are 175 checks with the five bundled themes. Run
-`node scripts/measure-contrast.mjs` for the standalone theme contrast gate.
-The find check also measures both highlight colors and the bar in each theme.
+Run `npm test` twice without `WIRED_ONLY`; it isolates the profile itself. Run
+`node scripts/measure-contrast.mjs` for the standalone gate (it now covers
+`themes/catalog`). The packaged CLI smoke is unchanged (see the previous notes
+in `CHANGELOG.md`).
 
-The packaged CLI has focused checks in `npm run test:cli`. After `npm run dist`,
-`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/smoke-packaged-cli.ps1`
-tests the real `dist\win-unpacked\wired.cmd` with no Node.js on PATH. It uses a
-temporary profile and fixture, covers Unicode and spaces, waits until cold open
-appears in `list --json`, and checks `focus`, `new` and expected errors.
+## Known gaps, none blocking
+
+- Closing a clean tab whose file is gone from disk discards the text without
+  asking. A popup would break the E2E `forget()` helper; an inline prompt is
+  the better fix.
+- Setext headings (underlined with `===` or `---`) are not in the outline.
+- A plain click on a link does nothing; Ctrl+click follows it, by design.
+- Profiles that predate the `onboarded` key (the owner's included) see the
+  welcome once after this update. Esc or skip dismisses it for good.
+- `scripts/smoke-installed.mjs` cannot set the test gate, so the welcome auto
+  opens there; the smoke asserts nothing that it blocks.
+- The script that tuned the catalog theme colors was a scratch tool; a retune
+  is done by hand against the contrast gate.
 
 ## Remaining decisions
 
 - Final product name and icon remain the owner's decision.
-- In-app theme catalog and Windows code signing are still pending.
+- Windows code signing is still pending.
 - The personal, gitignored `launcher/wired-md.vbs` still points at the old
-  `D:\AI\Lain\wired-md` location. The portable launcher under `scripts/windows/`
-  derives its path; the personal launcher should do the same if used again.
-
-The NSIS installer and unpacked build were produced successfully. The unpacked
-CLI smoke passed; no global installation, release or publication was performed.
+  `D:\AI\Lain\wired-md` location.
