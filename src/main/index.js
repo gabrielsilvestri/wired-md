@@ -28,6 +28,7 @@ const gitIpc = require('./ipc/git');
 const fileWatchIpc = require('./ipc/filewatch');
 const assetsIpc = require('./ipc/assets');
 const importsIpc = require('./ipc/imports');
+const editIpc = require('./ipc/edit');
 const cli = require('./cli');
 
 let mainWindow = null;
@@ -175,6 +176,7 @@ gitIpc.register();
 fileWatchIpc.register({ send });
 assetsIpc.register();
 importsIpc.register();
+editIpc.register();
 
 // A later `wired ...` hands its argv here instead of opening a second window.
 app.on('second-instance', (_ev, argv, workingDirectory) => {

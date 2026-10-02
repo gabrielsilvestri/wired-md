@@ -77,7 +77,7 @@ export function applyLinkBase(pane) {
 // --- links ---
 
 // The destination of the link under the pointer, or null.
-function linkTarget(el) {
+export function linkTarget(el) {
   const node = el.closest('[data-type="a"], [data-type="link-ref"]');
   if (node) {
     const dest = node.querySelectorAll(':scope > .vditor-ir__marker--link');

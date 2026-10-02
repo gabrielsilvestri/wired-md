@@ -66,6 +66,7 @@ src/main/            Electron main process (CommonJS)
   ipc/assets.js      external links (allowlisted schemes) and pasted images
   ipc/onboarding.js  AI CLI detection on PATH and the first run gate
   ipc/imports.js     CLAUDE.md @path imports, walked the way Claude Code does
+  ipc/edit.js        cut, copy, paste and select all on the webContents
 src/preload.js       contextBridge surface plus the YAML frontmatter parser
 src/renderer/
   index.html         the whole DOM, loading the vendored assets
@@ -91,7 +92,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -199,6 +200,10 @@ These cost real debugging time. None of them are optional.
 - **Content observers watch the DOM, not the Vditor input callback.**
   `setValue` (templates, tests, disk reloads) never fires `input`, so the
   outline and the status bar use a MutationObserver on `#panes`.
+- **Menu rows never take the focus** (`mousedown` is prevented in
+  modules/context-menu.js). Without it a click on "paste" moved the focus off
+  the editor first and the paste landed nowhere. Clipboard commands go through
+  `webContents` (ipc/edit.js): `execCommand('paste')` is blocked in a renderer.
 - **CLAUDE.md imports follow Claude Code's documented rules** (code.claude.com
   docs, memory page): relative to the importing file, `~` for home, `\ ` for a
   space, nothing in code spans or fences, a quoted path is no import, four hops

@@ -190,6 +190,7 @@ contextBridge.exposeInMainWorld('wired', {
   resolveLink: (note, target) => ipcRenderer.invoke('link:resolve', note, target),
   scanImports: (note, source) => ipcRenderer.invoke('imports:scan', note, source),
   resolveImport: (note, raw) => ipcRenderer.invoke('imports:resolve', note, raw),
+  editCommand: (cmd) => ipcRenderer.invoke('edit:command', cmd),
   savePastedImage: (note, mime, bytes) => ipcRenderer.invoke('assets:savePasted', note, mime, bytes),
   pathForFile: (file) => {
     try {

@@ -44,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PATH or not, or any command), a theme with a live preview and the document
   font. Skip or Esc closes it for good, and "welcome and setup" in the palette
   brings it back. Its footer links to the repository and to Buy me a coffee.
+- A right click menu inside the note. Electron draws none, so a right click in
+  the text did nothing; now it offers cut and copy (with a selection), paste,
+  select all, sending the selection to the AI CLI, find in note, and on a link
+  open link and copy link address. Paste is a real paste, so pasted images are
+  saved like any other.
 - CLAUDE.md imports in the editor. In a `CLAUDE.md`, `CLAUDE.local.md` or
   `AGENTS.md`, the status bar adds what its `@path` imports bring into the
   context (four hops deep, as Claude Code loads them; code spans, fences and

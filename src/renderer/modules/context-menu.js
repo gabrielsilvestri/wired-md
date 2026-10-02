@@ -24,6 +24,9 @@ export function showCtxMenu(x, y, items) {
     const row = document.createElement('div');
     row.className = 'ctx-item' + (it.danger ? ' danger' : '') + (it.checked ? ' checked' : '');
     row.textContent = it.label;
+    // The menu never takes the focus: a paste from the editor menu has to land
+    // in the editor that was focused, not on the menu row.
+    row.addEventListener('mousedown', (e) => e.preventDefault());
     row.addEventListener('click', () => {
       hideCtxMenu();
       it.run();
