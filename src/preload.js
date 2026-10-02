@@ -157,6 +157,11 @@ contextBridge.exposeInMainWorld('wired', {
   winMinimize: () => ipcRenderer.send('window:minimize'),
   winMaximizeToggle: () => ipcRenderer.send('window:maximize-toggle'),
   winClose: () => ipcRenderer.send('window:close'),
+  onCloseRequest: (cb) => ipcRenderer.on('window:close-request', () => cb()),
+  confirmClose: () => ipcRenderer.send('window:close-confirmed'),
+  ackClose: () => ipcRenderer.send('window:close-ack'),
+  askUnsaved: (names) => ipcRenderer.invoke('window:ask-unsaved', names),
+  closeLog: () => ipcRenderer.invoke('window:close-log'),
   winIsMaximized: () => ipcRenderer.invoke('window:isMaximized'),
   onMaximized: (cb) => ipcRenderer.on('window:maximized', (_ev, v) => cb(v)),
 

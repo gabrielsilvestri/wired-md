@@ -4,7 +4,7 @@
 // wires the IPC modules. Every handler lives in its own file under ipc/ and
 // registers itself; this file only owns the window and the app lifecycle.
 
-const { app, BrowserWindow, ipcMain, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -105,9 +105,22 @@ function createWindow() {
   };
   mainWindow.on('resize', scheduleSave);
   mainWindow.on('move', scheduleSave);
-  mainWindow.on('close', () => {
+  mainWindow.on('close', (e) => {
     clearTimeout(saveTimer);
     saveWindowState(mainWindow);
+    // Unsaved tabs are the renderer's to know about: the first close is held
+    // and handed over as a request, and only its answer closes the window.
+    // The test suites quit through app.exit, which never comes through here.
+    if (closeConfirmed) return;
+    e.preventDefault();
+    send('window:close-request');
+    // A renderer that never answers (crashed, hung) must not make the window
+    // impossible to close: without an acknowledgement it closes anyway.
+    clearTimeout(closeAckTimer);
+    closeAckTimer = setTimeout(() => {
+      closeConfirmed = true;
+      if (mainWindow) mainWindow.close();
+    }, 2500);
   });
 
   // The maximized state goes to the renderer so it can swap the maximize icon.
@@ -148,6 +161,41 @@ ipcMain.on('window:maximize-toggle', () => {
 
 ipcMain.on('window:close', () => {
   if (mainWindow) mainWindow.close();
+});
+
+// Set once the renderer has dealt with every unsaved tab (or there were none).
+let closeConfirmed = false;
+let closeAckTimer = null;
+ipcMain.on('window:close-ack', () => clearTimeout(closeAckTimer));
+// Under WIRED_E2E the answer is recorded instead of closing the suite's window.
+const closeLog = [];
+ipcMain.on('window:close-confirmed', () => {
+  if (E2E) {
+    closeLog.push('closed');
+    return;
+  }
+  closeConfirmed = true;
+  if (mainWindow) mainWindow.close();
+});
+ipcMain.handle('window:close-log', () => closeLog.slice());
+
+// The one native dialog on purpose: closing the window with unsaved work is the
+// moment every editor asks, and the window is going away, so an inline row would
+// not survive to be read. The buttons are the user's real choices.
+ipcMain.handle('window:ask-unsaved', async (_ev, names) => {
+  if (!mainWindow) return 'cancel';
+  const list = (names || []).slice(0, 8).join('\n') + ((names || []).length > 8 ? '\n...' : '');
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    buttons: ['Save all', "Don't save", 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+    noLink: true,
+    title: app.getName(),
+    message: (names || []).length === 1 ? 'Save the changes to this note before closing?' : 'Save the changes to these notes before closing?',
+    detail: list
+  });
+  return ['save', 'discard', 'cancel'][response] || 'cancel';
 });
 
 ipcMain.handle('window:isMaximized', () => (mainWindow ? mainWindow.isMaximized() : false));

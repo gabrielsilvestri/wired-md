@@ -77,6 +77,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Closing the window with unsaved tabs no longer throws the edits away in
+  silence. It asks once, naming the notes: save all (through the normal save,
+  so the disk conflict guard still holds and an untitled tab asks for a name),
+  don't save, or cancel. With nothing unsaved it closes at once, and a renderer
+  that stops answering can never make the window impossible to close.
 - The empty state carries the real Lain portrait, a braille drawing the owner
   supplied. Braille has no single width in any stock Windows font (the blank
   cell is narrower than a dense one, which sheared the rows), so

@@ -92,7 +92,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -200,6 +200,12 @@ These cost real debugging time. None of them are optional.
 - **Content observers watch the DOM, not the Vditor input callback.**
   `setValue` (templates, tests, disk reloads) never fires `input`, so the
   outline and the status bar use a MutationObserver on `#panes`.
+- **The window close goes through the renderer.** `close` is held in main and
+  sent as `window:close-request`; `modules/close-guard.js` answers with
+  `window:close-confirmed` once nothing unsaved is left. The renderer acks at
+  once, and without an ack main closes after 2.5s anyway. Under `WIRED_E2E` a
+  confirmed close is only recorded (`window:close-log`); the suites quit with
+  `app.exit`, which skips all of this.
 - **Menu rows never take the focus** (`mousedown` is prevented in
   modules/context-menu.js). Without it a click on "paste" moved the focus off
   the editor first and the paste landed nowhere. Clipboard commands go through
