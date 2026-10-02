@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `.claude` (agents, commands, skills) and its siblings for other tools
+  (`.github`, `.cursor`, `.codex`, `.gemini`) show in the file tree and are
+  searched. Every dot folder used to be hidden, which hid most of what this
+  editor is for; the others still are.
 - Typing in a long note does less work. The status bar, the outline, the
   properties panel, the memory imports and the recovery snapshots now share one
   Markdown reading per change (`modules/text-cache.js`) instead of five, about

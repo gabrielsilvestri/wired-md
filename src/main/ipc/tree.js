@@ -11,6 +11,21 @@ const fs = require('fs');
 const TREE_IGNORE = new Set(['node_modules', '.git', '.obsidian', '.trash']);
 const MAX_DEPTH = 8;
 
+// Dot folders stay hidden, except the ones where agent instructions live:
+// .claude holds agents, commands, skills and a CLAUDE.md of its own, and the
+// others are the same idea for other tools. Hiding them hid half of what this
+// editor is for.
+const AI_DOT_DIRS = new Set(['.claude', '.github', '.cursor', '.codex', '.gemini']);
+
+function isHiddenEntry(name) {
+  return TREE_IGNORE.has(name) || (name.startsWith('.') && !AI_DOT_DIRS.has(name));
+}
+
+// The same rule for a path relative to the tree root (search results).
+function isHiddenPath(rel) {
+  return rel.split(/[\\/]/).some((seg) => seg && seg !== '.' && seg !== '..' && isHiddenEntry(seg));
+}
+
 function buildTree(dir, depth) {
   if (depth > MAX_DEPTH) return { dirs: [], files: [] };
   let entries;
@@ -22,7 +37,7 @@ function buildTree(dir, depth) {
   const dirs = [];
   const files = [];
   for (const e of entries) {
-    if (e.name.startsWith('.') || TREE_IGNORE.has(e.name)) continue;
+    if (isHiddenEntry(e.name)) continue;
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
       const sub = buildTree(full, depth + 1);
@@ -83,4 +98,4 @@ function register({ send }) {
   });
 }
 
-module.exports = { register, closeDirWatcher, TREE_IGNORE, MAX_DEPTH };
+module.exports = { register, closeDirWatcher, TREE_IGNORE, MAX_DEPTH, isHiddenEntry, isHiddenPath };

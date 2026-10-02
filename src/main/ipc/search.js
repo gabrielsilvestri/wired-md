@@ -10,7 +10,7 @@ const { ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { spawn } = require('child_process');
-const { TREE_IGNORE, MAX_DEPTH } = require('./tree');
+const { MAX_DEPTH, isHiddenEntry, isHiddenPath } = require('./tree');
 
 const SEARCH_MAX = 200; // ceiling of returned matches; above it the result is flagged truncated
 const SEARCH_LINE_MAX = 240; // ceiling of characters shown for one result line
@@ -67,7 +67,9 @@ const SEARCH_GLOBS = ['-g', '*.md', '-g', '*.markdown', '-g', '!node_modules/**'
 
 function searchWithRipgrep(root, query) {
   return new Promise((resolve) => {
-    const args = ['--json', '--smart-case', '--fixed-strings', '--no-ignore', ...SEARCH_GLOBS, '--', query, '.'];
+    // --hidden lets rg into .claude and its siblings; every other dot path is
+    // dropped below by the same rule the tree uses.
+    const args = ['--json', '--smart-case', '--fixed-strings', '--no-ignore', '--hidden', ...SEARCH_GLOBS, '--', query, '.'];
     const proc = spawn(rgPath, args, { cwd: root, windowsHide: true });
     const matches = [];
     let truncated = false;
@@ -91,6 +93,7 @@ function searchWithRipgrep(root, query) {
           continue;
         }
         if (ev.type !== 'match') continue;
+        if (isHiddenPath(ev.data.path.text || '')) continue;
         const abs = path.resolve(root, ev.data.path.text || '');
         const rawLine = (ev.data.lines.text || '').replace(/\r?\n$/, '');
         const buf = Buffer.from(rawLine, 'utf8');
@@ -138,7 +141,7 @@ function searchWithNode(root, query) {
     }
     for (const e of entries) {
       if (truncated) return;
-      if (e.name.startsWith('.') || TREE_IGNORE.has(e.name)) continue;
+      if (isHiddenEntry(e.name)) continue;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {
         walk(full, depth + 1);
