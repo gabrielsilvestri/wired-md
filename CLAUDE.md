@@ -92,7 +92,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes), `line-diff` (the diff behind "what changed on disk"). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points

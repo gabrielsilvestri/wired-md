@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mine" instead, and nothing is overwritten silently in either direction.
   Ctrl+S never writes over a newer version on disk. A file deleted or renamed
   away keeps its tab open with a row saying so, and the next save recreates it.
+  "Compare" in that row, and "what changed on disk" in the palette after a
+  silent reload, show what the other tool changed as a diff, unchanged lines
+  folded.
 - A status bar under the editor with words, characters and an approximate
   token count (characters divided by four, labeled as an estimate; the
   frontmatter counts for tokens but not for words), plus the words selected.

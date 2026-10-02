@@ -195,6 +195,23 @@ export async function openDiff(p) {
     (res.untracked ? 'untracked, whole file as added: ' : '') +
     '+' + added + ' / -' + removed +
     (res.truncated ? ' (list truncated)' : '');
+  renderDiffLines(lines);
+}
+
+// The same read only overlay for any two versions of a note (the disk sync
+// compares the editor with the disk through it). `lines` are {type, text} with
+// type add, del or ctx.
+export function showDiff(title, tooltip, status, lines) {
+  ensureOverlay();
+  titleEl.textContent = title;
+  titleEl.title = tooltip || title;
+  statusEl.textContent = status;
+  bodyEl.innerHTML = '';
+  overlay.classList.remove('hidden');
+  renderDiffLines(lines);
+}
+
+function renderDiffLines(lines) {
   const frag = document.createDocumentFragment();
   for (const l of lines) {
     const row = document.createElement('div');

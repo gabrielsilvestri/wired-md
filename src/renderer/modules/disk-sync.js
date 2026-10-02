@@ -14,11 +14,13 @@
 // the editor value, which Vditor normalizes). A change equal to the base is our
 // own save echoing back, or a touch, and is ignored.
 
-import { panes } from './state.js';
+import { panes, activePane, baseName } from './state.js';
 import { svgIcon, ICON_ALERT } from './icons.js';
 import { setPaneDirty } from './panes.js';
 import { refreshFmPanel } from './frontmatter.js';
 import { applyFocusMode, scrollContainerOf } from './focus-typewriter.js';
+import { showDiff } from './git.js';
+import { diffLines, foldContext } from './line-diff.js';
 
 // lucide file-x, for the row of a file that left the disk.
 const ICON_FILE_GONE = ['M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z', 'M14 2v4a2 2 0 0 0 2 2h4', 'm14.5 12.5-5 5', 'm9.5 12.5 5 5'];
@@ -144,6 +146,8 @@ function reloadInPlace(pane, content) {
 
   pane.vditor.setValue(content);
   reloads += 1;
+  // Kept so "what changed on disk" can show what the other tool did.
+  if (st.base !== null) st.lastChange = { before: st.base, after: content };
   st.base = content;
   st.pending = null;
   st.gone = false;
@@ -266,6 +270,7 @@ function renderRow(pane, pulse) {
       actions.className = 'disk-actions';
       actions.appendChild(rowButton('disk-reload', 'Reload from disk', 'Reload from disk (drops your unsaved edits)', () => reloadFromDisk(pane)));
       actions.appendChild(rowButton('disk-keep', 'Keep mine', 'Keep mine (the next save overwrites the file on disk)', () => keepMine(pane)));
+      actions.appendChild(rowButton('disk-compare', 'Compare', 'Show what changed on disk since you opened or saved it', () => showDiskChanges(pane)));
       row.appendChild(actions);
     } else {
       txt.textContent = 'This file is no longer on disk (deleted or renamed). Saving recreates it.';
@@ -282,4 +287,34 @@ function renderRow(pane, pulse) {
   }
 }
 
+// --- what the other tool changed ---
+// Both sides are raw disk text (the base and the new disk version), never the
+// editor value, so Vditor's normalizing never shows up as a change.
+
+function showChange(pane, before, after, what) {
+  const lines = diffLines(before, after);
+  const added = lines.filter((l) => l.type === 'add').length;
+  const removed = lines.filter((l) => l.type === 'del').length;
+  showDiff(baseName(pane.path || 'untitled') + ': ' + what, pane.path || '', '+' + added + ' / -' + removed, foldContext(lines));
+}
+
+export function showDiskChanges(pane) {
+  const st = stateOf(pane);
+  if (st.pending !== null && st.base !== null) showChange(pane, st.base, st.pending, 'changed on disk, not loaded yet');
+  else if (st.lastChange) showChange(pane, st.lastChange.before, st.lastChange.after, 'last reload from disk');
+  else showDiff(baseName(pane.path || 'untitled'), pane.path || '', 'no change from disk in this tab yet', []);
+}
+
+import('./palette.js').then((palette) => {
+  palette.registerPaletteAction({
+    label: 'what changed on disk',
+    hint: 'the last reload, or a pending change',
+    run: () => {
+      const pane = activePane();
+      if (pane) showDiskChanges(pane);
+    }
+  });
+});
+
 window.wired.onFileChanged(onDiskChange);
+window.wiredDiskSync = { showDiskChanges };

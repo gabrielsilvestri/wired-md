@@ -85,6 +85,17 @@ async function run(ctx) {
       JSON.stringify({ atomic, row: await rowOf(A), dirty: await dirtyOf(A) })
     );
 
+    // --- 1c. what the other tool changed: the last reload as a diff ---
+    await js(`(function(){var a=PALETTE_ACTIONS.find(function(x){return (typeof x.label==='function'?x.label():x.label)==='what changed on disk';});setActivePane(${pane(A)});a.run();})()`);
+    const lastDiff = await js(`({open:isDiffOpen(),title:document.getElementById('diff-title').textContent,status:document.getElementById('diff-status').textContent,adds:[...document.querySelectorAll('#diff-body .diff-add .diff-text')].map(function(e){return e.textContent;}),dels:[...document.querySelectorAll('#diff-body .diff-del .diff-text')].map(function(e){return e.textContent;}),folded:[...document.querySelectorAll('#diff-body .diff-ctx .diff-text')].some(function(e){return e.textContent==='...';})})`);
+    await js('closeDiff()');
+    check(
+      'disk sync: "what changed on disk" shows the last reload as a diff, unchanged lines folded',
+      lastDiff.open && /last reload from disk/.test(lastDiff.title) && lastDiff.status === '+1 / -1' &&
+        lastDiff.adds[0] === 'third version written atomically' && lastDiff.dels[0] === 'second version from another tool' && lastDiff.folded,
+      JSON.stringify(lastDiff)
+    );
+
     // --- 2. a background pane in another group follows its file too ---
     fs.writeFileSync(fileB, '# Disk sync b\n\nbackground second\n', 'utf8');
     const bgFollowed = await waitFor(async () => (await valueOf(B)).includes('background second'));
@@ -120,6 +131,15 @@ async function run(ctx) {
       'disk sync: an external write to a dirty note shows the row and keeps the local text',
       conflict && localText.includes('mine1') && !localText.includes('theirs one') && (await dirtyOf(A)),
       JSON.stringify({ conflict, row: await rowOf(A) })
+    );
+    // Compare shows what landed on disk, raw text against raw text.
+    await js(`${pane(A)}.el.querySelector('.disk-row .disk-compare').click()`);
+    const pendingDiff = await js(`({open:isDiffOpen(),title:document.getElementById('diff-title').textContent,adds:[...document.querySelectorAll('#diff-body .diff-add .diff-text')].map(function(e){return e.textContent;})})`);
+    await js('closeDiff()');
+    check(
+      'disk sync: Compare in the row shows the change waiting on disk',
+      pendingDiff.open && /not loaded yet/.test(pendingDiff.title) && pendingDiff.adds.includes('theirs one') && (await rowOf(A)) === 'conflict',
+      JSON.stringify(pendingDiff)
     );
     if (shotDir) {
       win.setSize(1360, 840);
