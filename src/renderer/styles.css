@@ -525,15 +525,30 @@ body.resizing-sidebar #sidebar-resizer { background: rgba(var(--accent-rgb), 0.3
 
 #editor-empty.hidden { display: none; }
 
-#lain-art {
+/* The portrait text is braille and modules/portrait.js draws it as SVG dots
+   (no stock font gives every braille cell the same width). The <pre> only
+   shows if that script never ran, so it keeps the code font as a fallback. */
+#lain-art,
+#lain-portrait {
   margin: 0;
-  font-family: var(--font-code);
-  font-size: 11px;
-  line-height: 1.05;
-  letter-spacing: 0;
   color: var(--ink-faint);
   opacity: 0.55;
+}
+
+#lain-art {
+  font-family: var(--font-code);
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0;
   white-space: pre;
+}
+
+#lain-art[hidden] { display: none; }
+
+#lain-portrait {
+  display: block;
+  max-width: min(400px, 70%);
+  height: auto;
 }
 
 #empty-hint {

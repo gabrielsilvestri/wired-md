@@ -21,19 +21,40 @@ async function run(ctx) {
     `var faint=getComputedStyle(document.documentElement).getPropertyValue('--ink-faint').trim();` +
     `return {panes:panes.length,groups:groups.length,hidden:e.classList.contains('hidden'),` +
     `lines:lines.length,width:Math.max.apply(null,lines.map(function(l){return l.length;})),` +
-    `plain:/^[\\s\\u2580-\\u259f]+$/.test(art.textContent),` +
-    `artColor:cs.color,faint:faint,mono:cs.fontFamily.indexOf('Mono')!==-1||cs.fontFamily.indexOf('mono')!==-1,` +
+    `plain:/^[\\s\\u2580-\\u259f\\u2800-\\u28ff]+$/.test(art.textContent),` +
+    // The braille text is drawn as SVG dots: one 2x4 dot cell per character,
+    // so the dot count is the number of set bits in the text.
+    `bits:[...art.textContent].reduce(function(n,c){var b=c.codePointAt(0)-0x2800;if(b<0||b>255)return n;for(;b;b&=b-1)n++;return n;},0),` +
+    `svg:(function(){var g=document.getElementById('lain-portrait');if(!g)return null;var r=g.getBoundingClientRect();var d=g.querySelector('path').getAttribute('d');return {w:Math.round(r.width),h:Math.round(r.height),dots:(d.match(/M/g)||[]).length,color:getComputedStyle(g).color,preHidden:art.hidden&&getComputedStyle(art).display==='none'};})(),` +
+    `artColor:cs.color,faint:faint,` +
     `pointer:cs.pointerEvents==='none'||getComputedStyle(e).pointerEvents==='none',` +
     `hintText:hint.textContent,hintRatio:contrastRatio(rgb(hs.color),rgb(body.backgroundColor)),` +
     `tabs:document.querySelectorAll('#panes .tab').length,plus:!!document.querySelector('#panes .tab-new')};})()`
   );
   check(
-    'empty state: with no tab open the void shows the Lain portrait in monospace, drawn in the faint ink and never taking the pointer',
+    'empty state: with no tab open the void shows the Lain portrait, its braille drawn dot for dot in the faint ink, never taking the pointer',
     !!empty && empty.panes === 0 && empty.groups === 1 && !empty.hidden &&
-      empty.lines >= 10 && empty.lines <= 40 && empty.width >= 20 && empty.width <= 40 && empty.plain &&
-      empty.mono && empty.pointer && empty.tabs === 0 && empty.plus,
+      empty.lines >= 10 && empty.lines <= 40 && empty.width >= 20 && empty.width <= 80 && empty.plain &&
+      !!empty.svg && empty.svg.dots === empty.bits && empty.bits > 1000 && empty.svg.preHidden &&
+      empty.svg.w >= 200 && empty.svg.h >= 200 && empty.svg.color === empty.artColor &&
+      empty.pointer && empty.tabs === 0 && empty.plus,
     JSON.stringify(empty)
   );
+
+  // WIRED_EMPTY_SHOT=<prefix> writes <prefix>-<theme>.png per bundled theme, to
+  // look at the portrait by eye. Never set by the suite.
+  if (process.env.WIRED_EMPTY_SHOT) {
+    const fs = require('fs');
+    const oldTheme = await js('config.theme');
+    for (const t of await js('window.wired.listThemes()')) {
+      const name = typeof t === 'string' ? t : t.name;
+      await js(`void applyTheme(${JSON.stringify(name)})`);
+      await sleep(300);
+      fs.writeFileSync(process.env.WIRED_EMPTY_SHOT + '-' + name + '.png', (await win.webContents.capturePage()).toPNG());
+    }
+    await js(`void applyTheme(${JSON.stringify(oldTheme)})`);
+    await sleep(300);
+  }
 
   check(
     'empty state: the hint under the art reads as text (4.5:1 to 11:1), not as decoration',

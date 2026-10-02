@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The empty state carries the real Lain portrait, a braille drawing the owner
+  supplied. Braille has no single width in any stock Windows font (the blank
+  cell is narrower than a dense one, which sheared the rows), so
+  `modules/portrait.js` decodes each character into its dots and draws them as
+  one SVG path in the theme's faint ink.
 - The git badges no longer leave a stale `.git/index.lock` behind. Every read
   only git call runs with `GIT_OPTIONAL_LOCKS=0`, so a status killed mid way (a
   timeout, the app quitting) can no longer block the next commit.
