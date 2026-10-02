@@ -92,6 +92,15 @@ async function run(ctx) {
     check('outline: jumping to the heading before a code fence lands on it, not on the fake one',
       await until(`(function(){var h=[...activePane().el.querySelectorAll('.vditor-ir .vditor-reset > h2')][0];var s=getSelection();return !!h&&!!s.anchorNode&&h.contains(s.anchorNode);})()`));
 
+    // Setext headings (=== and --- underlines) count, a --- under a list item
+    // is a rule and not a heading, and the list matches the editor's own
+    // heading elements one for one (the jump maps by position).
+    await js(`activePane().vditor.setValue(${JSON.stringify(fm + 'Setext one\n===\n\nprose\n\n- item\n\n---\n\nSetext two\nsecond line\n---\n\n# Hash\n')})`);
+    await until(`document.querySelectorAll('#outline-list .outline-item').length===3`);
+    const setext = await js(`({items:[...document.querySelectorAll('#outline-list .outline-item')].map(function(li){return li.dataset.level+':'+li.textContent;}).join('|'),dom:activePane().el.querySelectorAll('.vditor-ir .vditor-reset > h1, .vditor-ir .vditor-reset > h2').length,src:activePane().vditor.getValue()})`);
+    check('outline: setext headings are listed with their level, matching the editor one for one',
+      !!setext && setext.items === '1:Setext one|2:Setext two second line|1:Hash' && setext.dom === 3, JSON.stringify(setext));
+
     // Live update after typing a new heading.
     await js(`activePane().vditor.setValue(${JSON.stringify(fm + body + '\n## Added later\n')})`);
     check('outline: a new heading shows up after an edit',

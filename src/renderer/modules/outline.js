@@ -15,6 +15,11 @@ registerConfigDefaults({ outline: true, outlineCollapsed: false });
 const FRONTMATTER = /^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
 const HEADING = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+// A setext underline: the paragraph right above it is an H1 (===) or H2 (---).
+const SETEXT = /^ {0,3}(=+|-+)[ \t]*$/;
+// Lines that open something other than a paragraph, so they never become the
+// text of a setext heading (a "---" under a list item is a thematic break).
+const NOT_PARAGRAPH = /^(?: {4}|\t| {0,3}(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)| {0,3}>| {0,3}<)/;
 const HEADING_TAGS = 'h1,h2,h3,h4,h5,h6';
 
 // Pure: the headings of a Markdown source, skipping the frontmatter and fences.
@@ -22,18 +27,30 @@ export function parseHeadings(source) {
   const lines = source.replace(FRONTMATTER, '').split(/\r?\n/);
   const out = [];
   let fence = null;
+  let para = []; // the lines of the paragraph being read, for a setext heading
+  // Inline markers add noise to a one line label.
+  const label = (raw) => raw.replace(/[*_`~]|!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim() || '(empty heading)';
   for (const line of lines) {
     const f = line.match(FENCE);
     if (fence) {
       if (f && f[1][0] === fence[0] && f[1].length >= fence.length && line.trim() === f[1]) fence = null;
       continue;
     }
-    if (f) { fence = f[1]; continue; }
+    if (f) { fence = f[1]; para = []; continue; }
     const m = line.match(HEADING);
-    if (!m) continue;
-    // Inline markers add noise to a one line label.
-    const text = (m[2] || '').replace(/[*_`~]|!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim();
-    out.push({ level: m[1].length, text: text || '(empty heading)' });
+    if (m) {
+      out.push({ level: m[1].length, text: label(m[2] || '') });
+      para = [];
+      continue;
+    }
+    const u = para.length ? line.match(SETEXT) : null;
+    if (u) {
+      out.push({ level: u[1][0] === '=' ? 1 : 2, text: label(para.join(' ')) });
+      para = [];
+      continue;
+    }
+    if (!line.trim() || (!para.length && NOT_PARAGRAPH.test(line))) para = [];
+    else para.push(line.trim());
   }
   return out;
 }
