@@ -18,6 +18,21 @@ each built in its own worktree and merged into main with its E2E check:
 - **First run welcome** (`modules/onboarding.js`, `ipc/onboarding.js`, check
   75) and the AI CLI picker in Settings > Terminal and AI.
 
+Then, in the main session:
+
+- **Close guard** (`modules/close-guard.js`, check 31): closing the window with
+  unsaved tabs asks save all, don't save or cancel.
+- **Crash recovery** (`modules/recovery.js`, `ipc/recovery.js`, check 32):
+  snapshots of unsaved tabs come back at the next launch.
+- **Editor right click menu** (`modules/editor-menu.js`, `ipc/edit.js`, check
+  30).
+- **CLAUDE.md imports** (`modules/memory-imports.js`, `ipc/imports.js`, check
+  29): the context the `@path` imports add, Ctrl+click to open one.
+- **What changed on disk**: Compare in the conflict row and a palette action,
+  diffing raw disk text (`modules/line-diff.js`).
+- A slash command frontmatter schema and template, setext headings and section
+  token sizes in the outline, a gone file marks its tab unsaved, review fixes.
+
 Also on main: the owner's braille Lain portrait in the empty state
 (`modules/portrait.js`), polling instead of fixed sleeps in the search, find
 and diff checks, and `GIT_OPTIONAL_LOCKS=0` on every read only git call.

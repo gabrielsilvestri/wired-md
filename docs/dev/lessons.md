@@ -125,3 +125,11 @@
 - 2026-10-02: `forget()` closes one pane per key. A check that opens several
   notes of a temp folder has to close all of them, or a later tab close puts
   the deleted folder back at the tree root and an unrelated check fails.
+- 2026-10-02: a state that marks a tab ("dirty because the file went away")
+  needs the way back defined for every exit, or the mark outlives its cause.
+  The first version cleared the flag on any return of the file, and edits typed
+  while it was gone lost their unsaved mark. Remember what the text was when
+  the mark went on, and compare against that.
+- 2026-10-02: a periodic writer that skips a pass while one is running races
+  whoever needs it settled (the close). Chain the passes and let the closer wait
+  on the chain; then stop the writer, and restart it if the close is cancelled.
