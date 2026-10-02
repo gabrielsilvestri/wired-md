@@ -22,7 +22,7 @@ async function run(ctx) {
 
   try {
     await js('[...panes].forEach(function(p){setPaneDirty(p,false);})');
-    await js('window.wiredRecovery.settleRecovery(true).then(function(){return true;})');
+    await js('window.wiredRecovery.settleRecovery(true).then(function(){window.wiredRecovery.resumeRecovery();return true;})');
     await openPath(fixture);
     await js(`(function(){var p=panes.find(function(x){return x.path===${P};});p.vditor.setValue('# Recovery\\n\\nunsaved text\\n');setPaneDirty(p,true);})()`);
     await js('window.wiredRecovery.snapshotNow()');
@@ -65,7 +65,7 @@ async function run(ctx) {
     );
     check('recovery: the old snapshots are consumed, the restored tabs keep their own', !fs.existsSync(crashA) && !fs.existsSync(crashB));
 
-    await js('window.wiredRecovery.settleRecovery(true).then(function(){return true;})');
+    await js('window.wiredRecovery.settleRecovery(true).then(function(){window.wiredRecovery.resumeRecovery();return true;})');
     check("recovery: don't save on close throws every snapshot away", snaps().length === 0, JSON.stringify(snaps().map((s) => s.key)));
   } finally {
     await closeMine();

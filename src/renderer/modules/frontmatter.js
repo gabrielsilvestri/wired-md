@@ -33,6 +33,7 @@ export function splitFrontmatter(text) {
 }
 
 const COMMON_MODELS = ['sonnet', 'opus', 'haiku', 'fable', 'inherit'];
+const SKILL_DESCRIPTION_MAX = 1536;
 // A full model ID (claude-sonnet-5-5 and the like) is as valid as an alias.
 const MODEL_ID = /^claude-[a-z0-9.-]+$/i;
 
@@ -76,6 +77,14 @@ export function fmValidate(schema, entries) {
   const desc = fmEntry(entries, 'description');
   if (!desc) warnings.push('the description key is missing');
   else if (typeof desc.value !== 'string' || desc.value.trim() === '') warnings.push('description is empty');
+
+  // Claude Code documents a 1,536 character limit for a skill's description
+  // and when_to_use together (code.claude.com docs, skills page).
+  if (schema === 'skill') {
+    const when = fmEntry(entries, 'when_to_use');
+    const len = (desc && typeof desc.value === 'string' ? desc.value.length : 0) + (when && typeof when.value === 'string' ? when.value.length : 0);
+    if (len > SKILL_DESCRIPTION_MAX) warnings.push('description and when_to_use add up to ' + len.toLocaleString('en-US') + ' characters, over the documented limit of ' + SKILL_DESCRIPTION_MAX.toLocaleString('en-US'));
+  }
 
   const tools = fmEntry(entries, 'tools');
   if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') warnings.push('tools should be a list or a comma separated string');

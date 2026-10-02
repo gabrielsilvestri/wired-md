@@ -5,7 +5,7 @@
 // name), and the window only closes when every tab really came out clean.
 import { panes, baseName } from './state.js';
 import { setActivePane, save, saveAs } from './panes.js';
-import { settleRecovery } from './recovery.js';
+import { settleRecovery, resumeRecovery } from './recovery.js';
 
 async function saveAllDirty() {
   for (const pane of panes.filter((p) => p.dirty)) {
@@ -22,21 +22,29 @@ export async function handleCloseRequest(ask = (names) => window.wired.askUnsave
   const dirty = panes.filter((p) => p.dirty);
   if (!dirty.length) {
     await settleRecovery(false);
-    window.wired.confirmClose();
+    closeNow();
     return 'closed';
   }
   const answer = await ask(dirty.map((p) => (p.path ? baseName(p.path) : 'untitled')));
   if (answer === 'discard') {
     await settleRecovery(true); // discarded on purpose: nothing comes back next launch
-    window.wired.confirmClose();
+    closeNow();
     return 'closed';
   }
   if (answer === 'save' && (await saveAllDirty())) {
     await settleRecovery(false);
-    window.wired.confirmClose();
+    closeNow();
     return 'closed';
   }
+  resumeRecovery();
   return 'kept';
+}
+
+// Confirms the close. If the window is somehow still here a moment later (the
+// test suite records closes instead of closing), snapshots start again.
+function closeNow() {
+  window.wired.confirmClose();
+  setTimeout(resumeRecovery, 3000);
 }
 
 window.wired.onCloseRequest(() => {

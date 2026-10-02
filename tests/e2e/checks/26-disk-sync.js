@@ -278,6 +278,23 @@ async function run(ctx) {
     fs.renameSync(moved, fileB);
     const back = await waitFor(async () => !(await rowOf(B)) && (await js(`${pane(B)}.dirty===false`)));
     check('disk sync: a file renamed back unchanged clears the gone row and the unsaved mark', back);
+
+    // Deleted, then written again with other content (a branch switch): a tab
+    // nobody typed into reloads like any clean tab, no conflict row.
+    fs.rmSync(fileB, { force: true });
+    await waitFor(async () => (await rowOf(B)) === 'gone');
+    fs.writeFileSync(fileB, '# Disk sync b\n\nfrom another branch\n', 'utf8');
+    const rebranched = await waitFor(async () => (await valueOf(B)).includes('from another branch') && !(await rowOf(B)) && !(await dirtyOf(B)));
+    check('disk sync: a clean tab whose file is deleted and rewritten with other text reloads, with no conflict', rebranched, JSON.stringify({ row: await rowOf(B), dirty: await dirtyOf(B) }));
+
+    // Deleted, typed into, then restored unchanged: the typing is unsaved work
+    // and the tab must stay unsaved.
+    fs.rmSync(fileB, { force: true });
+    await waitFor(async () => (await rowOf(B)) === 'gone');
+    await js(`(function(){var p=${pane(B)};p.vditor.setValue(p.vditor.getValue()+'\\ntyped while gone\\n');})()`);
+    fs.writeFileSync(fileB, '# Disk sync b\n\nfrom another branch\n', 'utf8');
+    await waitFor(async () => !(await rowOf(B)) || (await rowOf(B)) === 'conflict');
+    check('disk sync: text typed while the file was gone stays unsaved when the file comes back', (await dirtyOf(B)) && (await valueOf(B)).includes('typed while gone'), JSON.stringify({ row: await rowOf(B), dirty: await dirtyOf(B) }));
   } finally {
     win.setSize(1360, 840);
     await js(`(function(){var p=document.getElementById('disk-sync-probe');if(p)p.remove();})()`);

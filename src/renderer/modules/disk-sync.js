@@ -163,6 +163,14 @@ function reloadInPlace(pane, content) {
   if (sc) sc.scrollTop = Math.min(top, Math.max(0, sc.scrollHeight - sc.clientHeight));
 }
 
+function editorValue(pane) {
+  try {
+    return pane.vditor.getValue();
+  } catch {
+    return null;
+  }
+}
+
 function onDiskChange(info) {
   if (!info || !info.path) return;
   for (const pane of panes) {
@@ -172,20 +180,25 @@ function onDiskChange(info) {
       // The editor now holds the only copy of the text, which is exactly what
       // unsaved means: the tab turns dirty, so closing it asks like any other
       // unsaved tab instead of discarding the last copy in silence.
-      if (!st.gone) st.cleanBeforeGone = !pane.dirty;
+      // The text at that moment is kept, so a file that comes back can tell
+      // "clean, only marked because it went away" from "edited since".
+      if (!st.gone) st.cleanWhenGone = pane.dirty ? null : editorValue(pane);
       st.gone = true;
       st.pending = null; // nothing left on disk to reload from
       setPaneDirty(pane, true);
       renderRow(pane);
       continue;
     }
-    const wasGone = st.gone;
+    // Back on disk. A tab that was clean when its file went away, and that
+    // nobody typed into since, is clean again: the dirty mark was only the
+    // disappearance.
+    if (st.gone && st.cleanWhenGone !== null && st.cleanWhenGone !== undefined && editorValue(pane) === st.cleanWhenGone) {
+      setPaneDirty(pane, false);
+    }
     st.gone = false;
+    st.cleanWhenGone = null;
     if (info.content === st.base || info.content === st.writing) {
       // Our own save, or the disk went back to what we had: nothing to decide.
-      // A file that comes back unchanged (renamed back, restored by git) takes
-      // back the dirty flag its disappearance put on a clean tab.
-      if (wasGone && st.cleanBeforeGone) setPaneDirty(pane, false);
       st.pending = null;
       renderRow(pane);
       continue;

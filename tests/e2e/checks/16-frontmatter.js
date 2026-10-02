@@ -4,7 +4,7 @@
 // degrades to a read only view, and the palette toggle persists.
 
 async function run(ctx) {
-  const { js, key, sleep, check, fs, path, win, forget, openPath, readConfigFile, userDir, demoPath, rootDir, fixtures } = ctx;
+  const { js, key, sleep, check, fs, path, win, forget, openPath, until, readConfigFile, userDir, demoPath, rootDir, fixtures } = ctx;
 
   const fmPath = fixtures.skill;
   const fmOriginal = fs.readFileSync(fmPath, 'utf8');
@@ -79,6 +79,14 @@ async function run(ctx) {
     !!skill && skill.schema === 'skill' && skillWarnings.some((a) => /the description key is missing/.test(a)) && skillWarnings.some((a) => /describe.*typo.*description/.test(a)),
     JSON.stringify(skill)
   );
+
+  // A skill description past the documented 1,536 characters (description and
+  // when_to_use together) is flagged.
+  const longSkill = '---\nname: skill-e2e\ndescription: ' + 'a'.repeat(1000) + '\nwhen_to_use: ' + 'b'.repeat(600) + '\n---\n# skill e2e\n';
+  await js(`(function(){var p=activePane();p.vditor.setValue(${JSON.stringify(longSkill)});refreshFmPanel(p);})()`);
+  const longWarn = await until(`(function(){var w=[...document.querySelectorAll('#panes .pane.active .fm-panel .fm-warn')].map(function(x){return x.textContent;});return w.some(function(t){return /1,600 characters, over the documented limit of 1,536/.test(t);})?w:null;})()`, { ceiling: 3000 });
+  check('properties: a skill description and when_to_use past 1,536 characters together are flagged', !!longWarn, JSON.stringify(longWarn));
+  await js(`(function(){var p=activePane();setPaneDirty(p,false);})()`);
 
   // A custom slash command (.claude/commands/*.md): every key is optional and
   // the file name is the command name, so a name key is what gets flagged. A
