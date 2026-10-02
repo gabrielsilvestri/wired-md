@@ -33,7 +33,11 @@ function runGit(cwd, args) {
       child = execFile(
         'git',
         args,
-        { cwd, timeout: GIT_TIMEOUT, maxBuffer: GIT_MAX_BUFFER, windowsHide: true, encoding: 'utf8' },
+        // GIT_OPTIONAL_LOCKS=0: a plain `git status` refreshes the index and
+        // takes .git/index.lock to do it. A status killed mid way (timeout, app
+        // quitting) leaves that lock behind and the owner's next commit fails.
+        // A read only badge has no business writing the index.
+        { cwd, env: Object.assign({}, process.env, { GIT_OPTIONAL_LOCKS: '0' }), timeout: GIT_TIMEOUT, maxBuffer: GIT_MAX_BUFFER, windowsHide: true, encoding: 'utf8' },
         (err, stdout, stderr) => {
           if (err) {
             // ENOENT means there is no git on PATH at all.
