@@ -4,8 +4,9 @@
 // in the same place. All three folders are read on demand, so a file dropped in
 // there with the app running shows up without a restart and without a watcher.
 
-const { ipcMain, shell } = require('electron');
+const { app, ipcMain, shell } = require('electron');
 const fs = require('fs');
+const path = require('path');
 const { userDir, DEFAULT_CONFIG, readConfig, writeConfig } = require('../config');
 
 // Simple names only, no path traversal.
@@ -139,6 +140,97 @@ function register() {
       if (!fs.existsSync(p)) return { ok: false, error: 'the template is not there anymore' };
       await shell.trashItem(p);
       return { ok: true };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  registerCatalog();
+}
+
+// --- the theme gallery ---
+// The catalog ships inside the app (themes/catalog) and is never seeded: a theme
+// lands in the user's themes folder only when it is installed from the gallery.
+// Packaged, the folder lives inside app.asar, so it is read the same way the
+// seed reads (readFileSync plus writeFileSync, never copyFileSync).
+
+function catalogDir() {
+  return path.join(app.getAppPath(), 'themes', 'catalog');
+}
+
+// The :root declarations of a theme file, cut by counting braces (the same way
+// theme.js and the contrast script do). Comments go first: they carry measured
+// ratios and sample hex codes that would otherwise parse as variables.
+function rootVars(css) {
+  const out = {};
+  const at = css.indexOf(':root');
+  const open = at < 0 ? -1 : css.indexOf('{', at);
+  let close = -1;
+  for (let i = open, depth = 0; open >= 0 && i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    else if (css[i] === '}' && --depth === 0) { close = i; break; }
+  }
+  if (close < 0) return out;
+  const body = css.slice(open + 1, close).replace(/\/\*[\s\S]*?\*\//g, '');
+  for (const m of body.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gi)) out[m[1]] = m[2].trim();
+  return out;
+}
+
+// The paragraph under the header line, used as the card tooltip. A theme
+// without that comment simply has no description.
+function aboutOf(css) {
+  const m = /^\/\*[^\n]*\n\s*\n([\s\S]*?)(\n\s*\n|\*\/)/.exec(css);
+  return m ? m[1].replace(/\s+/g, ' ').trim() : '';
+}
+
+function luminanceOf(hexValue) {
+  const m = /^#([0-9a-f]{6})$/i.exec(String(hexValue || '').trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+
+function catalogNames() {
+  return listCss(catalogDir()).map((f) => f.replace(/\.css$/i, ''));
+}
+
+function registerCatalog() {
+  ipcMain.handle('themes:catalog', () => {
+    const out = [];
+    for (const name of catalogNames()) {
+      try {
+        const css = fs.readFileSync(path.join(catalogDir(), name + '.css'), 'utf8');
+        const vars = rootVars(css);
+        const lum = luminanceOf(vars['--bg']);
+        out.push({
+          name,
+          dark: lum === null ? true : lum < 0.2,
+          about: aboutOf(css),
+          vars,
+          installed: fs.existsSync(userDir('themes', name + '.css'))
+        });
+      } catch (err) {
+        process.stderr.write('[wired-md] could not read catalog theme ' + name + ': ' + String(err.message || err) + '\n');
+      }
+    }
+    return out;
+  });
+
+  // Never overwrites: a file with the same name in the themes folder may be
+  // one the user edited, so it is reported as already installed and left alone.
+  ipcMain.handle('themes:installCatalog', (_ev, name) => {
+    try {
+      const n = String(name || '');
+      if (!SAFE_NAME.test(n) || !catalogNames().includes(n)) return { ok: false, error: 'not a catalog theme' };
+      const target = userDir('themes', n + '.css');
+      if (fs.existsSync(target)) return { ok: true, name: n, already: true };
+      fs.mkdirSync(userDir('themes'), { recursive: true });
+      fs.writeFileSync(target, fs.readFileSync(path.join(catalogDir(), n + '.css')));
+      return { ok: true, name: n, already: false };
     } catch (err) {
       return { ok: false, error: String(err.message || err) };
     }

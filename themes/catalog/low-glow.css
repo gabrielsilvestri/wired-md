@@ -1,0 +1,26 @@
+/* Catalog theme "low-glow": dark.
+
+   The comfort theme: a soft graphite page and ink deliberately held near
+   the middle of the readable band (about 8:1, not 10). For long sessions
+   and tired eyes, where separation matters more than punch.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#24272c; --bg-2:#2a2e34; --bg-3:#32373e;
+  --rule:#4f5660; --rule-soft:#2f343a; --rule-row:#434a53; --leader:#48505a;
+  /* 8.00 / 6.39 / 5.89 against --bg; the faint ink still gives 4.71 on --bg-3 */
+  --ink:#b8bec6; --ink-dim:#a2aab5; --ink-faint:#9ba3af;
+  --accent:#6da3b9; --accent-soft:#80aec2; --accent-ink:#6fa4ba; --accent-dim:#3d6c7f;
+  --accent-rgb:109,163,185;
+  /* measured against this background: 0.69 gives 4.61:1 on dimmed text */
+  --focus-dim:0.69;
+  --green:#6cae7d; --amber:#c59855; --red:#dc8a84;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.82:1 over bg-2, 5.19:1 over bg-3 */
+  --search-hit-ink:#a9c9d6; --warn-ink:#caa366; --schema-ink:#8cb6c7;
+  /* glyph of the close button over its red hover fill: 6.78:1 over --red */
+  --win-close-ink:#2c0f0d;
+}

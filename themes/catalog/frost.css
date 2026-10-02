@@ -1,0 +1,25 @@
+/* Catalog theme "frost": dark.
+
+   Arctic slate. A blue gray night page with frosted cyan for links and
+   headings, in the spirit of the nord palettes: calm, cold, and low glare.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#2a303b; --bg-2:#313845; --bg-3:#3a4251;
+  --rule:#56617a; --rule-soft:#38404d; --rule-row:#4a5468; --leader:#505b70;
+  /* 9.17 / 7.22 / 6.28 against --bg; the faint ink still gives 4.79 on --bg-3 */
+  --ink:#d0d7e5; --ink-dim:#b4c0d5; --ink-faint:#a6b3cd;
+  --accent:#83bdce; --accent-soft:#8dc2d2; --accent-ink:#94afca; --accent-dim:#4f7099;
+  --accent-rgb:131,189,206;
+  /* measured against this background: 0.63 gives 4.64:1 on dimmed text */
+  --focus-dim:0.63;
+  --green:#9bb982; --amber:#dda63a; --red:#d9a1a7;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.89:1 over bg-2, 5.19:1 over bg-3 */
+  --search-hit-ink:#c1dee7; --warn-ink:#e1b151; --schema-ink:#95c7d5;
+  /* glyph of the close button over its red hover fill: 6.79:1 over --red */
+  --win-close-ink:#431b1f;
+}

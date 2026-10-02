@@ -1,0 +1,26 @@
+/* Catalog theme "solar-night": dark.
+
+   Deep teal night with warm gray ink, in the spirit of the solarized
+   dark palette. The accent is the cool blue; amber stays free to mean
+   "careful".
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#032b36; --bg-2:#073440; --bg-3:#0c3e4b;
+  --rule:#2c5763; --rule-soft:#0d3b47; --rule-row:#21505c; --leader:#24535f;
+  /* 7.98 / 6.41 / 6.03 against --bg; the faint ink still gives 4.68 on --bg-3 */
+  --ink:#b6bfbf; --ink-dim:#9facae; --ink-faint:#9aa7a7;
+  --accent:#53a5e0; --accent-soft:#31bbb0; --accent-ink:#2eb0a6; --accent-dim:#1d6aa1;
+  --accent-rgb:83,165,224;
+  /* measured against this background: 0.70 gives 4.64:1 on dimmed text */
+  --focus-dim:0.70;
+  --green:#92a900; --amber:#c89700; --red:#e9807e;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.89:1 over bg-2, 5.22:1 over bg-3 */
+  --search-hit-ink:#6ed9d1; --warn-ink:#d8a400; --schema-ink:#34c6bb;
+  /* glyph of the close button over its red hover fill: 6.80:1 over --red */
+  --win-close-ink:#2e0808;
+}

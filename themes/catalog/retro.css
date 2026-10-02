@@ -1,0 +1,26 @@
+/* Catalog theme "retro": dark.
+
+   Warm charcoal with cream ink, in the spirit of the gruvbox palettes. The
+   accent is the aqua green of that family rather than its orange, so links
+   and headings never read as a warning.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#262523; --bg-2:#2e2c29; --bg-3:#383532;
+  --rule:#5c5650; --rule-soft:#34312e; --rule-row:#4a4540; --leader:#504a44;
+  /* 9.62 / 7.39 / 6.14 against --bg; the faint ink still gives 4.88 on --bg-3 */
+  --ink:#d8ccb1; --ink-dim:#bfb39b; --ink-faint:#ada390;
+  --accent:#89bd76; --accent-soft:#8ec07c; --accent-ink:#8cab9f; --accent-dim:#487438;
+  --accent-rgb:137,189,118;
+  /* measured against this background: 0.62 gives 4.62:1 on dimmed text */
+  --focus-dim:0.62;
+  --green:#abad23; --amber:#dc9b05; --red:#fc8577;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.85:1 over bg-2, 5.20:1 over bg-3 */
+  --search-hit-ink:#aed2a1; --warn-ink:#dc9c05; --schema-ink:#87bc74;
+  /* glyph of the close button over its red hover fill: 6.80:1 over --red */
+  --win-close-ink:#450801;
+}

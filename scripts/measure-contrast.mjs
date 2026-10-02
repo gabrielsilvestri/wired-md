@@ -1,8 +1,10 @@
 /**
  * measure-contrast.mjs
  *
- * Measures every theme in themes/ and fails on its own. Run it after touching
- * any color in any theme file, and after adding a theme.
+ * Measures every theme in themes/ and in themes/catalog/ (the gallery themes,
+ * which ship with the app but are only installed on request) and fails on its
+ * own. Run it after touching any color in any theme file, and after adding a
+ * theme.
  *
  *   node scripts/measure-contrast.mjs
  *   node scripts/measure-contrast.mjs themes/wired.css   (one file)
@@ -38,6 +40,9 @@ import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = join(HERE, '..', 'themes');
+// The gallery catalog is held to the same gate: a theme the app offers to
+// install is a theme the app vouches for.
+const CATALOG_DIR = join(THEMES_DIR, 'catalog');
 
 const TEXT_FLOOR = 4.5;
 const TEXT_CEILING = 11;
@@ -294,16 +299,19 @@ if (arg) {
   files = [p];
 } else {
   if (!existsSync(THEMES_DIR) || !statSync(THEMES_DIR).isDirectory()) die('themes folder not found at ' + THEMES_DIR);
-  files = readdirSync(THEMES_DIR)
+  const cssIn = (dir) => readdirSync(dir)
     .filter((f) => f.toLowerCase().endsWith('.css'))
     .sort((a, b) => a.localeCompare(b))
-    .map((f) => join(THEMES_DIR, f));
+    .map((f) => join(dir, f));
+  files = cssIn(THEMES_DIR);
   if (!files.length) die('no .css theme in ' + THEMES_DIR);
+  if (existsSync(CATALOG_DIR) && statSync(CATALOG_DIR).isDirectory()) files.push(...cssIn(CATALOG_DIR));
 }
 
 let allPassed = true;
 for (const f of files) {
-  const ok = measureTheme(basename(f), readFileSync(f, 'utf8'));
+  const label = dirname(f) === CATALOG_DIR ? 'catalog/' + basename(f) : basename(f);
+  const ok = measureTheme(label, readFileSync(f, 'utf8'));
   if (!ok) allPassed = false;
 }
 

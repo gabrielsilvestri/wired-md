@@ -1,0 +1,25 @@
+/* Catalog theme "paper": light.
+
+   Warm white paper with a brown black ink and a brick red accent, the way a
+   printed book marks its headings. Lighter and cleaner than parchment.
+
+   Not seeded: it ships in themes/catalog and lands in the user's themes folder
+   only when installed from the gallery. Every text pairing is measured by
+   scripts/measure-contrast.mjs and sits inside 4.5:1 to 11:1. */
+
+:root {
+  --bg:#f8f5ee; --bg-2:#f0ebe1; --bg-3:#e6e0d3;
+  --rule:#bdb4a3; --rule-soft:#e3ddd0; --rule-row:#cfc6b5; --leader:#c8bfad;
+  /* 9.97 / 7.60 / 6.01 against --bg; the faint ink still gives 4.98 on --bg-3 */
+  --ink:#433c34; --ink-dim:#564d43; --ink-faint:#665c4f;
+  --accent:#993b29; --accent-soft:#933927; --accent-ink:#9a3b29; --accent-dim:#cb8979;
+  --accent-rgb:153,59,41;
+  /* measured against this background: 0.73 gives 4.63:1 on dimmed text */
+  --focus-dim:0.73;
+  --green:#34643d; --amber:#70561d; --red:#a03535;
+  /* the search highlight ink is solved against the COMPOSITE (accent at 0.18
+     over the row), not against the row: 5.71:1 over bg-2, 5.21:1 over bg-3 */
+  --search-hit-ink:#7f3122; --warn-ink:#72581e; --schema-ink:#953928;
+  /* glyph of the close button over its red hover fill: 6.81:1 over --red */
+  --win-close-ink:#fefefe;
+}
