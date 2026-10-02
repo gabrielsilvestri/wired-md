@@ -10,6 +10,7 @@ import { svgIcon, ICON_CHEVRON, ICON_FOLDER, ICON_FILE } from './icons.js';
 import { askInput } from './dialogs.js';
 import { showCtxMenu, showFileContextMenu, showFolderContextMenu, showRecentContextMenu } from './context-menu.js';
 import { openPath, newFile, setPaneDirty, closePane, paneWithPath, updatePaneHeader, updateAllBreadcrumbs } from './panes.js';
+import { syncWatches } from './disk-sync.js';
 import { updateChrome } from './titlebar.js';
 import { newFromTemplate } from './templates.js';
 import { gitSlot, scheduleGitRefresh } from './git.js';
@@ -305,6 +306,7 @@ export function pathRenamed(from, to) {
     pane.path = to;
     updatePaneHeader(pane);
     updateChrome();
+    syncWatches(); // the tab follows the file under its new name
   }
   const isDir = !/\.(md|markdown)$/i.test(from);
   // The map can produce a duplicate when the destination path was already in

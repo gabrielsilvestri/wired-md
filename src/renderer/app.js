@@ -23,6 +23,7 @@ import { hideCtxMenu, isCtxMenuOpen } from './modules/context-menu.js';
 import { openPalette, closePalette, isPaletteOpen, PALETTE_ACTIONS, registerPaletteAction, fuzzyScore } from './modules/palette.js';
 import { openSearch, closeSearch, isSearchOpen, getSearchHits, getSearchSel } from './modules/search.js';
 import { handleFindKey } from './modules/find.js';
+import { getDiskReloads } from './modules/disk-sync.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
 import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterMode, caretBlock, scrollContainerOf } from './modules/focus-typewriter.js';
@@ -178,6 +179,7 @@ expose({
   treeFiles: { get: () => getTreeFiles() },
   searchHits: { get: () => getSearchHits() },
   searchSel: { get: () => getSearchSel() },
+  diskReloads: { get: () => getDiskReloads() },
   selectedDir: { get: () => getSelectedDir(), set: (v) => setSelectedDir(v) },
   templateSel: { get: () => getTemplateSel(), set: (v) => setTemplateSel(v) },
   suppressExplorer: { get: () => getSuppressExplorer(), set: (v) => setSuppressExplorer(v) },

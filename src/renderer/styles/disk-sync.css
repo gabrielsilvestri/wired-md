@@ -1,0 +1,78 @@
+/* The row a pane shows when its file changed on disk under unsaved edits, or
+   left the disk. Same family as the frontmatter warning: amber ink
+   (--warn-ink, falling back to --amber for third party themes) over the pane
+   surface --bg-2, already measured inside 4.5:1 to 11:1 in every bundled
+   theme. The buttons are --ink on --bg-2, also measured (the E2E check
+   26-disk-sync reads both pairs back from the live DOM in all five themes). */
+
+.disk-row {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 6px 10px 6px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--rule-soft);
+  box-shadow: inset 2px 0 0 var(--warn-ink, var(--amber));
+  color: var(--warn-ink, var(--amber));
+  font-size: 12px;
+  line-height: 1.4;
+  animation: overlay-fade var(--t-fast) var(--ease);
+}
+
+/* The sentence takes the width it needs and wraps before the buttons do: in a
+   narrow group the buttons drop to their own line instead of squeezing it. */
+.disk-lead {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.disk-ico { flex: 0 0 auto; margin-top: 2px; }
+
+.disk-msg {
+  min-width: 0;
+  max-width: 75ch;
+  text-wrap: pretty;
+}
+
+.disk-actions {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.disk-btn {
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 3px 9px;
+  font: inherit;
+  line-height: 1.3;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+
+.disk-btn:hover { border-color: var(--accent); }
+.disk-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Ctrl+S while the conflict is open does not write: the row answers with a
+   short pulse of its stripe instead, so the refusal is visible. */
+.disk-row.pulse { animation: disk-pulse 600ms var(--ease); }
+
+@keyframes disk-pulse {
+  0%, 100% { box-shadow: inset 2px 0 0 var(--warn-ink, var(--amber)); }
+  30% { box-shadow: inset 6px 0 0 var(--warn-ink, var(--amber)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disk-row, .disk-row.pulse { animation: none; }
+}

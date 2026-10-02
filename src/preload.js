@@ -165,6 +165,10 @@ contextBridge.exposeInMainWorld('wired', {
   dirTree: (root) => ipcRenderer.invoke('dir:tree', root),
   watchDir: (root) => ipcRenderer.invoke('dir:watch', root),
   onDirChanged: (cb) => ipcRenderer.on('dir:changed', (_ev, root) => cb(root)),
+  // open notes followed on disk (modules/disk-sync.js)
+  watchFiles: (paths) => ipcRenderer.invoke('filewatch:set', paths),
+  readForSync: (p) => ipcRenderer.invoke('filewatch:read', p),
+  onFileChanged: (cb) => ipcRenderer.on('file:changed', (_ev, info) => cb(info)),
   searchFolder: (root, query) => ipcRenderer.invoke('search:folder', root, query),
   setTitle: (t) => ipcRenderer.send('window:setTitle', t),
 
