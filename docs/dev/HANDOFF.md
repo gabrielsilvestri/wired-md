@@ -31,10 +31,6 @@ in `CHANGELOG.md`).
 
 ## Known gaps, none blocking
 
-- Closing a clean tab whose file is gone from disk discards the text without
-  asking. A popup would break the E2E `forget()` helper; an inline prompt is
-  the better fix.
-- Setext headings (underlined with `===` or `---`) are not in the outline.
 - A plain click on a link does nothing; Ctrl+click follows it, by design.
 - Profiles that predate the `onboarded` key (the owner's included) see the
   welcome once after this update. Esc or skip dismisses it for good.

@@ -66,7 +66,11 @@ export function applyLinkBase(pane) {
     const img = node.querySelector(':scope > img');
     const rel = marker ? marker.textContent : '';
     if (!img || !rel || /^([a-z][a-z0-9+.-]+:|\/|[a-z]:[\\/])/i.test(rel)) continue;
-    img.setAttribute('src', base + encodeURI(rel));
+    // The marker is the Markdown as written, often already percent encoded (a
+    // pasted image's link is): decode first so a % is never encoded twice.
+    let plain = rel;
+    try { plain = decodeURI(rel); } catch {}
+    img.setAttribute('src', base + encodeURI(plain));
   }
 }
 

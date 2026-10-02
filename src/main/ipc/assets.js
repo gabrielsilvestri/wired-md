@@ -115,7 +115,7 @@ function resolveLink(notePath, target) {
     }
   }
   if (raw === '') return { ok: false, error: 'empty link' };
-  const abs = path.isAbsolute(raw) ? path.normalize(raw) : path.resolve(path.dirname(notePath || process.cwd()), raw);
+  const abs = path.isAbsolute(raw) ? path.normalize(raw) : path.resolve(notePath ? path.dirname(notePath) : process.cwd(), raw);
   if (!MD_EXT.test(abs)) return { ok: false, error: 'only Markdown notes open in the app', path: abs };
   let isFile = false;
   try {
