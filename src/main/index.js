@@ -24,6 +24,7 @@ const customizationIpc = require('./ipc/customization');
 const terminalIpc = require('./ipc/terminal');
 const themeImportIpc = require('./ipc/theme-import');
 const gitIpc = require('./ipc/git');
+const fileWatchIpc = require('./ipc/filewatch');
 const cli = require('./cli');
 
 let mainWindow = null;
@@ -121,6 +122,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     terminalIpc.killTerminal();
     treeIpc.closeDirWatcher();
+    fileWatchIpc.closeAllFileWatchers();
     mainWindow = null;
   });
 }
@@ -163,6 +165,7 @@ customizationIpc.register();
 themeImportIpc.register({ getWindow });
 terminalIpc.register({ send });
 gitIpc.register();
+fileWatchIpc.register({ send });
 
 // A later `wired ...` hands its argv here instead of opening a second window.
 app.on('second-instance', (_ev, argv, workingDirectory) => {

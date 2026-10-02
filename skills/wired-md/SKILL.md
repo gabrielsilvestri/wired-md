@@ -15,7 +15,10 @@ can put the right file in front of the human at the right moment.
 ## The one rule that shapes everything else
 
 **To change a note, write the file on disk with your normal file tools.** The
-editor watches the folder and picks the change up on its own. The CLI has no
+editor watches every open note and picks the change up on its own: a pane with
+no unsaved edits reloads in place, and a pane the human is editing shows a row
+asking them to reload from disk or keep their version (nothing is overwritten
+silently in either direction). The CLI has no
 content API and will never get one: pushing text through a command line would be
 a worse version of what you already do well.
 

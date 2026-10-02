@@ -23,6 +23,7 @@ import { refreshFmPanel, scheduleFmRefresh } from './frontmatter.js';
 import { applyFocusMode, applyTypewriterMode, caretMoved } from './focus-typewriter.js';
 import { sendPaneToClaude } from './ai-bridge.js';
 import { gitBadge, gitStateFor, openDiff, scheduleGitRefresh } from './git.js';
+import { diskOpened, diskSaved, diskSaveGuard, syncWatches } from './disk-sync.js';
 
 // lucide git-compare, for the "view file diff" button in the pane header.
 const ICON_DIFF = ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8', 'M3 8a9 9 0 0 0 9 6', 'M21 8a9 9 0 0 1-9 6'];
@@ -791,6 +792,7 @@ export function closePane(pane) {
   group.tabs.splice(idx, 1);
   dropFromMru(pane.id);
   syncPanesArray();
+  syncWatches(); // a closed tab stops following its file
 
   const wasActive = getActivePaneId() === pane.id;
   const wasCurrent = group.currentId === pane.id;
@@ -970,6 +972,7 @@ export async function openInPane(pane, p, preloaded) {
   pane.path = p;
   pane.vditor.setValue(content);
   setPaneDirty(pane, false);
+  diskOpened(pane, content);
   refreshFmPanel(pane);
   // setValue swaps the DOM blocks: the focus marker has to be redone.
   applyFocusMode();
@@ -988,11 +991,16 @@ export async function save() {
     saveAs();
     return;
   }
-  const res = await window.wired.writeFile(pane.path, pane.vditor.getValue());
+  // Never over a version someone else wrote since we read the file: the guard
+  // raises the conflict row instead (see modules/disk-sync.js).
+  const content = pane.vditor.getValue();
+  if (!(await diskSaveGuard(pane, content))) return;
+  const res = await window.wired.writeFile(pane.path, content);
   if (!res.ok) {
     alert('Save failed: ' + res.error);
     return;
   }
+  diskSaved(pane, content);
   setPaneDirty(pane, false);
   scheduleGitRefresh(); // a save is exactly what turns a clean file into M
 }
@@ -1002,12 +1010,14 @@ export async function saveAs() {
   if (!pane || !pane.vditor) return;
   const p = await window.wired.saveAsDialog(pane.path);
   if (!p) return;
-  const res = await window.wired.writeFile(p, pane.vditor.getValue());
+  const content = pane.vditor.getValue();
+  const res = await window.wired.writeFile(p, content);
   if (!res.ok) {
     alert('Save failed: ' + res.error);
     return;
   }
   pane.path = p;
+  diskSaved(pane, content);
   setPaneDirty(pane, false);
   refreshFmPanel(pane); // the file name decides the schema (SKILL.md, agents/)
   updatePaneHeader(pane);
