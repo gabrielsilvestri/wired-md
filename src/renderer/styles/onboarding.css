@@ -1,0 +1,433 @@
+/* --- first run welcome and the AI CLI picker ---
+   Every text color here is an ink/surface pair the theme script already
+   measures in all five bundled themes: --ink, --ink-dim and --ink-faint on --bg
+   and --bg-2, --green and --accent-soft on --bg and --bg-2, --bg on --accent and
+   --accent-soft (the primary button). --accent as TEXT on --bg-2 is avoided on
+   purpose: it falls to 4.12:1 in the light theme. Check 75 measures them live. */
+
+/* Above settings (50), below the palette (60), so the palette can still open
+   on top of it, and below the input dialog (70) and the context menu (80). */
+#onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--titlebar-h) + 12px) 16px 16px;
+  background: rgba(0, 0, 0, 0.5);
+  animation: overlay-fade var(--t-fast) var(--ease);
+}
+
+#onboarding-overlay.hidden { display: none; }
+
+#onboarding {
+  width: 720px;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-2);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  box-shadow: 0 20px 56px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui);
+  outline: none;
+  animation: ctx-pop var(--t-med) var(--ease);
+}
+
+.onb-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 12px;
+}
+
+#onb-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.onb-lede {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  text-wrap: pretty;
+}
+
+.onb-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.onb-close:hover { background: var(--bg-3); color: var(--ink); }
+
+.onb-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 24px 6px;
+}
+
+.onb-section + .onb-section { margin-top: 16px; }
+
+.onb-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+.onb-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 50%;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-soft);
+}
+
+.onb-hint {
+  margin: 0 0 10px 32px;
+  max-width: 66ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+  text-wrap: pretty;
+}
+
+.onb-section h3 + .cli-picker,
+.onb-section h3 + .onb-themes,
+.onb-section h3 + .onb-fonts { margin-top: 10px; }
+
+/* --- cards: the CLI, theme and font picks share one look --- */
+
+.cli-card,
+.onb-theme,
+.onb-font {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 12px;
+  background: var(--bg);
+  border: 1px solid var(--rule-row);
+  border-radius: 7px;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.cli-card:hover,
+.onb-theme:hover,
+.onb-font:hover { border-color: var(--accent-dim); }
+
+.cli-card:active,
+.onb-theme:active,
+.onb-font:active { transform: translateY(0.5px); }
+
+/* Selected: the accent ring, plus a check so the state never rests on color
+   alone. The surface does not change, so every ink keeps its measured pair. */
+.cli-card.is-selected,
+.onb-theme.is-selected,
+.onb-font.is-selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.cli-card.is-selected::after,
+.onb-theme.is-selected::after,
+.onb-font.is-selected::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 14px;
+  height: 14px;
+  background: var(--accent-soft);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.cli-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.cli-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-code);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.cli-label {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.cli-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.cli-mark.is-found { color: var(--green); }
+
+/* Room for the check only where the check is drawn. */
+.cli-card.is-selected .cli-name { max-width: calc(100% - 18px); }
+
+/* Hollow when missing, filled when found: the shape carries the state too. */
+.cli-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+.cli-mark.is-found .cli-dot { background: currentColor; }
+
+.cli-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cli-custom label {
+  flex: 0 0 auto;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.cli-custom-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 32px;
+  padding: 4px 10px;
+  background: var(--bg);
+  border: 1px solid var(--rule-row);
+  border-radius: 6px;
+  color: var(--ink);
+  font-family: var(--font-code);
+  font-size: 13px;
+  outline: none;
+}
+
+.cli-custom-input::placeholder { color: var(--ink-faint); opacity: 1; }
+.cli-custom-input:focus { border-color: var(--accent-dim); }
+
+.cli-rescan {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--rule-row);
+  border-radius: 6px;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.cli-rescan:hover { color: var(--accent-soft); border-color: var(--accent-dim); }
+
+.cli-status {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* The same picker, denser, inside the settings pane. */
+.cli-picker.is-compact .cli-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
+.cli-picker.is-compact .cli-card { padding: 8px 10px; }
+.cli-picker.is-compact .cli-name { font-size: 13px; }
+.cli-picker.is-compact .cli-label { font-size: 11.5px; }
+.cli-picker.is-compact .cli-custom label { font-size: 12px; }
+.cli-picker.is-compact .cli-custom-input,
+.cli-picker.is-compact .cli-rescan { height: 28px; }
+.cli-picker.is-compact .cli-rescan { width: 28px; }
+#pane-ai .cli-picker { margin-bottom: 18px; }
+
+/* --- theme cards: a tiny page drawn in the theme's own colors --- */
+
+.onb-themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.onb-theme { padding: 8px; gap: 7px; }
+
+.onb-swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--sw-bg, var(--bg));
+  border: 1px solid var(--rule-soft);
+}
+
+.onb-swatch .sw-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 24%;
+  background: var(--sw-bg2, var(--bg-2));
+}
+
+.onb-swatch .sw-h,
+.onb-swatch .sw-l {
+  position: absolute;
+  left: 32%;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.onb-swatch .sw-h { top: 9px; width: 40%; height: 6px; background: var(--sw-accent, var(--accent)); }
+.onb-swatch .sw-l { background: var(--sw-ink, var(--ink)); }
+.onb-swatch .sw-l1 { top: 21px; width: 56%; }
+.onb-swatch .sw-l2 { top: 29px; width: 48%; }
+.onb-swatch .sw-l3 { top: 37px; width: 30%; background: var(--sw-dim, var(--ink-faint)); }
+
+.onb-card-name {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.onb-theme.is-selected::after { top: 12px; right: 12px; }
+
+/* --- font cards --- */
+
+/* Six bundled fonts: one row of six, or two rows of three, never five and an
+   orphan. */
+.onb-fonts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.onb-font-sample {
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+/* --- footer --- */
+
+.onb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--rule-soft);
+  margin-top: 12px;
+}
+
+.onb-links { display: flex; align-items: center; gap: 4px; }
+
+.onb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--ink-faint);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.onb-link:hover { color: var(--accent-soft); }
+
+.onb-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+
+.onb-skip {
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.onb-skip:hover { color: var(--ink); text-decoration: underline; }
+
+.onb-primary {
+  padding: 9px 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+
+.onb-primary:hover { background: var(--accent-soft); }
+.onb-primary:active { transform: translateY(0.5px); }
+.onb-primary:focus-visible { outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .onb-fonts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .onb-head, .onb-body, .onb-foot { padding-left: 16px; padding-right: 16px; }
+  .onb-hint { margin-left: 0; }
+  #onb-title { font-size: 21px; }
+}
+
+/* The keyboard ring sits clear of the selection ring, so a focused card never
+   reads as a second pick. */
+.cli-card:focus-visible,
+.onb-theme:focus-visible,
+.onb-font:focus-visible { outline-offset: 3px; }

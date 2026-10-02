@@ -36,6 +36,7 @@ import { initSettings, openSettings, closeSettings, isSettingsOpen, reflectFontS
 import './modules/portrait.js';
 import { initGallery } from './modules/gallery.js';
 import { initReading } from './modules/reading.js';
+import { initOnboarding } from './modules/onboarding.js';
 
 const panesEl = document.getElementById('panes');
 
@@ -292,4 +293,5 @@ initPanes();
   setTimeout(() => {
     if (!bootFileSeen && panes.length === 0) restoreSession();
   }, 350);
+  initOnboarding();
 })();

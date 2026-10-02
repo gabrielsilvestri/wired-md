@@ -27,7 +27,7 @@ const importStatusEl = document.getElementById('theme-import-status');
 const shortcutListEl = document.getElementById('shortcut-list');
 
 // Fonts that travel with the app (src/renderer/fonts): listed first.
-const BUNDLED_FONTS = ['Geist', 'Geist Mono', 'Mona Sans', 'Inter', 'Inter Display', 'Satoshi'];
+export const BUNDLED_FONTS = ['Geist', 'Geist Mono', 'Mona Sans', 'Inter', 'Inter Display', 'Satoshi'];
 
 const FALLBACK_FONTS = [
   'Segoe UI', 'Calibri', 'Cambria', 'Georgia', 'Verdana', 'Tahoma', 'Arial',

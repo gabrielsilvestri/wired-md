@@ -23,6 +23,7 @@
   <link rel="stylesheet" href="styles/outline.css">
   <link rel="stylesheet" href="styles/statusbar.css">
   <link rel="stylesheet" href="styles/customize.css">
+  <link rel="stylesheet" href="styles/onboarding.css">
   <style id="theme-style"></style>
   <style id="custom-style"></style>
 </head>
@@ -359,15 +360,14 @@
             <div id="gallery-grid"></div>
           </section>
 
-          <!-- Terminal and AI settings land here. Left deliberately empty: the
-               shell command, the startup cwd rule and the AI bridge behavior are
-               owned elsewhere, and inventing controls for them from this side
-               would mean guessing at their config keys. The tab, its icon and
-               its panel exist so that work is a matter of filling a section
-               rather than restructuring the panel again. -->
+          <!-- The AI CLI picker is built by modules/onboarding.js, the same
+               cards the first run welcome shows, bound to config.aiCliCommand. -->
           <section id="pane-ai" class="settings-pane" role="tabpanel" aria-labelledby="tab-ai" hidden>
-            <h3>terminal and AI</h3>
-            <p class="setting-hint">Nothing to configure here yet. The terminal takes its folder from the note you are in, and the bridge to claude never presses Enter for you.</p>
+            <h3>AI CLI</h3>
+            <p class="setting-hint">The command the sparkles button types into the terminal. It runs /cd to the note's folder and leaves the note path on the prompt, and it never presses Enter: sending is your call.</p>
+            <div id="ai-cli-picker"></div>
+            <h3>terminal</h3>
+            <p class="setting-hint">The terminal opens in the folder of the note you are in.</p>
           </section>
 
           <section id="pane-shortcuts" class="settings-pane" role="tabpanel" aria-labelledby="tab-shortcuts" hidden>

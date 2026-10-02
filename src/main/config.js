@@ -58,6 +58,13 @@ const READING_DEFAULTS = {
 };
 
 const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS, AI_DEFAULTS, READING_DEFAULTS);
+// The first run welcome (AI CLI, theme, font) opens on its own until it is
+// finished or skipped once.
+const ONBOARDING_DEFAULTS = {
+  onboarded: false
+};
+
+const DEFAULT_CONFIG = Object.assign({}, APPEARANCE_DEFAULTS, LAYOUT_DEFAULTS, WORKSPACE_DEFAULTS, AI_DEFAULTS, ONBOARDING_DEFAULTS);
 
 // Names that shipped before the project went English only. A config written by
 // an older build still points at them, so they are mapped on read instead of
