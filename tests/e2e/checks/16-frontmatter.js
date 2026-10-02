@@ -4,7 +4,7 @@
 // degrades to a read only view, and the palette toggle persists.
 
 async function run(ctx) {
-  const { js, key, sleep, check, fs, path, win, forget, openPath, readConfigFile, demoPath, rootDir, fixtures } = ctx;
+  const { js, key, sleep, check, fs, path, win, forget, openPath, readConfigFile, userDir, demoPath, rootDir, fixtures } = ctx;
 
   const fmPath = fixtures.skill;
   const fmOriginal = fs.readFileSync(fmPath, 'utf8');
@@ -79,6 +79,27 @@ async function run(ctx) {
     !!skill && skill.schema === 'skill' && skillWarnings.some((a) => /the description key is missing/.test(a)) && skillWarnings.some((a) => /describe.*typo.*description/.test(a)),
     JSON.stringify(skill)
   );
+
+  // A custom slash command (.claude/commands/*.md): every key is optional and
+  // the file name is the command name, so a name key is what gets flagged. A
+  // full claude- model ID is as valid as an alias.
+  const cmdDir = userDir('cmd-e2e', '.claude', 'commands');
+  const cmdPath = path.join(cmdDir, 'review-e2e.md');
+  fs.mkdirSync(cmdDir, { recursive: true });
+  fs.writeFileSync(cmdPath, '---\nname: review\ndescription: ""\nmodel: claude-opus-5-5\nallowed-tools: Read, Grep\n---\nReview $ARGUMENTS\n', 'utf8');
+  await openPath(cmdPath);
+  const cmd = await js(
+    `(function(){var p=document.querySelector('#panes .pane.active .fm-panel');if(!p)return null;return {schema:(p.querySelector('.fm-schema')||{}).textContent,warnings:[...p.querySelectorAll('.fm-warn')].map(function(w){return w.textContent;})};})()`
+  );
+  const cmdWarnings = (cmd && cmd.warnings) || [];
+  check(
+    'properties: a .claude/commands file gets the command schema, which flags a name key and an empty description and accepts a full model ID',
+    !!cmd && cmd.schema === 'command' && cmdWarnings.some((a) => /named after its file/.test(a)) &&
+      cmdWarnings.some((a) => /description is empty/.test(a)) && !cmdWarnings.some((a) => /model/.test(a)),
+    JSON.stringify(cmd)
+  );
+  await forget(['review-e2e']);
+  fs.rmSync(userDir('cmd-e2e'), { recursive: true, force: true });
 
   const brokenPath = path.join(skillDir, 'broken-e2e.md');
   fs.writeFileSync(brokenPath, '---\nname: [this never closes\ndescription: hi\n---\n# broken\n', 'utf8');

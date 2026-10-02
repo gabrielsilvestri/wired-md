@@ -32,7 +32,9 @@ export function splitFrontmatter(text) {
   return { raw: m[1], block: m[0], body: text.slice(m[0].length) };
 }
 
-const COMMON_MODELS = ['sonnet', 'opus', 'haiku', 'inherit'];
+const COMMON_MODELS = ['sonnet', 'opus', 'haiku', 'fable', 'inherit'];
+// A full model ID (claude-sonnet-5-5 and the like) is as valid as an alias.
+const MODEL_ID = /^claude-[a-z0-9.-]+$/i;
 
 // Keys that look like the ones that matter: a silent typo is what breaks agents.
 const FM_LOOKALIKES = {
@@ -43,12 +45,14 @@ const FM_LOOKALIKES = {
 };
 
 // skill: SKILL.md. subagent: a file inside a folder called agents, or one with
-// name next to tools/model. Everything else is generic (YAML validity only).
+// name next to tools/model. command: a file under a .claude/commands folder
+// (subfolders namespace it). Everything else is generic (YAML validity only).
 export function fmSchema(p, keys) {
   const base = p ? baseName(p).toLowerCase() : '';
   const folder = p ? baseName(dirName(p)).toLowerCase() : '';
   if (base === 'skill.md') return 'skill';
   if (folder === 'agents') return 'subagent';
+  if (p && /[\\/]\.claude[\\/]commands[\\/]/i.test(p)) return 'command';
   if (keys.includes('name') && (keys.includes('tools') || keys.includes('model'))) return 'subagent';
   return 'generic';
 }
@@ -62,6 +66,7 @@ export function fmValidate(schema, entries) {
   const warnings = [];
   const keys = entries.map((e) => e.key);
   if (schema === 'generic') return warnings;
+  if (schema === 'command') return fmValidateCommand(entries, keys);
 
   const name = fmEntry(entries, 'name');
   if (!name) warnings.push('the name key is missing');
@@ -75,27 +80,50 @@ export function fmValidate(schema, entries) {
   const tools = fmEntry(entries, 'tools');
   if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') warnings.push('tools should be a list or a comma separated string');
 
-  const model = fmEntry(entries, 'model');
-  if (model && typeof model.value === 'string' && model.value.trim() && !COMMON_MODELS.includes(model.value.trim().toLowerCase())) {
-    warnings.push('model "' + model.value.trim() + '" is not one of the common ones (' + COMMON_MODELS.join(', ') + ')');
-  }
+  modelWarning(entries, warnings);
+  lookalikeWarnings(keys, warnings);
+  return warnings;
+}
 
+function modelWarning(entries, warnings) {
+  const model = fmEntry(entries, 'model');
+  const v = model && typeof model.value === 'string' ? model.value.trim() : '';
+  if (v && !COMMON_MODELS.includes(v.toLowerCase()) && !MODEL_ID.test(v)) {
+    warnings.push('model "' + v + '" is not one of the common ones (' + COMMON_MODELS.join(', ') + ') or a claude- model ID');
+  }
+}
+
+function lookalikeWarnings(keys, warnings) {
   for (const k of keys) {
     const right = FM_LOOKALIKES[k];
     if (right && !keys.includes(right)) warnings.push('"' + k + '" looks like a typo of "' + right + '"');
     else if (right) warnings.push('"' + k + '" is redundant next to "' + right + '"');
   }
+}
+
+// A custom slash command: every key is optional, and the file name IS the
+// command name, so a name key is the one mistake worth flagging.
+function fmValidateCommand(entries, keys) {
+  const warnings = [];
+  if (fmEntry(entries, 'name')) warnings.push('a command is named after its file; the name key is ignored here');
+  const desc = fmEntry(entries, 'description');
+  if (desc && (typeof desc.value !== 'string' || desc.value.trim() === '')) warnings.push('description is empty (the / menu shows it)');
+  const tools = fmEntry(entries, 'allowed-tools');
+  if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') warnings.push('allowed-tools should be a list or a comma separated string');
+  modelWarning(entries, warnings);
+  lookalikeWarnings(keys.filter((k) => k !== 'Name' && k !== 'NAME' && k !== 'naem'), warnings);
   return warnings;
 }
 
-const FM_SCHEMA_LABEL = { skill: 'skill', subagent: 'subagent', generic: 'generic' };
+const FM_SCHEMA_LABEL = { skill: 'skill', subagent: 'subagent', command: 'command', generic: 'generic' };
 
 // The keys each schema actually reads. They are offered first in the add row, so
 // the common case is picking a real key instead of typing one and finding out
 // later that the agent ignored it.
 const FM_SCHEMA_KEYS = {
-  skill: ['name', 'description', 'license', 'allowed-tools', 'metadata'],
-  subagent: ['name', 'description', 'tools', 'model', 'color'],
+  skill: ['name', 'description', 'license', 'allowed-tools', 'metadata', 'when_to_use', 'argument-hint', 'model', 'disable-model-invocation', 'context'],
+  subagent: ['name', 'description', 'tools', 'model', 'color', 'disallowedTools', 'permissionMode', 'maxTurns', 'skills', 'effort'],
+  command: ['description', 'argument-hint', 'allowed-tools', 'model', 'disable-model-invocation', 'effort'],
   generic: []
 };
 
