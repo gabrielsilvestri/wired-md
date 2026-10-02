@@ -10,3 +10,6 @@
 .status-bar.hidden, .status-bar .hidden { display: none; }
 .status-bar #status-tokens { cursor: help; }
 .status-bar #status-selection { margin-left: auto; color: var(--accent-soft); }
+.status-bar #status-imports { cursor: help; }
+/* A broken import is worth noticing: the same amber the disk sync row uses. */
+.status-bar #status-imports.imports-missing { color: var(--warn-ink, var(--amber)); }

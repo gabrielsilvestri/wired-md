@@ -44,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PATH or not, or any command), a theme with a live preview and the document
   font. Skip or Esc closes it for good, and "welcome and setup" in the palette
   brings it back. Its footer links to the repository and to Buy me a coffee.
+- CLAUDE.md imports in the editor. In a `CLAUDE.md`, `CLAUDE.local.md` or
+  `AGENTS.md`, the status bar adds what its `@path` imports bring into the
+  context (four hops deep, as Claude Code loads them; code spans, fences and
+  email addresses are not imports; `\ ` escapes a space), with every file and
+  its share in the tooltip and a missing import flagged in amber. Ctrl+click
+  on an `@path` opens it.
 - Custom slash commands get their own properties schema: a file under
   `.claude/commands/` offers `description`, `argument-hint`, `allowed-tools`
   and `model` first and flags a `name` key (the file name is the command

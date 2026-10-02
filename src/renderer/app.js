@@ -27,6 +27,7 @@ import { getDiskReloads } from './modules/disk-sync.js';
 import './modules/links.js';
 import './modules/outline.js';
 import './modules/statusbar.js';
+import './modules/memory-imports.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
 import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterMode, caretBlock, scrollContainerOf } from './modules/focus-typewriter.js';

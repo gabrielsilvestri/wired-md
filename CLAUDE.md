@@ -65,6 +65,7 @@ src/main/            Electron main process (CommonJS)
   ipc/filewatch.js   one fs.watch per parent folder of every open file
   ipc/assets.js      external links (allowlisted schemes) and pasted images
   ipc/onboarding.js  AI CLI detection on PATH and the first run gate
+  ipc/imports.js     CLAUDE.md @path imports, walked the way Claude Code does
 src/preload.js       contextBridge surface plus the YAML frontmatter parser
 src/renderer/
   index.html         the whole DOM, loading the vendored assets
@@ -90,7 +91,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -198,6 +199,11 @@ These cost real debugging time. None of them are optional.
 - **Content observers watch the DOM, not the Vditor input callback.**
   `setValue` (templates, tests, disk reloads) never fires `input`, so the
   outline and the status bar use a MutationObserver on `#panes`.
+- **CLAUDE.md imports follow Claude Code's documented rules** (code.claude.com
+  docs, memory page): relative to the importing file, `~` for home, `\ ` for a
+  space, nothing in code spans or fences, a quoted path is no import, four hops
+  at most. `src/main/ipc/imports.js` holds them; check 29 pins them. Change them
+  only against the docs, never from memory.
 - **Links follow on Ctrl+click only.** Vditor opens links on a plain click
   unless `link: { isOpen: false }`, which panes.js sets. Relative images work
   through `lute.SetLinkBase` (the note's folder as a file URL) in `openInPane`

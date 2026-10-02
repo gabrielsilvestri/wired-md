@@ -188,6 +188,8 @@ contextBridge.exposeInMainWorld('wired', {
   // links and assets (src/main/ipc/assets.js)
   openExternal: (url) => ipcRenderer.invoke('link:openExternal', url),
   resolveLink: (note, target) => ipcRenderer.invoke('link:resolve', note, target),
+  scanImports: (note, source) => ipcRenderer.invoke('imports:scan', note, source),
+  resolveImport: (note, raw) => ipcRenderer.invoke('imports:resolve', note, raw),
   savePastedImage: (note, mime, bytes) => ipcRenderer.invoke('assets:savePasted', note, mime, bytes),
   pathForFile: (file) => {
     try {
