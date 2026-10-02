@@ -24,6 +24,7 @@ import { openPalette, closePalette, isPaletteOpen, PALETTE_ACTIONS, registerPale
 import { openSearch, closeSearch, isSearchOpen, getSearchHits, getSearchSel } from './modules/search.js';
 import { handleFindKey } from './modules/find.js';
 import { getDiskReloads } from './modules/disk-sync.js';
+import './modules/links.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
 import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterMode, caretBlock, scrollContainerOf } from './modules/focus-typewriter.js';

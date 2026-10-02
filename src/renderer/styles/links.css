@@ -1,0 +1,22 @@
+/* Inline status row of a pane (a link to a missing note, an image that needs a
+   saved note). Same warning ink as the frontmatter rows (--warn-ink, measured
+   4.5:1 to 11:1 on --bg-2 in every bundled theme) over the same surface; never
+   a popup, never a block on typing. */
+.pane-status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--warn-ink, var(--amber));
+  min-width: 0;
+}
+.pane-status span { min-width: 0; overflow-wrap: anywhere; }
+.pane-status-ico { flex: 0 0 auto; }
+
+/* Ctrl held over a link: it looks followable. */
+body.ctrl-down .vditor-ir [data-type="a"] { cursor: pointer; }

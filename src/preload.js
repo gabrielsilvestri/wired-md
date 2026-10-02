@@ -1,7 +1,7 @@
 // Safe bridge between the renderer and main. It exposes only what the editor
 // needs, plus the frontmatter parser.
 
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const YAML = require('yaml');
 
 // --- frontmatter: parsing and editing of the YAML block ---
@@ -180,6 +180,17 @@ contextBridge.exposeInMainWorld('wired', {
   trashPath: (p) => ipcRenderer.invoke('fs:trash', p),
   duplicateFile: (p) => ipcRenderer.invoke('fs:duplicate', p),
   exportFile: (p) => ipcRenderer.invoke('fs:export', p),
+  // links and assets (src/main/ipc/assets.js)
+  openExternal: (url) => ipcRenderer.invoke('link:openExternal', url),
+  resolveLink: (note, target) => ipcRenderer.invoke('link:resolve', note, target),
+  savePastedImage: (note, mime, bytes) => ipcRenderer.invoke('assets:savePasted', note, mime, bytes),
+  pathForFile: (file) => {
+    try {
+      return webUtils.getPathForFile(file) || '';
+    } catch {
+      return '';
+    }
+  },
   onOpenFilePath: (cb) => ipcRenderer.on('open-file-path', (_ev, p) => cb(p)),
 
   // config, themes and snippets
