@@ -380,6 +380,9 @@ const SHORTCUTS = [
     ['Ctrl+P', 'Quick switcher'],
     ['Ctrl+Shift+P', 'Command palette'],
     ['Ctrl+Shift+F', 'Search the folder contents'],
+    ['Ctrl+F', 'Find in the note'],
+    ['Ctrl+H', 'Find and replace in the note'],
+    ['Ctrl+click', 'Follow a link, or an @import in a CLAUDE.md'],
     ['Esc', 'Close the overlay in front']
   ]],
   ['writing', [
