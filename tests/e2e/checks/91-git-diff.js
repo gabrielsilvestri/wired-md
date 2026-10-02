@@ -73,7 +73,7 @@ function parseRgb(s) {
 const inRange = (x) => x >= 4.5 && x <= 11;
 
 async function run(ctx) {
-  const { js, check, sleep, demoPath } = ctx;
+  const { js, check, sleep, until, demoPath } = ctx;
 
   const before = fs.readFileSync(demoPath, 'utf8');
   fs.writeFileSync(demoPath, before + '\nan added line the diff must show\n', 'utf8');
@@ -83,7 +83,9 @@ async function run(ctx) {
   await sleep(900);
 
   await js(`void openDiff(${JSON.stringify(demoPath)})`);
-  await sleep(1400);
+  // `git diff` is a spawn: poll until the overlay has read it.
+  await sleep(300);
+  await until(`isDiffOpen()&&document.querySelectorAll('#diff-body .diff-add').length>0`, { ceiling: 10000 });
 
   const view = await js(
     `(function(){if(!isDiffOpen())return {open:false};` +

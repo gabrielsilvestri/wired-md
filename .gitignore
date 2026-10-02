@@ -29,3 +29,6 @@ Desktop.ini
 # personal Windows launcher with a hardcoded absolute path (do not version).
 # the portable, path-free version lives in scripts/windows/
 launcher/
+
+# git worktrees made by Claude Code sessions
+.claude/worktrees/

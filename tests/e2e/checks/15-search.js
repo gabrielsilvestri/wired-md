@@ -2,7 +2,7 @@
 // results with counts, the highlighted snippet, keyboard navigation, and Esc.
 
 async function run(ctx) {
-  const { js, key, sleep, check, fs, path, forget, openPath, demoPath, rootDir } = ctx;
+  const { js, key, sleep, check, fs, path, forget, openPath, until, demoPath, rootDir } = ctx;
 
   const fileA = path.join(rootDir, 'search-a-e2e.md');
   const fileB = path.join(rootDir, 'search-b-e2e.md');
@@ -18,7 +18,9 @@ async function run(ctx) {
   check('full text search: Ctrl+Shift+F opens the overlay with the field focused', !!opened && opened.open && opened.focused, JSON.stringify(opened));
 
   await js(`(function(){var i=document.getElementById('search-input');i.value='zebrafone';i.dispatchEvent(new Event('input'));})()`);
-  await sleep(1200);
+  // The first ripgrep spawn of a run can be slow (a cold binary on Windows),
+  // so the answer is polled for instead of slept on.
+  await until(`/results? in/.test(document.getElementById('search-status').textContent)`);
   const results = await js(
     `(function(){var files=[...document.querySelectorAll('#search-results .search-file')].map(function(f){return {name:f.querySelector('span').textContent,n:f.querySelector('.search-file-count').textContent};});return {files:files,lines:document.querySelectorAll('#search-results .search-line').length,status:document.getElementById('search-status').textContent,hits:searchHits.length};})()`
   );
@@ -40,7 +42,8 @@ async function run(ctx) {
   await sleep(200);
   const sel = await js(`(function(){return {idx:searchSel,path:searchHits[searchSel]?searchHits[searchSel].path:null};})()`);
   await js(`document.getElementById('search-input').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}))`);
-  await sleep(1200);
+  await sleep(400);
+  await until(`currentPath===${JSON.stringify(fileB)}`, { ceiling: 5000 });
   const openedHit = await js('currentPath');
   check(
     'full text search: arrows walk the matches and Enter opens the right file',

@@ -95,9 +95,27 @@ function createContext({ window: win, app, filePath }) {
     await sleep(400);
   };
 
+  // Polls a renderer expression until it is truthy, or gives up at the ceiling
+  // and returns the last value. A fixed sleep is a guess about how busy the
+  // machine is; under a full run it guesses wrong.
+  const until = async (expr, opts) => {
+    const o = Object.assign({ ceiling: 8000, step: 100 }, opts || {});
+    const started = Date.now();
+    let v = await js(expr);
+    while (!v && Date.now() - started < o.ceiling) {
+      await sleep(o.step);
+      v = await js(expr);
+    }
+    return v;
+  };
+
+  // The fixed sleep stays as a floor (checks after it measure layout that
+  // settles a little later), and the poll covers a slow machine: the file has
+  // to be in a ready pane before the caller touches the editor.
   const openPath = async (p, side) => {
     await js(`void openPath(${JSON.stringify(p)}, ${side ? 'true' : 'false'})`);
     await sleep(side ? 1200 : 700);
+    await until(`panes.some(function(x){return x.ready&&x.path===${JSON.stringify(p)};})`, { ceiling: 6000 });
   };
 
   const demoPath = filePath;
@@ -121,6 +139,7 @@ function createContext({ window: win, app, filePath }) {
     waitTerminal,
     forget,
     openPath,
+    until,
     demoPath,
     rootDir,
     fixtures: {
