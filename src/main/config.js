@@ -36,7 +36,10 @@ const WORKSPACE_DEFAULTS = {
   treeSort: 'az',
   frontmatterPanel: true,
   focusMode: false,
-  typewriterMode: false
+  typewriterMode: false,
+  statusBar: true,
+  outline: true,
+  outlineCollapsed: false
 };
 
 // The AI CLI the bridge brings up in the terminal. It is a name, not a path:
