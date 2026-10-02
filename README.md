@@ -91,7 +91,7 @@ node scripts/smoke-installed.mjs "%LOCALAPPDATA%\Programs\wired-md\wired-md.exe"
 - `Ctrl+P` quick switcher (files), `Ctrl+Shift+P` command palette (actions), `Ctrl+Shift+F` full text search. Enter opens or runs, `Ctrl+Enter` opens beside, `Esc` closes.
 - `Ctrl+W` closes the active tab.
 - `Ctrl+F` finds text in the current note; `Ctrl+H` opens replacement. `Enter` / `Shift+Enter` in the search field (or `F3` / `Shift+F3` with the bar open) go to the next / previous match. `Enter` in the replacement field replaces one match. `Esc` closes the bar.
-- `Ctrl+click` a file in the tree or Recents to open it in the group beside the current one.
+- `Ctrl+click` a file in the tree or Recents to open it in the group beside the current one. `Ctrl+click` in the text follows a link, or an `@import` in a `CLAUDE.md`.
 - `Ctrl+=` / `Ctrl+-` / `Ctrl+0` change document font size; `Ctrl+scroll` over the text also works.
 - `Ctrl+\`` toggles the embedded terminal.
 - `F8` focus mode, `F9` typewriter mode.
