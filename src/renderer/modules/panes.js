@@ -23,6 +23,7 @@ import { refreshFmPanel, scheduleFmRefresh } from './frontmatter.js';
 import { applyFocusMode, applyTypewriterMode, caretMoved } from './focus-typewriter.js';
 import { sendPaneToClaude } from './ai-bridge.js';
 import { gitBadge, gitStateFor, openDiff, scheduleGitRefresh } from './git.js';
+import { applyLinkBase } from './links.js';
 
 // lucide git-compare, for the "view file diff" button in the pane header.
 const ICON_DIFF = ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8', 'M3 8a9 9 0 0 0 9 6', 'M21 8a9 9 0 0 1-9 6'];
@@ -90,6 +91,9 @@ function vditorOptions(pane) {
       math: { inlineDigit: false }
     },
     placeholder: '',
+    // Vditor opens a link on a plain click in an expanded node. Following a link
+    // is Ctrl+click (modules/links.js); a plain click only places the caret.
+    link: { isOpen: false },
     input: () => {
       setPaneDirty(pane, true);
       // The first character typed into an untitled tab retires the empty state.
@@ -968,6 +972,7 @@ export async function openInPane(pane, p, preloaded) {
     content = res.content;
   }
   pane.path = p;
+  applyLinkBase(pane); // before the render: relative images resolve against the note
   pane.vditor.setValue(content);
   setPaneDirty(pane, false);
   refreshFmPanel(pane);
@@ -1008,6 +1013,7 @@ export async function saveAs() {
     return;
   }
   pane.path = p;
+  applyLinkBase(pane);
   setPaneDirty(pane, false);
   refreshFmPanel(pane); // the file name decides the schema (SKILL.md, agents/)
   updatePaneHeader(pane);

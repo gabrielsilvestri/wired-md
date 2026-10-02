@@ -24,6 +24,7 @@ const customizationIpc = require('./ipc/customization');
 const terminalIpc = require('./ipc/terminal');
 const themeImportIpc = require('./ipc/theme-import');
 const gitIpc = require('./ipc/git');
+const assetsIpc = require('./ipc/assets');
 const cli = require('./cli');
 
 let mainWindow = null;
@@ -86,6 +87,9 @@ function createWindow() {
   });
 
   if (state.maximized) mainWindow.maximize();
+
+  // The window never leaves index.html; links go through assetsIpc.openExternal.
+  assetsIpc.guardWindow(mainWindow);
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
@@ -163,6 +167,7 @@ customizationIpc.register();
 themeImportIpc.register({ getWindow });
 terminalIpc.register({ send });
 gitIpc.register();
+assetsIpc.register();
 
 // A later `wired ...` hands its argv here instead of opening a second window.
 app.on('second-instance', (_ev, argv, workingDirectory) => {
