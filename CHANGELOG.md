@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The git badges no longer leave a stale `.git/index.lock` behind. Every read
+  only git call runs with `GIT_OPTIONAL_LOCKS=0`, so a status killed mid way (a
+  timeout, the app quitting) can no longer block the next commit.
+- The search, find and diff checks poll for their result instead of sleeping a
+  fixed amount, so a busy machine no longer turns a full `npm test` red.
 - `wired open` now exits with an error when the editor does not answer, instead
   of printing a path as if the open had succeeded. It also rejects directories.
 - Clicking into the document keeps the selected theme's paper color. Vditor's
