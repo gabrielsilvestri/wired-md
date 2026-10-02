@@ -88,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The app no longer downloads a spellcheck dictionary from Google on first
+  launch. The editor never used spellcheck (Vditor turns it off), but
+  Chromium's session still fetched `en-US-10-1.bdic`.
 - Closing the window with unsaved tabs no longer throws the edits away in
   silence. It asks once, naming the notes: save all (through the normal save,
   so the disk conflict guard still holds and an untitled tab asks for a name),

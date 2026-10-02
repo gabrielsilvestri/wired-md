@@ -44,6 +44,11 @@ npm test
 Use `npm run test:cli` to run the runner and packaged CLI checks without
 starting Electron.
 
+`npm test` ends with `npm run test:crash`: it launches the app from the
+checkout over the DevTools protocol, leaves a note with unsaved edits, kills the
+whole process tree, relaunches with the same profile and expects the edits back.
+The E2E suite cannot do that from inside the process it would have to kill.
+
 The E2E suite is the source of truth for "does it still work". Run it before
 opening a pull request, ideally twice in a row (a couple of checks, notably the
 terminal shell startup, can be timing sensitive; a re run confirms it is not a
