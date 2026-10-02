@@ -30,6 +30,7 @@ import './modules/statusbar.js';
 import './modules/memory-imports.js';
 import './modules/editor-menu.js';
 import './modules/close-guard.js';
+import { restoreRecovery } from './modules/recovery.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
 import { applyFocusMode, applyTypewriterMode, toggleFocusMode, toggleTypewriterMode, caretBlock, scrollContainerOf } from './modules/focus-typewriter.js';
@@ -293,8 +294,10 @@ initPanes();
   // The launch file arrives on its own channel and can land a beat after the
   // config does, so the session is restored only once it is clear that nothing
   // was handed over.
-  setTimeout(() => {
-    if (!bootFileSeen && panes.length === 0) restoreSession();
+  setTimeout(async () => {
+    if (!bootFileSeen && panes.length === 0) await restoreSession();
+    // After the session, so a recovered note lands in its restored tab.
+    await restoreRecovery();
   }, 350);
   initOnboarding();
 })();

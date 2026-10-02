@@ -48,6 +48,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   PATH or not, or any command), a theme with a live preview and the document
   font. Skip or Esc closes it for good, and "welcome and setup" in the palette
   brings it back. Its footer links to the repository and to Buy me a coffee.
+- Unsaved edits survive a crash. While a tab has unsaved changes a snapshot of
+  its text is kept in `%APPDATA%\wired-mdecovery` and removed once the tab
+  is saved or closed clean. Snapshots found at launch come back as unsaved tabs
+  with an inline note (a new tab when the file itself is gone). "Don't save" on
+  close throws them away, so discarded edits never return.
 - A right click menu inside the note. Electron draws none, so a right click in
   the text did nothing; now it offers cut and copy (with a selection), paste,
   select all, sending the selection to the AI CLI, find in note, and on a link

@@ -5,6 +5,7 @@
 // name), and the window only closes when every tab really came out clean.
 import { panes, baseName } from './state.js';
 import { setActivePane, save, saveAs } from './panes.js';
+import { settleRecovery } from './recovery.js';
 
 async function saveAllDirty() {
   for (const pane of panes.filter((p) => p.dirty)) {
@@ -20,15 +21,18 @@ async function saveAllDirty() {
 export async function handleCloseRequest(ask = (names) => window.wired.askUnsaved(names)) {
   const dirty = panes.filter((p) => p.dirty);
   if (!dirty.length) {
+    await settleRecovery(false);
     window.wired.confirmClose();
     return 'closed';
   }
   const answer = await ask(dirty.map((p) => (p.path ? baseName(p.path) : 'untitled')));
   if (answer === 'discard') {
+    await settleRecovery(true); // discarded on purpose: nothing comes back next launch
     window.wired.confirmClose();
     return 'closed';
   }
   if (answer === 'save' && (await saveAllDirty())) {
+    await settleRecovery(false);
     window.wired.confirmClose();
     return 'closed';
   }

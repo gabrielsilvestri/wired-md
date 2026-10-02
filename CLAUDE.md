@@ -67,6 +67,7 @@ src/main/            Electron main process (CommonJS)
   ipc/onboarding.js  AI CLI detection on PATH and the first run gate
   ipc/imports.js     CLAUDE.md @path imports, walked the way Claude Code does
   ipc/edit.js        cut, copy, paste and select all on the webContents
+  ipc/recovery.js    snapshots of unsaved tabs, for crash recovery
 src/preload.js       contextBridge surface plus the YAML frontmatter parser
 src/renderer/
   index.html         the whole DOM, loading the vendored assets
@@ -92,7 +93,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes), `line-diff` (the diff behind "what changed on disk"). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes), `line-diff` (the diff behind "what changed on disk"), `recovery` (snapshots of unsaved tabs). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -200,6 +201,11 @@ These cost real debugging time. None of them are optional.
 - **Content observers watch the DOM, not the Vditor input callback.**
   `setValue` (templates, tests, disk reloads) never fires `input`, so the
   outline and the status bar use a MutationObserver on `#panes`.
+- **Recovery snapshots must be settled before the window closes.** The close
+  guard calls `settleRecovery`: "don't save" drops every snapshot, otherwise a
+  last pass keeps only the unsaved ones. Skipping it brings discarded or saved
+  edits back at the next launch. Snapshot files are named by a hash of their
+  key (`file:<path>` or `untitled:<session>:<id>`).
 - **The window close goes through the renderer.** `close` is held in main and
   sent as `window:close-request`; `modules/close-guard.js` answers with
   `window:close-confirmed` once nothing unsaved is left. The renderer acks at
