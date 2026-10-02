@@ -4,7 +4,7 @@
 // wires the IPC modules. Every handler lives in its own file under ipc/ and
 // registers itself; this file only owns the window and the app lifecycle.
 
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -87,7 +87,11 @@ function createWindow() {
       preload: path.join(__dirname, '..', 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: false,
+      // Vditor turns spellcheck off in the editor anyway, and with it on
+      // Chromium downloads Hunspell dictionaries from Google on first launch:
+      // a network call this offline editor has no use for.
+      spellcheck: false
     }
   });
 
@@ -247,6 +251,10 @@ if (gotLock) {
     .then(() => {
       // Fully custom window: no leftover native menu.
       Menu.setApplicationMenu(null);
+      // The spellchecker belongs to the session, not the window: without this
+      // it still fetches a dictionary on first launch (see webPreferences).
+      session.defaultSession.setSpellCheckerEnabled(false);
+      session.defaultSession.setSpellCheckerLanguages([]);
       ensureUserDirs();
       // Retires the pre rename claro.css seed when it is untouched (Recycle Bin,
       // never unlink). Must run AFTER ensureUserDirs, which is what seeds it.

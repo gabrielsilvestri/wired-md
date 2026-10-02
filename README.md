@@ -143,7 +143,8 @@ Electron main (`src/main/`, one file per IPC area) plus an ES module renderer (`
 ```
 npm run smoke   # quick non interactive smoke test
 npm run test:cli # focused CLI, PATH and unit checks
-npm test        # full end to end suite (260 checks)
+npm run test:crash # kill the app with unsaved edits, relaunch, expect them back
+npm test        # full end to end suite (292 checks) plus a real crash and relaunch
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for what these cover.

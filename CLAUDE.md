@@ -32,8 +32,9 @@ and `npm test` green twice in a row.
 ```
 npm install     # postinstall vendors the browser assets into src/renderer/vendor
 npm start
-npm test        # runner and packaged CLI checks, then the end to end suite
+npm test        # runner and packaged CLI checks, the end to end suite, the crash test
 npm run test:cli # runner and packaged CLI checks without Electron
+npm run test:crash # a real crash: kill the app, relaunch, the edits come back
 npm run smoke   # fast non interactive heartbeat
 npm run dist    # Windows installer into dist/ (see Packaging)
 ```
