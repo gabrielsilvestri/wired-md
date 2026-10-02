@@ -7,6 +7,7 @@
 // context window.
 import { config, saveConfig, registerConfigDefaults, activePane } from './state.js';
 import { registerPaletteAction } from './palette.js';
+import { paneText } from './text-cache.js';
 
 registerConfigDefaults({ statusBar: true });
 
@@ -56,7 +57,7 @@ export function updateStatusBar() {
   if (!on) return;
   let source = '';
   try {
-    source = pane.ready && pane.vditor ? pane.vditor.getValue() : '';
+    source = pane.ready && pane.vditor ? paneText(pane) : '';
   } catch {
     source = '';
   }

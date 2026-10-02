@@ -18,6 +18,7 @@ import { setPaneDirty } from './panes.js';
 // where the module graph reaches it: panes.js pulls the properties panel in, and
 // the properties panel pulls the tables in. Nothing else imports tables.js.
 import './tables.js';
+import { paneText } from './text-cache.js';
 
 registerConfigDefaults({ frontmatterPanel: true });
 
@@ -409,7 +410,7 @@ export function refreshFmPanel(pane) {
   if (!pane || !pane.fmEl) return;
   const el = pane.fmEl;
   el.innerHTML = '';
-  const text = pane.vditor && pane.ready ? pane.vditor.getValue() : '';
+  const text = pane.vditor && pane.ready ? paneText(pane) : '';
   const split = splitFrontmatter(text);
   if (!split || config.frontmatterPanel === false) {
     el.classList.add('hidden');

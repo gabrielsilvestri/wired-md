@@ -94,7 +94,7 @@ save), `tree` (sidebar, recents, file operations), `dialogs`, `context-menu`, `p
 `titlebar`, `settings`, `icons`, `find` (in-note search and replace), `disk-sync`
 (open notes following the disk), `outline`, `statusbar`, `links` (links, images,
 paste and drop), `gallery` (theme catalog), `reading` (line height and width),
-`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes), `line-diff` (the diff behind "what changed on disk"), `recovery` (snapshots of unsaved tabs). No bundler: Electron loads `file://` ES modules
+`onboarding`, `portrait` (the empty state art), `memory-imports` (CLAUDE.md `@path` imports), `editor-menu` (right click in the text), `close-guard` (unsaved tabs when the window closes), `line-diff` (the diff behind "what changed on disk"), `recovery` (snapshots of unsaved tabs), `text-cache` (one shared `getValue()` per change). No bundler: Electron loads `file://` ES modules
 directly.
 
 ## Extension points
@@ -202,6 +202,12 @@ These cost real debugging time. None of them are optional.
 - **Content observers watch the DOM, not the Vditor input callback.**
   `setValue` (templates, tests, disk reloads) never fires `input`, so the
   outline and the status bar use a MutationObserver on `#panes`.
+- **Read a pane's Markdown through `paneText(pane)`** (modules/text-cache.js),
+  not `vditor.getValue()`, in anything that runs on a change: each call
+  converts the whole editor DOM (about 300ms on a 4,000 line note), and the
+  cache shares one reading per change. It takes the pending mutation records
+  synchronously, so a read right after `setValue` is never stale. Check 33
+  fails when a keystroke costs more than two readings.
 - **Recovery snapshots must be settled before the window closes.** The close
   guard calls `settleRecovery`: "don't save" drops every snapshot, otherwise a
   last pass keeps only the unsaved ones. Skipping it brings discarded or saved

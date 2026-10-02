@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Typing in a long note does less work. The status bar, the outline, the
+  properties panel, the memory imports and the recovery snapshots now share one
+  Markdown reading per change (`modules/text-cache.js`) instead of five, about
+  300ms each on a 4,000 line note. Check 33 logs the numbers.
 - The app no longer downloads a spellcheck dictionary from Google on first
   launch. The editor never used spellcheck (Vditor turns it off), but
   Chromium's session still fetched `en-US-10-1.bdic`.

@@ -10,6 +10,7 @@ import { registerPaletteAction } from './palette.js';
 import { scrollContainerOf } from './focus-typewriter.js';
 import { svgIcon, ICON_CHEVRON } from './icons.js';
 import { estimateTokens, formatTokens } from './statusbar.js';
+import { paneText } from './text-cache.js';
 
 registerConfigDefaults({ outline: true, outlineCollapsed: false });
 
@@ -114,7 +115,7 @@ export function renderOutline() {
   if (config.outline === false || !pane) return;
   let source = '';
   try {
-    source = pane.ready && pane.vditor ? pane.vditor.getValue() : '';
+    source = pane.ready && pane.vditor ? paneText(pane) : '';
   } catch {
     source = '';
   }

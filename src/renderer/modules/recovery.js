@@ -9,6 +9,7 @@
 import { panes } from './state.js';
 import { openPath, newFile, setPaneDirty } from './panes.js';
 import { paneStatus } from './links.js';
+import { paneText } from './text-cache.js';
 
 const TICK_MS = 2000;
 const SESSION = Date.now().toString(36);
@@ -44,7 +45,7 @@ async function pass() {
     live.add(key);
     let text = '';
     try {
-      text = pane.vditor.getValue();
+      text = paneText(pane);
     } catch {
       continue;
     }

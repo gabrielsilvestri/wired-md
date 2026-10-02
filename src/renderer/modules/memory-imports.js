@@ -8,6 +8,7 @@ import { activePane, panes } from './state.js';
 import { openPath } from './panes.js';
 import { paneStatus } from './links.js';
 import { estimateTokens, formatTokens } from './statusbar.js';
+import { paneText } from './text-cache.js';
 
 const MEMORY_FILES = /^(claude|claude\.local|agents)\.md$/i;
 
@@ -28,8 +29,9 @@ export async function updateImports() {
   const pane = activePane();
   const p = pane && pane.path;
   let source = '';
+  // Only a memory file is worth reading at all.
   try {
-    source = pane && pane.ready && pane.vditor ? pane.vditor.getValue() : '';
+    source = isMemoryFile(p) && pane.ready && pane.vditor ? paneText(pane) : '';
   } catch {}
   if (!isMemoryFile(p) || source.indexOf('@') === -1) {
     span.classList.add('hidden');
