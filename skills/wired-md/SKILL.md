@@ -18,7 +18,9 @@ can put the right file in front of the human at the right moment.
 editor watches every open note and picks the change up on its own: a pane with
 no unsaved edits reloads in place, and a pane the human is editing shows a row
 asking them to reload from disk or keep their version (nothing is overwritten
-silently in either direction). The CLI has no
+silently in either direction). The human can see exactly what you changed with
+"what changed on disk" in the palette, so a focused edit reads better than a
+rewrite of the whole file. The CLI has no
 content API and will never get one: pushing text through a command line would be
 a worse version of what you already do well.
 
@@ -59,7 +61,8 @@ window's attention.
 
 ## Install
 
-From the repository:
+The Windows installer already puts `wired` on the user PATH (new terminals
+only). From a source checkout:
 
 ```
 npm install
