@@ -32,6 +32,15 @@ Then, in the main session:
   diffing raw disk text (`modules/line-diff.js`).
 - A slash command frontmatter schema and template, setext headings and section
   token sizes in the outline, a gone file marks its tab unsaved, review fixes.
+- **One shared Markdown reading per change** (`modules/text-cache.js`, check
+  33 on a 4,000 line note: 5 readings per keystroke before, 2 after).
+- **`.claude` and the other agent folders** show in the tree and are searched
+  (check 34).
+- **A real crash test** (`scripts/test-crash-recovery.mjs`, last step of
+  `npm test`): it caught a Hunspell dictionary download from Google on first
+  launch, now off.
+- The landing page (`site/`) and the README tell the new features and are
+  honest that no release is published yet.
 
 Also on main: the owner's braille Lain portrait in the empty state
 (`modules/portrait.js`), polling instead of fixed sleeps in the search, find
@@ -39,10 +48,10 @@ and diff checks, and `GIT_OPTIONAL_LOCKS=0` on every read only git call.
 
 ## Verification
 
-Run `npm test` twice without `WIRED_ONLY`; it isolates the profile itself. Run
-`node scripts/measure-contrast.mjs` for the standalone gate (it now covers
-`themes/catalog`). The packaged CLI smoke is unchanged (see the previous notes
-in `CHANGELOG.md`).
+Run `npm test` twice without `WIRED_ONLY`; it isolates the profile itself and
+ends with the real crash test. Run `node scripts/measure-contrast.mjs` for the
+standalone gate (it now covers `themes/catalog`). The packaged CLI smoke is
+unchanged (see the previous notes in `CHANGELOG.md`).
 
 ## Known gaps, none blocking
 
@@ -50,7 +59,11 @@ in `CHANGELOG.md`).
 - Profiles that predate the `onboarded` key (the owner's included) see the
   welcome once after this update. Esc or skip dismisses it for good.
 - `scripts/smoke-installed.mjs` cannot set the test gate, so the welcome auto
-  opens there; the smoke asserts nothing that it blocks.
+  opens there; the smoke asserts nothing that it blocks. No `npm run dist` was
+  made this session, so the installed build has not met the close guard, the
+  welcome or recovery yet: build and run that smoke before a release.
+- A recovery snapshot is taken every 2 seconds, so the last 2 seconds of
+  typing before a crash can be lost.
 - The script that tuned the catalog theme colors was a scratch tool; a retune
   is done by hand against the contrast gate.
 
