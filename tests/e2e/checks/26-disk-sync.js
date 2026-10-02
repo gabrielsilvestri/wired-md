@@ -73,6 +73,18 @@ async function run(ctx) {
     );
     await js(`document.getElementById('disk-sync-probe').remove()`);
 
+    // --- 1b. an atomic save (temp file renamed over the note, the way many
+    // editors and agents write) is a change like any other, not a deletion ---
+    const tmpA = fileA + '.tmp-e2e';
+    fs.writeFileSync(tmpA, versionA('third version written atomically'), 'utf8');
+    fs.renameSync(tmpA, fileA);
+    const atomic = await waitFor(async () => (await valueOf(A)).includes('third version written atomically'));
+    check(
+      'disk sync: an atomic save (temp file renamed over the note) reloads it, with no gone row and no unsaved mark',
+      atomic && !(await rowOf(A)) && !(await dirtyOf(A)),
+      JSON.stringify({ atomic, row: await rowOf(A), dirty: await dirtyOf(A) })
+    );
+
     // --- 2. a background pane in another group follows its file too ---
     fs.writeFileSync(fileB, '# Disk sync b\n\nbackground second\n', 'utf8');
     const bgFollowed = await waitFor(async () => (await valueOf(B)).includes('background second'));
