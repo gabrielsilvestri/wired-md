@@ -59,7 +59,7 @@ async function run(ctx) {
     // Selection count.
     await js(`(function(){var p=activePane().el.querySelector('.vditor-ir .vditor-reset p');var n=p.firstChild;var r=document.createRange();r.setStart(n,0);r.setEnd(n,13);var s=getSelection();s.removeAllRanges();s.addRange(r);})()`);
     check('status bar: selecting text shows the selected word count',
-      await until(`/^3 words selected$/.test(document.getElementById('status-selection').textContent)`), await text('status-selection'));
+      await until(`/^3 words, ~4 tokens selected$/.test(document.getElementById('status-selection').textContent)`), await text('status-selection'));
     await js(`getSelection().removeAllRanges()`);
     check('status bar: the selection note disappears with the selection',
       await until(`document.getElementById('status-selection').classList.contains('hidden')`));
@@ -73,6 +73,16 @@ async function run(ctx) {
       outline.length === 4 && outline.map((s) => s.split(':').slice(0, 2).join(':')).join('|') === '1:Top|2:Second|3:Third|4:Fourth' &&
       lefts[0] < lefts[1] && lefts[1] < lefts[2] && lefts[2] < lefts[3],
       JSON.stringify(outline));
+
+    // Each entry's tooltip says what its section costs: from the heading to the
+    // next one of the same or a higher level (Third ends where Fourth, a deeper
+    // heading, does not: it runs to the end, like Second).
+    const editorSrc = (await js('activePane().vditor.getValue()')).replace(/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/, '');
+    const sectionTokens = (from) => Math.ceil((editorSrc.length - editorSrc.indexOf(from)) / 4);
+    const tips = await js(`[...document.querySelectorAll('#outline-list .outline-item')].map(function(li){return li.title;})`);
+    check('outline: each heading tooltip carries the token estimate of its section',
+      tips[1] === `H2: Second\n~${sectionTokens('## Second')} tokens in this section` && tips[2] === `H3: Third\n~${sectionTokens('### Third')} tokens in this section`,
+      JSON.stringify({ tips, second: sectionTokens('## Second'), third: sectionTokens('### Third') }));
 
     // Click to jump: scroll the heading into view and put the caret in it.
     await js(`(function(){var c=document.querySelectorAll('#outline-list .outline-item')[2];c.click();})()`);

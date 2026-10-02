@@ -66,7 +66,7 @@ export function updateStatusBar() {
   el('tokens').textContent = formatTokens(estimateTokens(source.length));
   const picked = selectionIn(pane);
   const s = el('selection');
-  s.textContent = picked ? plural(countWords(picked), 'word') + ' selected' : '';
+  s.textContent = picked ? plural(countWords(picked), 'word') + ', ' + formatTokens(estimateTokens(picked.length)) + ' selected' : '';
   s.classList.toggle('hidden', !picked);
 }
 

@@ -9,6 +9,7 @@ import { config, saveConfig, registerConfigDefaults, activePane } from './state.
 import { registerPaletteAction } from './palette.js';
 import { scrollContainerOf } from './focus-typewriter.js';
 import { svgIcon, ICON_CHEVRON } from './icons.js';
+import { estimateTokens, formatTokens } from './statusbar.js';
 
 registerConfigDefaults({ outline: true, outlineCollapsed: false });
 
@@ -23,14 +24,20 @@ const NOT_PARAGRAPH = /^(?: {4}|\t| {0,3}(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)| {0,3}
 const HEADING_TAGS = 'h1,h2,h3,h4,h5,h6';
 
 // Pure: the headings of a Markdown source, skipping the frontmatter and fences.
+// Each one carries `chars`, the size of its section (its subsections included,
+// up to the next heading of the same or a higher level).
 export function parseHeadings(source) {
-  const lines = source.replace(FRONTMATTER, '').split(/\r?\n/);
+  const body = source.replace(FRONTMATTER, '');
+  const lines = body.split(/\r?\n/);
   const out = [];
   let fence = null;
   let para = []; // the lines of the paragraph being read, for a setext heading
+  let paraAt = 0; // where that paragraph starts, in characters
+  let at = 0; // where the current line starts, in characters
   // Inline markers add noise to a one line label.
   const label = (raw) => raw.replace(/[*_`~]|!?\[([^\]]*)\]\([^)]*\)/g, '$1').trim() || '(empty heading)';
-  for (const line of lines) {
+  for (let li = 0; li < lines.length; at += lines[li].length + 1, li++) {
+    const line = lines[li];
     const f = line.match(FENCE);
     if (fence) {
       if (f && f[1][0] === fence[0] && f[1].length >= fence.length && line.trim() === f[1]) fence = null;
@@ -39,19 +46,26 @@ export function parseHeadings(source) {
     if (f) { fence = f[1]; para = []; continue; }
     const m = line.match(HEADING);
     if (m) {
-      out.push({ level: m[1].length, text: label(m[2] || '') });
+      out.push({ level: m[1].length, text: label(m[2] || ''), at });
       para = [];
       continue;
     }
     const u = para.length ? line.match(SETEXT) : null;
     if (u) {
-      out.push({ level: u[1][0] === '=' ? 1 : 2, text: label(para.join(' ')) });
+      out.push({ level: u[1][0] === '=' ? 1 : 2, text: label(para.join(' ')), at: paraAt });
       para = [];
       continue;
     }
     if (!line.trim() || (!para.length && NOT_PARAGRAPH.test(line))) para = [];
-    else para.push(line.trim());
+    else {
+      if (!para.length) paraAt = at;
+      para.push(line.trim());
+    }
   }
+  out.forEach((h, i) => {
+    const next = out.slice(i + 1).find((x) => x.level <= h.level);
+    h.chars = (next ? next.at : body.length) - h.at;
+  });
   return out;
 }
 
@@ -119,7 +133,7 @@ export function renderOutline() {
     li.dataset.level = h.level;
     li.style.paddingLeft = 12 + (h.level - base) * 12 + 'px';
     li.textContent = h.text;
-    li.title = 'H' + h.level + ': ' + h.text;
+    li.title = 'H' + h.level + ': ' + h.text + '\n' + formatTokens(estimateTokens(h.chars)) + ' in this section';
     li.addEventListener('click', () => jumpTo(i));
     list.append(li);
     items.push(li);

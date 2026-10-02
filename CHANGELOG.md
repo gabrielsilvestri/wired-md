@@ -22,10 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   folded.
 - A status bar under the editor with words, characters and an approximate
   token count (characters divided by four, labeled as an estimate; the
-  frontmatter counts for tokens but not for words), plus the words selected.
+  frontmatter counts for tokens but not for words), plus the words and tokens
+  selected.
 - An outline section in the sidebar: the active note's headings, indented by
-  level, following the caret, jumping on click. Headings inside code fences
-  are skipped. Both the outline and the status bar toggle from the palette.
+  level, following the caret, jumping on click, each with the token estimate
+  of its section in the tooltip. Headings inside code fences are skipped. Both the outline and the status bar toggle from the palette.
 - Links go somewhere. Ctrl+click opens http, https and mailto links in the
   browser, relative Markdown links in a tab (a `#heading` suffix scrolls to
   it) and `#anchors` in place; a missing note gets an inline status. The
