@@ -133,3 +133,8 @@
 - 2026-10-02: a periodic writer that skips a pass while one is running races
   whoever needs it settled (the close). Chain the passes and let the closer wait
   on the chain; then stop the writer, and restart it if the close is cancelled.
+- 2026-10-02: an installer built while a source file was being edited shipped
+  an app that died at launch with a main process error dialog (`window-state.js`
+  held the tail of `tree.js`): asar packing read sizes and contents at different
+  moments. Root cause: running `npm run dist` in the background of other work.
+  Build with the tree quiet, then smoke the build before trusting it.

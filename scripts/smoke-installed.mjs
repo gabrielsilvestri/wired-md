@@ -123,7 +123,9 @@ async function main() {
   }
 
   const win = await evaluate('({w:window.outerWidth,h:window.outerHeight,frameless:!!document.getElementById("titlebar")})');
-  check('frameless window opens at the 700x840 default', !!win && win.w === 700 && win.h === 840 && win.frameless, win);
+  // A pixel either way is display scaling rounding, not a different window.
+  const near = (a, b) => typeof a === 'number' && Math.abs(a - b) <= 2;
+  check('frameless window opens at the 700x840 default', !!win && near(win.w, 700) && near(win.h, 840) && win.frameless, win);
 
   const doc = await evaluate(
     '(function(){var p=activePane();return {path:p&&p.path,text:p&&p.vditor?p.vditor.getValue():null,h1:!!document.querySelector("#panes .pane.active .vditor-ir h1")};})()'
@@ -156,6 +158,22 @@ async function main() {
   const term = await evaluate('(async()=>{var r=await window.wired.termStart(' + JSON.stringify(profile) + ',80,20);return r;})()');
   check('the embedded terminal starts (node-pty, or the pipe fallback)', !!term && term.ok === true, term);
   check('the terminal backend is the native node-pty, not the fallback', !!term && term.kind === 'pty', term && term.kind);
+
+  // What packaging can break in the features that came later: the theme
+  // catalog read out of app.asar, the first run welcome in a real profile, the
+  // recovery folder and the CLAUDE.md import walk, all over IPC.
+  const catalog = await evaluate('(async()=>{var c=await window.wired.listCatalogThemes();return c.map(function(t){return t.name;});})()');
+  check('the theme gallery reads its ten catalog themes out of app.asar', Array.isArray(catalog) && catalog.length >= 10, catalog);
+
+  const welcome = await evaluate('(function(){var o=document.getElementById("onboarding-overlay");return !!o&&!o.classList.contains("hidden");})()');
+  check('a fresh profile opens the first run welcome on its own (no test gate here)', welcome === true, welcome);
+
+  const recovery = await evaluate('(async()=>{await window.wired.recoverySave("smoke:key",{path:null,content:"kept"});var l=await window.wired.recoveryList();await window.wired.recoveryDrop("smoke:key");var after=await window.wired.recoveryList();return {saved:l.some(function(e){return e.key==="smoke:key"&&e.content==="kept";}),dropped:!after.some(function(e){return e.key==="smoke:key";})};})()');
+  check('recovery snapshots are written to and removed from the profile', !!recovery && recovery.saved && recovery.dropped, recovery);
+
+  fs.writeFileSync(path.join(profile, 'imported.md'), 'imported text\n', 'utf8');
+  const imports = await evaluate('(async()=>{var r=await window.wired.scanImports(' + JSON.stringify(path.join(profile, 'CLAUDE.md')) + ',"see @imported.md");return {n:r.items.length,exists:r.items[0]&&r.items[0].exists};})()');
+  check('the CLAUDE.md import walk resolves a file next to the note', !!imports && imports.n === 1 && imports.exists === true, imports);
 
   await evaluate('(async()=>{await window.wired.termKill();})()');
   await cdp.send('Runtime.evaluate', { expression: 'window.wired.winClose()' });

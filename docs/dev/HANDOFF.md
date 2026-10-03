@@ -59,9 +59,13 @@ unchanged (see the previous notes in `CHANGELOG.md`).
 - Profiles that predate the `onboarded` key (the owner's included) see the
   welcome once after this update. Esc or skip dismisses it for good.
 - `scripts/smoke-installed.mjs` cannot set the test gate, so the welcome auto
-  opens there; the smoke asserts nothing that it blocks. No `npm run dist` was
-  made this session, so the installed build has not met the close guard, the
-  welcome or recovery yet: build and run that smoke before a release.
+  opens there, and the smoke now asserts exactly that. `npm run dist` was run
+  at the end of the session; `smoke-installed.mjs` against
+  `dist\win-unpacked\wired-md.exe` passed 10 of 10 (catalog from app.asar,
+  welcome, recovery, imports included) and `smoke-packaged-cli.ps1` passed.
+  Never edit `src/` while `npm run dist` runs: the asar packs files at offsets
+  read earlier, and a file that changes size mid build corrupts its
+  neighbours (a `window-state.js` holding the tail of `tree.js`).
 - A recovery snapshot is taken every 2 seconds, so the last 2 seconds of
   typing before a crash can be lost.
 - The script that tuned the catalog theme colors was a scratch tool; a retune
