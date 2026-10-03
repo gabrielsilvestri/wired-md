@@ -826,6 +826,31 @@ export async function confirmClosePane(pane, ask = (names) => window.wired.askUn
   }
 }
 
+// Paths of the tabs closed in this session, newest last, for Ctrl+Shift+T.
+const closedPaths = [];
+const CLOSED_MAX = 20;
+
+function rememberClosed(p) {
+  const i = closedPaths.indexOf(p);
+  if (i !== -1) closedPaths.splice(i, 1);
+  closedPaths.push(p);
+  if (closedPaths.length > CLOSED_MAX) closedPaths.shift();
+}
+
+// Brings back the tab closed last. A file gone from disk since is skipped
+// rather than opened into an error, and one that is open again is not doubled.
+export async function reopenClosedTab() {
+  while (closedPaths.length) {
+    const p = closedPaths.pop();
+    if (panes.some((x) => x.path === p)) continue;
+    const res = await window.wired.readFile(p);
+    if (!res.ok) continue;
+    await openPath(p);
+    return p;
+  }
+  return null;
+}
+
 export function closePane(pane, discard) {
   if (!pane) return;
   if (pane.dirty && !discard) {
@@ -841,6 +866,7 @@ export function closePane(pane, discard) {
   pane.el.remove();
   pane.tabEl.remove();
   group.tabs.splice(idx, 1);
+  if (pane.path) rememberClosed(pane.path);
   dropFromMru(pane.id);
   syncPanesArray();
   syncWatches(); // a closed tab stops following its file

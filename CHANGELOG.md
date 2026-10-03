@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with real screenshots of the app, the icon, Geist, a live demo of inline
   rendering and a theme switcher. `WIRED_SHOTS=1` regenerates its screenshots
   (check 95).
+- `Ctrl+Shift+T` (and "reopen closed tab" in the palette) brings back the
+  tab closed last, newest first; a file gone from disk is skipped (check 39).
 - An open note follows its file on disk. When another tool (claude in the
   embedded terminal, an agent driving the `wired` CLI, another editor) changes
   a file open in any tab or group, a tab with no unsaved edits reloads in place,

@@ -15,7 +15,8 @@
   `WIRED_SHOTS=1`; the share card `site/assets/og.png` was rendered once from
   an HTML card (see `site/README.md`).
 - **Fixes**: link text takes the theme accent (check 28); closing one dirty tab
-  asks save, don't save or cancel (`confirmClosePane`, check 38).
+  asks save, don't save or cancel (`confirmClosePane`, check 38);
+  `Ctrl+Shift+T` reopens the tab closed last (`reopenClosedTab`, check 39).
 
 ## Current development (2026-10-02)
 

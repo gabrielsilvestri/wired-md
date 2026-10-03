@@ -9,7 +9,7 @@
 
 import { config } from './state.js';
 import { toggleSidebar, getTreeFiles } from './tree.js';
-import { openPath, newFile, openViaDialog, save, saveAs, closeActivePane } from './panes.js';
+import { openPath, newFile, openViaDialog, save, saveAs, closeActivePane, reopenClosedTab } from './panes.js';
 import { newFromTemplate } from './templates.js';
 import { openSearch } from './search.js';
 import { toggleFrontmatterPanel } from './frontmatter.js';
@@ -48,6 +48,7 @@ registerPaletteAction({ label: 'properties: show or hide', run: () => toggleFron
 registerPaletteAction({ label: () => 'focus mode: ' + (config.focusMode ? 'turn off' : 'turn on'), hint: 'F8', run: () => toggleFocusMode() });
 registerPaletteAction({ label: () => 'typewriter mode: ' + (config.typewriterMode ? 'turn off' : 'turn on'), hint: 'F9', run: () => toggleTypewriterMode() });
 registerPaletteAction({ label: 'close tab', hint: 'Ctrl+W', run: () => closeActivePane() });
+registerPaletteAction({ label: 'reopen closed tab', hint: 'Ctrl+Shift+T', run: () => void reopenClosedTab() });
 registerPaletteAction({ label: 'toggle terminal', hint: 'Ctrl+`', run: () => toggleTerminal() });
 registerPaletteAction({
   label: 'terminal: cd to the note folder',

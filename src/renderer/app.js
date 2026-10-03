@@ -9,7 +9,7 @@ import { config, loadConfig, saveConfig, panes, groups, activePane, activeGroup,
 import { applyTheme, applyCustom, applySnippets, focusDimFor, relLuminance, contrastRatio } from './modules/theme.js';
 import { initTitlebar, updateChrome, APP_NAME } from './modules/titlebar.js';
 import {
-  initPanes, openPath, openInPane, setDirty, setPaneDirty, closePane, confirmClosePane, closeActivePane,
+  initPanes, openPath, openInPane, setDirty, setPaneDirty, closePane, confirmClosePane, closeActivePane, reopenClosedTab,
   save, saveAs, newFile, openViaDialog, createGroup, moveTabToGroup, dropTabOnGroupHalf,
   restoreSession, sessionSnapshot, updateEmptyState, setActivePane,
   getSuppressExplorer, setSuppressExplorer, getLastNoteFolderReveal, setLastNoteFolderReveal
@@ -93,6 +93,11 @@ window.addEventListener(
     if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === 'w') {
       e.preventDefault();
       closeActivePane();
+    }
+    // Ctrl+Shift+T brings back the tab closed last.
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 't') {
+      e.preventDefault();
+      void reopenClosedTab();
     }
     if (e.ctrlKey && e.key.toLowerCase() === 'o') {
       e.preventDefault();
@@ -214,6 +219,7 @@ expose({
   setPaneDirty,
   closePane,
   confirmClosePane,
+  reopenClosedTab,
   closeActivePane,
   setActivePane,
   createGroup,
