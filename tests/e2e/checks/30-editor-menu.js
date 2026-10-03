@@ -25,8 +25,9 @@ async function run(ctx) {
     await rightClick('.vditor-ir .vditor-reset p');
     const plain = await labels();
     check(
-      'editor menu: a right click in the text opens the app menu with paste, select all and find, and no copy without a selection',
-      plain.includes('paste') && plain.includes('select all') && plain.includes('find in note') && !plain.includes('copy') && !plain.includes('cut'),
+      'editor menu: a right click in the text opens the app menu with paste, select all, find and export, and no copy without a selection',
+      plain.includes('paste') && plain.includes('select all') && plain.includes('find in note') && !plain.includes('copy') && !plain.includes('cut') &&
+        plain.includes('export as PDF') && plain.includes('export as HTML'),
       JSON.stringify(plain)
     );
     await js(`document.body.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))`);

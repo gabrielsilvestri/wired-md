@@ -2,12 +2,13 @@
 // right click in the text used to do nothing at all: no copy, no paste. This
 // one uses the app's own context menu (same look as the tree's) and offers what
 // fits where the pointer is: the clipboard, the link under it, the selection
-// for the AI CLI, and find.
+// for the AI CLI, find, and export.
 import { panes } from './state.js';
 import { showCtxMenu } from './context-menu.js';
 import { linkTarget, followLink } from './links.js';
 import { openFind } from './find.js';
 import { aiCliCommand, sendSelectionToClaude } from './ai-bridge.js';
+import { exportNote } from './export-note.js';
 
 const panesEl = document.getElementById('panes');
 
@@ -32,6 +33,9 @@ export function editorMenuItems(pane, target) {
   items.push({ sep: true });
   if (picked) items.push({ label: 'send selection to ' + aiCliCommand(), run: () => sendSelectionToClaude() });
   items.push({ label: 'find in note', run: () => openFind(false) });
+  items.push({ sep: true });
+  items.push({ label: 'export as PDF', run: () => void exportNote('pdf', null, pane) });
+  items.push({ label: 'export as HTML', run: () => void exportNote('html', null, pane) });
   return items;
 }
 

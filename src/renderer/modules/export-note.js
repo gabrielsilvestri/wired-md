@@ -54,8 +54,9 @@ export function noteHTML(pane) {
 }
 
 // `target` skips the save dialog; main honors it only in the test suite.
-export async function exportNote(kind, target) {
-  const pane = activePane();
+// `which` is the pane a right click came from; the palette exports the active one.
+export async function exportNote(kind, target, which) {
+  const pane = which || activePane();
   if (!pane || !pane.vditor) {
     notify('No note open to export.');
     return null;
