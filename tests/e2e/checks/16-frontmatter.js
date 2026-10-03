@@ -123,8 +123,11 @@ async function run(ctx) {
   check('properties: a space separated tools list reads as separate names', !spaced.some((t) => /allowed-tools/.test(t)), JSON.stringify(spaced));
   await js('(function(){var p=activePane();setPaneDirty(p,false);})()');
   await forget(['review-e2e']);
-  // The folder watcher of the closed tab lets go a moment after the close.
-  fs.rmSync(userDir('cmd-e2e'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  // Two watchers hold that folder: the closed tab's (it lets go a moment after
+  // the close) and the tree's, rooted there while the command was open. The
+  // tree goes back to the demo folder first.
+  await openPath(demoPath);
+  fs.rmSync(userDir('cmd-e2e'), { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
 
   const brokenPath = path.join(skillDir, 'broken-e2e.md');
   fs.writeFileSync(brokenPath, '---\nname: [this never closes\ndescription: hi\n---\n# broken\n', 'utf8');

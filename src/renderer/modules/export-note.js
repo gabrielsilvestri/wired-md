@@ -38,8 +38,11 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-export function noteHTML(pane) {
-  const md = paneText(pane).replace(FRONTMATTER, '');
+// `text` renders that Markdown instead of the editor's (the CLI exports what is
+// on disk, which an agent may have rewritten a moment ago); the pane still
+// lends its Lute, whose link base resolves the note's relative images.
+export function noteHTML(pane, text) {
+  const md = (typeof text === 'string' ? text : paneText(pane)).replace(FRONTMATTER, '');
   const lute = pane.vditor.vditor && pane.vditor.vditor.lute;
   const body = lute ? lute.Md2HTML(md) : '<pre>' + escapeHtml(md) + '</pre>';
   const heading = /^#\s+(.+)$/m.exec(md);

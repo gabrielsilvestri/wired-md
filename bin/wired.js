@@ -60,7 +60,8 @@ function usage(code) {
       '  wired focus <file>                     focus a file already open',
       '  wired list [--json]                    list the open files',
       '  wired new [--template <name>] [--title <title>]',
-      '  wired export <file> [--html] [--out <path>]   PDF by default, next to the note',
+      '  wired export <file> [--html] [--out <path>] [--force]',
+      '                                         PDF by default, next to the note',
       '',
       'The editor watches the folder: to CHANGE a note, write the file on disk.',
       'This CLI never sends content.'
@@ -79,6 +80,7 @@ function parseFlags(args) {
     else if (a === '--out') out.out = args[++i];
     else if (a === '--html') out.html = true;
     else if (a === '--pdf') out.html = false;
+    else if (a === '--force') out.force = true;
     else if (a === '-h' || a === '--help') out.help = true;
     else out._.push(a);
   }
@@ -199,7 +201,7 @@ async function main() {
       process.exit(1);
     }
     // Like open, it starts the editor when none is running: rendering is its job.
-    await dispatch({ cmd: 'export', kind: flags.html ? 'html' : 'pdf', file: abs, out: flags.out || null, cwd, reply });
+    await dispatch({ cmd: 'export', kind: flags.html ? 'html' : 'pdf', file: abs, out: flags.out || null, force: !!flags.force, cwd, reply });
     const res = await waitForReply(reply, running ? 45000 : 60000);
     if (!res || res.ok === false) {
       console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));

@@ -199,13 +199,32 @@ async function run(cmd, deps) {
       return;
     }
     const out = cmd.out ? path.resolve(cmd.cwd || process.cwd(), cmd.out) : file.replace(/\.(md|markdown)$/i, '') + '.' + kind;
+    // Never over the note itself, and never over an existing file unless asked:
+    // the save dialog of the in app export asks, this path cannot.
+    if (out.toLowerCase() === file.toLowerCase()) {
+      reply(cmd, { ok: false, error: 'the output would overwrite the note itself: ' + out });
+      return;
+    }
+    if (fs.existsSync(out) && !cmd.force) {
+      reply(cmd, { ok: false, error: 'already exists (pass --force to replace it): ' + out });
+      return;
+    }
+    // What is on disk is what gets rendered, not the editor's copy: an agent
+    // that just wrote the file must not get the version from before its write.
+    let diskText = '';
+    try {
+      diskText = fs.readFileSync(file, 'utf8');
+    } catch (err) {
+      reply(cmd, { ok: false, error: String(err.message || err) });
+      return;
+    }
     // The editor renders it: the note opens (or comes to the front), and the
     // page is asked for once its pane holds the text.
     win.webContents.send('open-file-path', file);
     let html = null;
     for (let i = 0; i < 150 && !html; i++) {
       html = await win.webContents.executeJavaScript(
-        `(function(){var t=${jsString(file)}.toLowerCase();var p=panes.find(function(x){return x.path&&x.path.toLowerCase()===t&&x.ready;});return p&&window.wiredExport?window.wiredExport.noteHTML(p):null;})()`,
+        `(function(){var t=${jsString(file)}.toLowerCase();var p=panes.find(function(x){return x.path&&x.path.toLowerCase()===t&&x.ready;});return p&&window.wiredExport?window.wiredExport.noteHTML(p,${JSON.stringify(diskText)}):null;})()`,
         true
       );
       if (!html) await new Promise((r) => setTimeout(r, 100));

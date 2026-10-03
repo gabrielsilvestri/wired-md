@@ -69,6 +69,20 @@ async function run(ctx) {
       ex2.code === 0 && /<h1[^>]*>CLI export<\/h1>/.test(page) && page.indexOf('name: hidden') === -1,
     JSON.stringify({ ex1: ex1.stdout.trim() || ex1.stderr.slice(0, 160), head, ex2: ex2.stdout.trim() || ex2.stderr.slice(0, 160) })
   );
+  // An agent rewrites the open note and exports right away: what is on disk is
+  // what gets rendered. An existing output needs --force, and the note itself
+  // can never be the output.
+  fs.writeFileSync(note, '# CLI export\n\nWritten a moment ago by an agent.\n', 'utf8');
+  const ex3 = await runCli(['export', note, '--html', '--out', htmlOut]);
+  const ex4 = await runCli(['export', note, '--html', '--out', htmlOut, '--force']);
+  const fresh = fs.existsSync(htmlOut) ? fs.readFileSync(htmlOut, 'utf8') : '';
+  const ex5 = await runCli(['export', note, '--html', '--out', note, '--force']);
+  check(
+    'cli: `wired export` renders the disk text, refuses an existing output without --force, and never writes over the note',
+    ex3.code !== 0 && /already exists/.test(ex3.stderr) && ex4.code === 0 && fresh.indexOf('Written a moment ago by an agent.') !== -1 &&
+      ex5.code !== 0 && /overwrite the note itself/.test(ex5.stderr) && fs.readFileSync(note, 'utf8').startsWith('# CLI export'),
+    JSON.stringify({ ex3: ex3.stderr.slice(0, 120), ex4: ex4.code, ex5: ex5.stderr.slice(0, 120) })
+  );
   await ctx.forget(['cli-export.md']);
   for (const f of [note, pdf, htmlOut]) fs.rmSync(f, { force: true, maxRetries: 10, retryDelay: 200 });
   await ctx.openPath(demoPath);
