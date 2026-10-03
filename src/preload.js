@@ -196,6 +196,7 @@ contextBridge.exposeInMainWorld('wired', {
   scanImports: (note, source) => ipcRenderer.invoke('imports:scan', note, source),
   resolveImport: (note, raw) => ipcRenderer.invoke('imports:resolve', note, raw),
   editCommand: (cmd) => ipcRenderer.invoke('edit:command', cmd),
+  exportRendered: (kind, html, name, target) => ipcRenderer.invoke('export:rendered', kind, html, name, target),
   recoverySave: (key, entry) => ipcRenderer.invoke('recovery:save', key, entry),
   recoveryDrop: (key) => ipcRenderer.invoke('recovery:drop', key),
   recoveryList: () => ipcRenderer.invoke('recovery:list'),

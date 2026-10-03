@@ -1,9 +1,10 @@
 // File IPC: read and write the open note, the open/save dialogs, and the file
 // operations behind the sidebar toolbar and context menu.
 
-const { ipcMain, dialog, shell } = require('electron');
+const { ipcMain, dialog, shell, BrowserWindow } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 function register({ getWindow }) {
   ipcMain.handle('dialog:open', async () => {
@@ -109,6 +110,47 @@ function register({ getWindow }) {
       }
       fs.copyFileSync(p, target);
       return { ok: true, path: target };
+    } catch (err) {
+      return { ok: false, error: String(err.message || err) };
+    }
+  });
+
+  // Export rendered: the note as a standalone HTML page, or that page printed
+  // to PDF by a hidden window. `target` skips the dialog, and only the test
+  // suite may pass one: the renderer never picks where a file lands on its own.
+  ipcMain.handle('export:rendered', async (_ev, kind, html, name, target) => {
+    if (kind !== 'html' && kind !== 'pdf') return { ok: false, error: 'unknown export kind' };
+    try {
+      let filePath = process.env.WIRED_E2E === '1' && target ? target : null;
+      if (!filePath) {
+        const result = await dialog.showSaveDialog(getWindow(), {
+          title: kind === 'pdf' ? 'Export as PDF' : 'Export as HTML',
+          defaultPath: name,
+          filters: [kind === 'pdf' ? { name: 'PDF', extensions: ['pdf'] } : { name: 'HTML', extensions: ['html', 'htm'] }]
+        });
+        if (result.canceled || !result.filePath) return { ok: false, canceled: true };
+        filePath = result.filePath;
+      }
+      if (kind === 'html') {
+        fs.writeFileSync(filePath, String(html), 'utf8');
+        return { ok: true, path: filePath };
+      }
+      // The page goes through a temp file: a data: URL of a long note is huge,
+      // and relative image paths already became file URLs in the editor.
+      const tmp = path.join(os.tmpdir(), 'wired-export-' + process.pid + '-' + Date.now() + '.html');
+      fs.writeFileSync(tmp, String(html), 'utf8');
+      const win = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+      try {
+        await win.loadFile(tmp);
+        const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { marginType: 'none' } });
+        fs.writeFileSync(filePath, pdf);
+      } finally {
+        win.destroy();
+        try {
+          fs.rmSync(tmp, { force: true });
+        } catch {}
+      }
+      return { ok: true, path: filePath };
     } catch (err) {
       return { ok: false, error: String(err.message || err) };
     }

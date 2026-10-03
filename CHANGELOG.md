@@ -58,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unknown name are flagged inline, a scoped permission (`Bash(git status:*)`)
   is checked by its name and MCP tools (`mcp__server__tool`) pass.
 - A restored session reopens every note where it was scrolled to.
+- Export the note as HTML or PDF from the palette: a standalone page (no
+  script, no network) in the active theme's colors and fonts, with the
+  frontmatter left out; the PDF is that page printed edge to edge.
 - A right click menu inside the note. Electron draws none, so a right click in
   the text did nothing; now it offers cut and copy (with a selection), paste,
   select all, sending the selection to the AI CLI, find in note, and on a link

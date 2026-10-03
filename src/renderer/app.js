@@ -30,6 +30,7 @@ import './modules/statusbar.js';
 import './modules/memory-imports.js';
 import './modules/editor-menu.js';
 import './modules/close-guard.js';
+import './modules/export-note.js';
 import { restoreRecovery } from './modules/recovery.js';
 import { refreshFmPanel, refreshAllFmPanels, toggleFrontmatterPanel } from './modules/frontmatter.js';
 import { newFromTemplate, getTemplateSel, setTemplateSel, closeTemplatePicker, isTemplatePickerOpen } from './modules/templates.js';
