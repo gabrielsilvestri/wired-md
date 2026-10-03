@@ -20,3 +20,12 @@
 
 /* Ctrl held over a link: it looks followable. */
 body.ctrl-down .vditor-ir [data-type="a"] { cursor: pointer; }
+
+/* Link text in IR mode is a .vditor-ir__link span painted with Vditor's own
+   --ir-bracket-color, a fixed #4285f4 that ignored every theme (a blue link on
+   rosewood, on parchment, on wired). Both the rendered link and the bracket
+   markers of an expanded one take the theme accent, the same ink as
+   `.vditor-reset a` (measured by the contrast gate in every bundled theme). */
+.vditor { --ir-bracket-color: var(--accent); }
+.vditor .vditor-ir__link,
+.vditor-content .vditor-ir__link { color: var(--accent); text-underline-offset: 2px; }

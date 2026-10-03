@@ -58,6 +58,18 @@ async function run(ctx) {
   await openPath(noteA);
   await js('activePane().vditor.focus()');
 
+  // --- link ink follows the theme, not Vditor's fixed #4285f4 ---
+  const ink = await js(`(() => {
+    const e = activePane().el.querySelector('.vditor-ir [data-type="a"] .vditor-ir__link');
+    const probe = document.createElement('span');
+    probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    document.body.appendChild(probe);
+    const want = getComputedStyle(probe).color;
+    probe.remove();
+    return e ? { got: getComputedStyle(e).color, want } : null;
+  })()`);
+  check('links: the link text takes the theme accent', !!ink && ink.got === ink.want && ink.got !== 'rgb(66, 133, 244)', JSON.stringify(ink));
+
   // --- navigation safety ---
   const home = win.webContents.getURL();
   await js(`setTimeout(() => { location.href = 'https://example.com/away'; }, 0)`);
