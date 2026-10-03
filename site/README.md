@@ -1,23 +1,30 @@
 # wired-md landing page
 
-The marketing landing for wired-md: a single, self-contained `index.html` (CSS and JavaScript inline, no CDN, no network fetch, no external fonts). It mirrors the app's own palette so the page reads as the product itself.
+The landing page, published at <https://gabrielsilvestri.github.io/wired-md/>.
+`site/` is the whole site: `index.html` (CSS and JavaScript inline), `fonts/`
+(Geist and Geist Mono, OFL) and `assets/` (icon, share image, screenshots). No
+CDN, no network fetch, no build step.
 
-## What it is
+## Publishing
 
-- One hero with a Minecraft-style splash line that reshuffles from a pool of flavor texts on every page load.
-- Feature sections drawn from the real product (inline rendering, frontmatter validation, what a CLAUDE.md costs in tokens with its imports, the claude bridge, open notes that follow the disk, the first run AI CLI picker, the theme gallery, links and images, palette and full-text search, focus and typewriter modes, tabs with drag to split, templates).
-- An install section that is honest: cloning and running is the main path, the per user installer can be built from source with `npm run dist`, and a signed installer, a published release and winget are marked as roadmap, not as live links.
-- A "buy me a coffee" banner and GitHub links.
+`.github/workflows/pages.yml` uploads `site/` to GitHub Pages on every push to
+`main` that touches it. Open `index.html` directly in a browser to preview.
 
-## Screenshot
+## Assets
 
-The hero references `../docs/screenshot.png` (the app's own end-to-end screenshot). Serve the page from a context where that relative path resolves.
+- `assets/app.png`, `assets/theme-*.png`, `assets/empty.png` are real
+  screenshots of the app, written by `tests/e2e/checks/95-site-shots.js` with
+  `WIRED_SHOTS=1` (`$env:WIRED_SHOTS='1'; $env:WIRED_ONLY='95-'; node scripts/test.js`).
+- `assets/icon-512.png`, the favicons and the touch icon come from
+  `python scripts/build-icons.py`.
+- `assets/og.png` (1200x630) is the share card: the icon, the title and
+  `app.png`, rendered from a small HTML card with Playwright.
 
-## Serving on GitHub Pages
+## What is on the page
 
-Two ways:
-
-1. **Pages from the repo root** (branch `main`, folder `/`): the page lives at `/site/`, and `../docs/screenshot.png` resolves to the published `/docs/screenshot.png`. This is the simplest option and keeps the screenshot reference working.
-2. **Pages from `/site` or a `gh-pages` branch**: `/site` becomes the site root, so `../docs/` no longer resolves. In that case, copy `docs/screenshot.png` into `site/` and change the `<img src>` to `screenshot.png`.
-
-No build step. Open `index.html` directly in a browser to preview.
+The hero (icon, title, the Minecraft-style splash line that changes on every
+load, the app screenshot), four feature bands (the first one is a live demo
+where typed markdown renders line by line; it pauses off screen and shows the
+finished state under reduced motion), a theme switcher over real screenshots,
+the toolkit grid, an install section that is honest about the missing release,
+and the coffee link.
