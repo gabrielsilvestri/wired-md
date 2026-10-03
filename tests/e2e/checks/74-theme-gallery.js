@@ -76,6 +76,18 @@ async function run(ctx) {
     (await js(`PALETTE_ACTIONS.some(function(a){return (typeof a.label==='function'?a.label():a.label)==='browse themes';})`)) === true
   );
 
+  // Opened from the palette while settings sat on another tab, the gallery
+  // still shows Appearance as the selected tab.
+  await js(`void openSettings()`);
+  await sleep(200);
+  await js(`document.getElementById('tab-ai').click()`);
+  await js(`(function(){var a=PALETTE_ACTIONS.find(function(x){return (typeof x.label==='function'?x.label():x.label)==='browse themes';});a.run();})()`);
+  await sleep(400);
+  const tabOn = await js(`(document.querySelector('.settings-tab.is-active')||{}).id`);
+  check('the gallery opened from another settings tab marks Appearance as the selected tab', tabOn === 'tab-appearance', String(tabOn));
+  await js(`void closeSettings()`);
+  await sleep(200);
+
   // --- the gallery lists every catalog theme ---
   await js(`void openSettings()`);
   await sleep(300);

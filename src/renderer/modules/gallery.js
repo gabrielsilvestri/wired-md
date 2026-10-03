@@ -128,6 +128,9 @@ async function useTheme(name) {
 
 export async function openGallery() {
   if (!isSettingsOpen()) await openSettings();
+  // The gallery belongs to Appearance: the tab strip says so even when the
+  // panel was last left on another tab (the palette opens it from anywhere).
+  selectTab('appearance');
   for (const pane of document.querySelectorAll('.settings-pane')) {
     const on = pane === galleryPane;
     pane.classList.toggle('is-active', on);
