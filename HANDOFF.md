@@ -14,11 +14,13 @@ Current technical state and verification instructions live in
 - CLAUDE.md `@path` imports counted in the status bar and opened with Ctrl+click; a right click menu in the text; "what changed on disk" as a diff.
 - One shared Markdown reading per change (long notes type faster); `.claude` and the other agent folders show in the tree and in search.
 - The landing page and README tell all of this, and say no release is published yet.
+- Night round: the cable hash icon everywhere, the landing live on GitHub Pages (https://gabrielsilvestri.github.io/wired-md/), themed links, a three way question when closing one unsaved tab.
 
 ## Owner decisions still open
 
 `wired-md` is provisional. `Runa` was rejected. The alternatives recorded on
 2026-08-14 were Lore, Sutra, Axon, Tomo, Trama, Navi, Mantra, Koan and Glifo;
-no final choice is recorded. Branding materials are in `docs/branding/`.
+no final choice is recorded. Branding materials are in `docs/branding/`. The icon
+is the cable drawn as a hash (2026-10-02); the owner can still replace it.
 
 The Windows installer builds through `npm run dist`. Final distribution and code signing remain separate work.

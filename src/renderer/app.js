@@ -9,7 +9,7 @@ import { config, loadConfig, saveConfig, panes, groups, activePane, activeGroup,
 import { applyTheme, applyCustom, applySnippets, focusDimFor, relLuminance, contrastRatio } from './modules/theme.js';
 import { initTitlebar, updateChrome, APP_NAME } from './modules/titlebar.js';
 import {
-  initPanes, openPath, openInPane, setDirty, setPaneDirty, closePane, closeActivePane,
+  initPanes, openPath, openInPane, setDirty, setPaneDirty, closePane, confirmClosePane, closeActivePane,
   save, saveAs, newFile, openViaDialog, createGroup, moveTabToGroup, dropTabOnGroupHalf,
   restoreSession, sessionSnapshot, updateEmptyState, setActivePane,
   getSuppressExplorer, setSuppressExplorer, getLastNoteFolderReveal, setLastNoteFolderReveal
@@ -213,6 +213,7 @@ expose({
   setDirty,
   setPaneDirty,
   closePane,
+  confirmClosePane,
   closeActivePane,
   setActivePane,
   createGroup,

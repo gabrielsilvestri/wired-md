@@ -143,3 +143,8 @@
   Root cause: generalizing the name of the program without auditing the steps
   that only that program understands. The folder change is now a shell `cd`
   before the CLI starts.
+- 2026-10-02: links were Vditor blue in every theme (already visible in the
+  `docs/review-wp2` theme shots) while the contrast gate stayed green. Root cause: the gate measures theme tokens, not
+  what a vendor element computes; `.vditor-ir__link` read Vditor's own
+  `--ir-bracket-color`. Photographing the same note in four themes side by side
+  found it in seconds. Check the computed color of the element, not the token.

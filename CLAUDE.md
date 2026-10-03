@@ -85,6 +85,8 @@ examples/            fixtures the E2E suite drives (demo.md is the entry file)
 electron-builder.yml the installer configuration
 packaging/           build resources (the .ico files the installer uses)
 scripts/smoke-installed.mjs   drives an INSTALLED build over CDP
+scripts/build-icons.py        every .ico and .png icon from docs/branding/icones/cabo-hash-source.png (Pillow)
+site/                the landing page, published to GitHub Pages by .github/workflows/pages.yml
 ```
 
 Renderer modules: `state` (config, the pane and group registries, MRU), `panes`

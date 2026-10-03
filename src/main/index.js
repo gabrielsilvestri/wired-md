@@ -194,7 +194,7 @@ ipcMain.handle('window:ask-unsaved', async (_ev, names) => {
   const list = (names || []).slice(0, 8).join('\n') + ((names || []).length > 8 ? '\n...' : '');
   const { response } = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
-    buttons: ['Save all', "Don't save", 'Cancel'],
+    buttons: [(names || []).length === 1 ? 'Save' : 'Save all', "Don't save", 'Cancel'],
     defaultId: 0,
     cancelId: 2,
     noLink: true,

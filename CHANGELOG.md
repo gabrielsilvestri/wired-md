@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- An app icon: a cable drawn as a hash sign, teal on the dark tile. It is the
+  installer's icon, the `.md` file icon and the window's taskbar icon in a dev
+  run. `scripts/build-icons.py` writes every size from one source image.
+- The landing page is published on GitHub Pages
+  (<https://gabrielsilvestri.github.io/wired-md/>) by `.github/workflows/pages.yml`,
+  with real screenshots of the app, the icon, Geist, a live demo of inline
+  rendering and a theme switcher. `WIRED_SHOTS=1` regenerates its screenshots
+  (check 95).
 - An open note follows its file on disk. When another tool (claude in the
   embedded terminal, an agent driving the `wired` CLI, another editor) changes
   a file open in any tab or group, a tab with no unsaved edits reloads in place,
@@ -102,6 +110,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without counting rendered code twice. Replacements support undo and redo.
 
 ### Fixed
+
+- Closing a tab with unsaved changes asks save, don't save or cancel, like
+  closing the window. It was a `confirm()` whose only yes discarded the edits.
+- Link text follows the theme accent. Vditor painted it a fixed `#4285f4`
+  blue in every theme, rosewood and parchment included.
 
 - Errors no longer come as `alert()` boxes that block the window: a failed
   save, open, rename, delete, export or template write, and the AI bridge with

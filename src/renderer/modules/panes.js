@@ -796,9 +796,42 @@ export function setActivePane(pane) {
   persistLayout();
 }
 
-export function closePane(pane) {
+// A tab with unsaved changes asks the same three way question as closing the
+// window (save, don't save, cancel) instead of a confirm() that could only
+// throw the edits away. `ask` is the dialog; the E2E passes its own answer.
+export async function confirmClosePane(pane, ask = (names) => window.wired.askUnsaved(names)) {
+  if (!pane) return 'kept';
+  if (!pane.dirty) {
+    closePane(pane);
+    return 'closed';
+  }
+  // A second Ctrl+W or click while the question is open asks nothing more.
+  if (pane.closing) return 'kept';
+  pane.closing = true;
+  try {
+    const answer = await ask([pane.path ? baseName(pane.path) : 'untitled']);
+    if (answer === 'save') {
+      setActivePane(pane);
+      if (pane.path) await save();
+      else await saveAs();
+    }
+    // A cancelled Save As, a disk conflict or a failed write leaves it dirty: keep it.
+    if (answer === 'discard' || (answer === 'save' && !pane.dirty)) {
+      closePane(pane, true);
+      return 'closed';
+    }
+    return 'kept';
+  } finally {
+    pane.closing = false;
+  }
+}
+
+export function closePane(pane, discard) {
   if (!pane) return;
-  if (pane.dirty && !confirm('This tab has unsaved changes. Close it anyway?')) return;
+  if (pane.dirty && !discard) {
+    void confirmClosePane(pane);
+    return;
+  }
   const group = groupOf(pane);
   const idx = group ? group.tabs.indexOf(pane) : -1;
   if (!group || idx === -1) return;

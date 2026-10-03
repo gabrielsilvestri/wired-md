@@ -1,5 +1,22 @@
 # HANDOFF (live session state)
 
+## Night round (2026-10-02, two hours, autonomous)
+
+- **Icon**: the cable drawn as a hash (`docs/branding/icones/cabo-hash-source.png`,
+  made in ChatGPT Images on the web). `python scripts/build-icons.py` writes
+  `packaging/*.ico`, `src/renderer/icon.png` (the window icon, new in
+  `src/main/index.js`) and the site icons. The Runa files stay as history.
+  The Codex CLI route (`gen.sh` in Image Gen 2) returned "done" without
+  calling the image tool on 0.157 and 0.159.2, so the web app was used.
+- **Landing**: `site/` is self contained (Geist in `site/fonts`, screenshots
+  in `site/assets`), published at https://gabrielsilvestri.github.io/wired-md/
+  by `.github/workflows/pages.yml` (Pages build type: workflow). Repo homepage,
+  description and topics point at it. Screenshots come from check 95 with
+  `WIRED_SHOTS=1`; the share card `site/assets/og.png` was rendered once from
+  an HTML card (see `site/README.md`).
+- **Fixes**: link text takes the theme accent (check 28); closing one dirty tab
+  asks save, don't save or cancel (`confirmClosePane`, check 38).
+
 ## Current development (2026-10-02)
 
 The owner asked for six hours of autonomous development. Five features landed,
