@@ -1779,13 +1779,14 @@ body.resizing-terminal #terminal-resizer { background: rgba(var(--accent-rgb), 0
 
 #settings-body h3:first-child { margin-top: 14px; }
 
+/* One shorthand: a margin-top above a later `margin: 0 0 8px` was silently
+   undone, so every section heading sat flush under the text before it. */
 #settings-body h3 {
-  margin-top: 20px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   color: var(--ink-faint);
-  margin: 0 0 8px;
+  margin: 22px 0 8px;
   border-bottom: 1px solid var(--rule-soft);
   padding-bottom: 4px;
 }
