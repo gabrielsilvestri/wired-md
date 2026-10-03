@@ -10,6 +10,10 @@ Current technical state and verification instructions live in
 - Outline, status bar with a token estimate, working links, relative images, image paste.
 - Theme gallery (ten catalog themes), line height and text width settings, first run welcome with the AI CLI picker.
 - The owner's braille Lain portrait in the empty state.
+- Closing with unsaved tabs asks first; unsaved edits survive a crash (`npm test` ends with a real kill and relaunch).
+- CLAUDE.md `@path` imports counted in the status bar and opened with Ctrl+click; a right click menu in the text; "what changed on disk" as a diff.
+- One shared Markdown reading per change (long notes type faster); `.claude` and the other agent folders show in the tree and in search.
+- The landing page and README tell all of this, and say no release is published yet.
 
 ## Owner decisions still open
 
