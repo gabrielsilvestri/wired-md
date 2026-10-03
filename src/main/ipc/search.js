@@ -141,7 +141,7 @@ function searchWithNode(root, query) {
     }
     for (const e of entries) {
       if (truncated) return;
-      if (isHiddenEntry(e.name)) continue;
+      if (isHiddenEntry(e.name, path.basename(dir))) continue;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {
         walk(full, depth + 1);

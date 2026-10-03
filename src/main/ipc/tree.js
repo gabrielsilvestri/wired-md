@@ -17,13 +17,17 @@ const MAX_DEPTH = 8;
 // editor is for.
 const AI_DOT_DIRS = new Set(['.claude', '.github', '.cursor', '.codex', '.gemini']);
 
-function isHiddenEntry(name) {
+// Claude Code keeps whole checkouts of the repository in .claude/worktrees
+// while it works in parallel: copies, not notes.
+function isHiddenEntry(name, parent) {
+  if (name === 'worktrees' && parent === '.claude') return true;
   return TREE_IGNORE.has(name) || (name.startsWith('.') && !AI_DOT_DIRS.has(name));
 }
 
 // The same rule for a path relative to the tree root (search results).
 function isHiddenPath(rel) {
-  return rel.split(/[\\/]/).some((seg) => seg && seg !== '.' && seg !== '..' && isHiddenEntry(seg));
+  const segs = rel.split(/[\\/]/);
+  return segs.some((seg, i) => seg && seg !== '.' && seg !== '..' && isHiddenEntry(seg, segs[i - 1]));
 }
 
 function buildTree(dir, depth) {
@@ -37,7 +41,7 @@ function buildTree(dir, depth) {
   const dirs = [];
   const files = [];
   for (const e of entries) {
-    if (isHiddenEntry(e.name)) continue;
+    if (isHiddenEntry(e.name, path.basename(dir))) continue;
     const full = path.join(dir, e.name);
     if (e.isDirectory()) {
       const sub = buildTree(full, depth + 1);
