@@ -56,8 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tool names in `tools`, `disallowedTools` and `allowed-tools` are checked
   against Claude Code's documented tool list: a wrong case (`bash`) and an
   unknown name are flagged inline, a scoped permission (`Bash(git status:*)`)
-  is checked by its name and MCP tools (`mcp__server__tool`) pass.
-- A restored session reopens every note where it was scrolled to.
+  is checked by its name and MCP tools (`mcp__server__tool`) pass. `Task`,
+  the Agent tool's earlier name, is accepted, and a list may be separated by
+  commas or spaces.
+- A restored session reopens every note where it was scrolled to, tabs in
+  the background included, and a tab you switch back to is where you left it.
 - Export the note as HTML or PDF from the palette: a standalone page (no
   script, no network) in the active theme's colors and fonts, with the
   frontmatter left out; the PDF is that page printed edge to edge.
@@ -102,8 +105,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gone after a few seconds or on a click. Decisions (close an unsaved tab,
   send to the Recycle Bin) still ask.
 - The AI bridge no longer types Claude Code's `/cd` into whichever CLI is
-  configured. It cds the shell into the note's folder and starts the CLI
-  there, which works the same for claude, codex, gemini or any command.
+  configured. It changes the shell into the note's folder and starts the CLI
+  there, which works the same for claude, codex, gemini or any command. The
+  shell step (and the terminal's cd button) uses `Set-Location -LiteralPath`,
+  so a folder with `$` or `[ ]` in its name is no longer mangled by
+  PowerShell.
 - `.claude` (agents, commands, skills) and its siblings for other tools
   (`.github`, `.cursor`, `.codex`, `.gemini`) show in the file tree and are
   searched. Every dot folder used to be hidden, which hid most of what this
