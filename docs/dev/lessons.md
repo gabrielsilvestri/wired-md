@@ -138,3 +138,8 @@
   held the tail of `tree.js`): asar packing read sizes and contents at different
   moments. Root cause: running `npm run dist` in the background of other work.
   Build with the tree quiet, then smoke the build before trusting it.
+- 2026-10-02: making the AI CLI a choice (codex, gemini, any command) left the
+  bridge typing `/cd`, a Claude Code command, into whichever CLI was picked.
+  Root cause: generalizing the name of the program without auditing the steps
+  that only that program understands. The folder change is now a shell `cd`
+  before the CLI starts.
