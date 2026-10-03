@@ -49,7 +49,9 @@ A third round, after the owner said to keep going:
 - The AI bridge cds the shell before starting the CLI instead of typing
   Claude Code's `/cd` into any CLI (check 92).
 - Errors are toasts, never `alert()` (`modules/toast.js`, check 36).
-- Export as HTML or PDF (`modules/export-note.js`, check 37).
+- Export as HTML or PDF (`modules/export-note.js`, check 37), also from the
+  right click menu and from a terminal (`wired export`, check 93), which
+  renders the file on disk and never overwrites without `--force`.
 - Outline reachable from the keyboard, settings headings spaced, the gallery
   marks Appearance when opened from the palette, `.claude/worktrees` hidden.
 
@@ -74,7 +76,9 @@ unchanged (see the previous notes in `CHANGELOG.md`).
   at the end of the session; `smoke-installed.mjs` against
   `dist\win-unpacked\wired-md.exe` passed 10 of 10 (catalog from app.asar,
   welcome, recovery, imports included) and `smoke-packaged-cli.ps1` passed,
-  again on `b3247af` after the third round (310 checks, twice in a row).
+  again on `b3247af` after the third round (310 checks, twice in a row), and
+  last on `fbc3329`: 312 checks twice in a row, smoke, dist, installed smoke
+  10 of 10 (launch to a rendered note about 0.75 to 1.2 s), packaged CLI smoke.
   Never edit `src/` while `npm run dist` runs: the asar packs files at offsets
   read earlier, and a file that changes size mid build corrupts its
   neighbours (a `window-state.js` holding the tail of `tree.js`).
