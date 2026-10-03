@@ -73,7 +73,8 @@ unchanged (see the previous notes in `CHANGELOG.md`).
   opens there, and the smoke now asserts exactly that. `npm run dist` was run
   at the end of the session; `smoke-installed.mjs` against
   `dist\win-unpacked\wired-md.exe` passed 10 of 10 (catalog from app.asar,
-  welcome, recovery, imports included) and `smoke-packaged-cli.ps1` passed.
+  welcome, recovery, imports included) and `smoke-packaged-cli.ps1` passed,
+  again on `b3247af` after the third round (310 checks, twice in a row).
   Never edit `src/` while `npm run dist` runs: the asar packs files at offsets
   read earlier, and a file that changes size mid build corrupts its
   neighbours (a `window-state.js` holding the tail of `tree.js`).
