@@ -46,6 +46,7 @@ fs.writeFileSync(
 // Same occlusion switch the E2E modes set from inside: this window spends the
 // whole run covered by the terminal that launched it, and Chromium stops
 // rendering an occluded window on Windows.
+const launchedAt = Date.now();
 const child = spawn(exe, ['--remote-debugging-port=' + PORT, '--disable-features=CalculateNativeWinOcclusion', sample], {
   env: Object.assign({}, process.env, { WIRED_USERDATA: profile }),
   stdio: ['ignore', 'pipe', 'pipe']
@@ -116,11 +117,14 @@ async function main() {
   };
 
   // The boot is async (config, theme, snippets, then the file from argv).
-  for (let i = 0; i < 60; i++) {
-    const p = await evaluate('(function(){try{var a=activePane();return a&&a.path?a.path:null;}catch(e){return null;}})()');
+  // Polled tightly, so the time to a rendered note is a number worth logging:
+  // a fast start is a feature, and a regression should be visible here.
+  for (let i = 0; i < 300; i++) {
+    const p = await evaluate('(function(){try{var a=activePane();return a&&a.path&&a.ready&&document.querySelector("#panes .pane.active .vditor-ir h1")?a.path:null;}catch(e){return null;}})()');
     if (p) break;
-    await sleep(500);
+    await sleep(100);
   }
+  console.log('[installed] launch to a rendered note: ' + (Date.now() - launchedAt) + ' ms');
 
   const win = await evaluate('({w:window.outerWidth,h:window.outerHeight,frameless:!!document.getElementById("titlebar")})');
   // A pixel either way is display scaling rounding, not a different window.
