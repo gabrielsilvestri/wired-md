@@ -100,6 +100,13 @@ function fileRow(f, depth) {
     selectedDir = dirName(f.path);
     openPath(f.path, e.ctrlKey);
   });
+  // Dragged into a note, the row becomes a relative link there (modules/links.js).
+  row.draggable = true;
+  row.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('application/x-wired-path', f.path);
+    e.dataTransfer.setData('text/plain', f.path);
+    e.dataTransfer.effectAllowed = 'copyLink';
+  });
   row.addEventListener('contextmenu', (e) => {
     e.preventDefault();
     showFileContextMenu(e, f.path);

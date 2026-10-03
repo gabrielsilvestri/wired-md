@@ -16,7 +16,9 @@
   an HTML card (see `site/README.md`).
 - **Fixes**: link text takes the theme accent (check 28); closing one dirty tab
   asks save, don't save or cancel (`confirmClosePane`, check 38);
-  `Ctrl+Shift+T` reopens the tab closed last (`reopenClosedTab`, check 39).
+  `Ctrl+Shift+T` reopens the tab closed last (`reopenClosedTab`, check 39);
+  a tree row dragged into a note becomes a relative link (`insertFileLink`
+  in `modules/links.js`, check 40).
 
 ## Current development (2026-10-02)
 

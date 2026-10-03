@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (check 95).
 - `Ctrl+Shift+T` (and "reopen closed tab" in the palette) brings back the
   tab closed last, newest first; a file gone from disk is skipped (check 39).
+- Drag a note from the sidebar tree into another note and it becomes a
+  relative link where it lands, `[style guide](refs/style%20guide.md)`, ready
+  for Ctrl+click (check 40). The way a SKILL.md points at its references.
 - An open note follows its file on disk. When another tool (claude in the
   embedded terminal, an agent driving the `wired` CLI, another editor) changes
   a file open in any tab or group, a tab with no unsaved edits reloads in place,

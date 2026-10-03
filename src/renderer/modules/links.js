@@ -5,7 +5,8 @@
 // #anchor scrolls to the heading. Relative images render through the Lute link
 // base (the Markdown on disk is never touched). A pasted or dropped image is
 // written next to the note under assets/ and linked at the caret; a dropped
-// .md file opens in a tab instead of becoming text.
+// .md file opens in a tab instead of becoming text. A note dragged from the
+// sidebar tree into another note becomes a relative link where it lands.
 
 import { panes, activePane } from './state.js';
 import { openPath, setPaneDirty } from './panes.js';
@@ -244,5 +245,67 @@ panesEl.addEventListener(
   true
 );
 
+// --- a note dragged from the tree becomes a relative link ---
+
+// The tree marks its drags with this type, so an OS file drop (which carries
+// `Files`) and a tree drag never take each other's path.
+export const TREE_DRAG_TYPE = 'application/x-wired-path';
+
+// A link from one note to another, relative to the first one's folder, with
+// forward slashes and percent encoded the way the image links are. Different
+// drives cannot be relative, so the target stays absolute as a file URL.
+export function relativeLink(fromNote, target) {
+  const split = (p) => String(p).replace(/\\/g, '/').split('/').filter(Boolean);
+  const from = split(fromNote).slice(0, -1);
+  const to = split(target);
+  if (!from.length || !to.length || from[0].toLowerCase() !== to[0].toLowerCase()) {
+    return 'file:///' + to.map(encodeURIComponent).join('/').replace(/^([A-Za-z])%3A/, '$1:');
+  }
+  let i = 0;
+  while (i < from.length && i < to.length - 1 && from[i].toLowerCase() === to[i].toLowerCase()) i++;
+  const parts = from.slice(i).map(() => '..').concat(to.slice(i));
+  return parts.map(encodeURIComponent).join('/');
+}
+
+function caretAt(pane, x, y) {
+  const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
+  const ir = pane.el.querySelector('.vditor-ir .vditor-reset');
+  if (!r || !ir || !ir.contains(r.startContainer)) return false;
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+  return true;
+}
+
+export function insertFileLink(pane, target, x, y) {
+  if (!pane || !pane.vditor || !target) return false;
+  if (!pane.path) {
+    paneStatus(pane, 'Save the note first, then a link can be relative to it');
+    return false;
+  }
+  if (pane.path === target) return false;
+  if (typeof x === 'number') caretAt(pane, x, y);
+  const name = String(target).split(/[\\/]/).pop().replace(/\.(md|markdown)$/i, '');
+  pane.vditor.insertValue('[' + name + '](' + relativeLink(pane.path, target) + ')');
+  setPaneDirty(pane, true);
+  return true;
+}
+
+const isTreeDrag = (e) => !!e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], TREE_DRAG_TYPE) !== -1;
+
+panesEl.addEventListener('dragover', (e) => {
+  if (!isTreeDrag(e) || !paneOf(e.target)) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'link';
+}, true);
+
+panesEl.addEventListener('drop', (e) => {
+  if (!isTreeDrag(e)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const pane = paneOf(e.target);
+  if (pane) insertFileLink(pane, e.dataTransfer.getData(TREE_DRAG_TYPE), e.clientX, e.clientY);
+}, true);
+
 // The seam the end to end suite drives (a real OS drag cannot be synthesized).
-window.wiredLinks = { followLink, scrollToHeading, handleDroppedFiles, insertImageFiles, paneStatus };
+window.wiredLinks = { followLink, scrollToHeading, handleDroppedFiles, insertImageFiles, paneStatus, relativeLink, insertFileLink, TREE_DRAG_TYPE };
