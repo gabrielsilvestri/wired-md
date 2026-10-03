@@ -106,8 +106,20 @@ async function run(ctx) {
       cmdWarnings.some((a) => /description is empty/.test(a)) && !cmdWarnings.some((a) => /model/.test(a)),
     JSON.stringify(cmd)
   );
+  // Tool names: a scoped permission and an MCP tool pass, a wrong case and an
+  // unknown name are flagged.
+  await js(`(function(){var p=activePane();p.vditor.setValue(${JSON.stringify('---\ndescription: tools\nallowed-tools: Read, bash, Bash(git status:*), mcp__db__query, Telepathy\n---\nbody\n')});refreshFmPanel(p);})()`);
+  const toolWarns = await until(`(function(){var w=[...document.querySelectorAll('#panes .pane.active .fm-panel .fm-warn')].map(function(x){return x.textContent;});return w.some(function(t){return /Telepathy/.test(t);})?w:null;})()`, { ceiling: 3000 });
+  check(
+    'properties: tool names are checked against the documented list (case, unknown names), scoped and MCP tools pass',
+    !!toolWarns && toolWarns.some((t) => /the docs write "bash" as "Bash"/.test(t)) && toolWarns.some((t) => /"Telepathy" is not in the Claude Code tool list/.test(t)) &&
+      !toolWarns.some((t) => /git status|mcp__db__query|"Read"/.test(t)),
+    JSON.stringify(toolWarns)
+  );
+  await js('(function(){var p=activePane();setPaneDirty(p,false);})()');
   await forget(['review-e2e']);
-  fs.rmSync(userDir('cmd-e2e'), { recursive: true, force: true });
+  // The folder watcher of the closed tab lets go a moment after the close.
+  fs.rmSync(userDir('cmd-e2e'), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 
   const brokenPath = path.join(skillDir, 'broken-e2e.md');
   fs.writeFileSync(brokenPath, '---\nname: [this never closes\ndescription: hi\n---\n# broken\n', 'utf8');

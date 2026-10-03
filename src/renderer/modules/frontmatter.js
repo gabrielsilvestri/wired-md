@@ -35,6 +35,17 @@ export function splitFrontmatter(text) {
 
 const COMMON_MODELS = ['sonnet', 'opus', 'haiku', 'fable', 'inherit'];
 const SKILL_DESCRIPTION_MAX = 1536;
+// Claude Code's built in tool names (code.claude.com docs, tools reference).
+// MCP tools are mcp__<server>__<tool> and pass as they are.
+const KNOWN_TOOLS = new Set([
+  'Agent', 'Artifact', 'AskUserQuestion', 'Bash', 'CronCreate', 'CronDelete', 'CronList', 'Edit',
+  'EndConversation', 'EnterPlanMode', 'EnterWorktree', 'ExitPlanMode', 'ExitWorktree', 'Glob', 'Grep',
+  'ListAgents', 'ListMcpResourcesTool', 'LSP', 'Monitor', 'NotebookEdit', 'PowerShell', 'PushNotification',
+  'Read', 'ReadMcpResourceTool', 'RemoteTrigger', 'ReportFindings', 'ScheduleWakeup', 'SendFeedback',
+  'SendMessage', 'SendUserFile', 'ShareOnboardingGuide', 'Skill', 'SubagentHandback', 'TaskCreate', 'TaskGet',
+  'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'TodoWrite', 'ToolSearch', 'WaitForMcpServers',
+  'WebFetch', 'WebSearch', 'Workflow', 'Write'
+]);
 // A full model ID (claude-sonnet-5-5 and the like) is as valid as an alias.
 const MODEL_ID = /^claude-[a-z0-9.-]+$/i;
 
@@ -89,6 +100,12 @@ export function fmValidate(schema, entries) {
 
   const tools = fmEntry(entries, 'tools');
   if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') warnings.push('tools should be a list or a comma separated string');
+  if (schema === 'subagent') {
+    toolWarnings(entries, 'tools', warnings);
+    toolWarnings(entries, 'disallowedTools', warnings);
+  } else {
+    toolWarnings(entries, 'allowed-tools', warnings);
+  }
 
   modelWarning(entries, warnings);
   lookalikeWarnings(keys, warnings);
@@ -100,6 +117,26 @@ function modelWarning(entries, warnings) {
   const v = model && typeof model.value === 'string' ? model.value.trim() : '';
   if (v && !COMMON_MODELS.includes(v.toLowerCase()) && !MODEL_ID.test(v)) {
     warnings.push('model "' + v + '" is not one of the common ones (' + COMMON_MODELS.join(', ') + ') or a claude- model ID');
+  }
+}
+
+// The names in a tools field, as written: a YAML list, or one comma separated
+// string. A scoped permission (`Bash(git status:*)`) is checked by its name.
+function toolNames(entry) {
+  if (!entry) return [];
+  const raw = Array.isArray(entry.value) ? entry.value : typeof entry.value === 'string' ? entry.value.split(',') : [];
+  return raw.map((t) => String(t).trim()).filter(Boolean).map((t) => t.replace(/\(.*$/s, '').trim());
+}
+
+// A tool name Claude Code does not know is a tool the agent silently goes
+// without. The docs write every name capitalized; a wrong case is the common
+// slip, and the docs do not promise it matches anyway.
+function toolWarnings(entries, key, warnings) {
+  for (const name of toolNames(fmEntry(entries, key))) {
+    if (!name || KNOWN_TOOLS.has(name) || name.startsWith('mcp__') || name === '*') continue;
+    const right = [...KNOWN_TOOLS].find((t) => t.toLowerCase() === name.toLowerCase());
+    if (right) warnings.push(key + ': the docs write "' + name + '" as "' + right + '"');
+    else warnings.push(key + ': "' + name + '" is not in the Claude Code tool list (MCP tools are mcp__server__tool)');
   }
 }
 
@@ -120,6 +157,7 @@ function fmValidateCommand(entries, keys) {
   if (desc && (typeof desc.value !== 'string' || desc.value.trim() === '')) warnings.push('description is empty (the / menu shows it)');
   const tools = fmEntry(entries, 'allowed-tools');
   if (tools && tools.kind !== 'list' && typeof tools.value !== 'string') warnings.push('allowed-tools should be a list or a comma separated string');
+  toolWarnings(entries, 'allowed-tools', warnings);
   modelWarning(entries, warnings);
   lookalikeWarnings(keys.filter((k) => k !== 'Name' && k !== 'NAME' && k !== 'naem'), warnings);
   return warnings;

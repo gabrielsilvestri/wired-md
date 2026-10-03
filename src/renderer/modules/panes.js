@@ -20,7 +20,7 @@ import { svgIcon, ICON_X, ICON_SPARKLES, ICON_FOLDER_OPEN, ICON_FILE, ICON_CHEVR
 import { updateChrome } from './titlebar.js';
 import { refreshSidebar, pushRecent, revealDirInTree, getTreeRoot, setSidebarVisible, isSidebarHidden } from './tree.js';
 import { refreshFmPanel, scheduleFmRefresh } from './frontmatter.js';
-import { applyFocusMode, applyTypewriterMode, caretMoved } from './focus-typewriter.js';
+import { applyFocusMode, applyTypewriterMode, caretMoved, scrollContainerOf } from './focus-typewriter.js';
 import { sendPaneToClaude } from './ai-bridge.js';
 import { gitBadge, gitStateFor, openDiff, scheduleGitRefresh } from './git.js';
 import { diskOpened, diskSaved, diskSaveGuard, syncWatches } from './disk-sync.js';
@@ -863,13 +863,26 @@ export function paneWithPath(p) {
 
 let persistTimer = null;
 
+// Where each tab was scrolled to, so a restored session reopens where the
+// reading stopped instead of at the top of every note.
+function paneScroller(pane) {
+  const root = pane.el ? pane.el.querySelector('.vditor-ir .vditor-reset') : null;
+  return root ? scrollContainerOf(root, pane) || root : null;
+}
+
 export function sessionSnapshot() {
+  const scroll = {};
+  for (const p of panes) {
+    const sc = p.path && p.ready ? paneScroller(p) : null;
+    if (sc && sc.scrollTop > 0) scroll[p.path] = Math.round(sc.scrollTop);
+  }
   return {
     groups: groups.map((g) => ({
       size: Number(g.size.toFixed(4)),
       files: g.tabs.map((p) => p.path).filter(Boolean)
     })),
-    active: activePane() ? activePane().path : null
+    active: activePane() ? activePane().path : null,
+    scroll
   };
 }
 
@@ -909,6 +922,14 @@ export async function restoreSession() {
     setActivePane(wanted);
   }
   updateEmptyState();
+  // Two frames: the groups have their widths and the text its height.
+  const scroll = snap.scroll || {};
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  for (const p of panes) {
+    const top = scroll[p.path];
+    const sc = top > 0 ? paneScroller(p) : null;
+    if (sc) sc.scrollTop = top;
+  }
   return opened > 0;
 }
 
@@ -1055,6 +1076,9 @@ export async function openViaDialog(side) {
 
 // Boot: one group with no tab in it, which is the Lain empty state.
 export function initPanes() {
+  // Scroll does not bubble: listened in the capture phase, saved once it stops
+  // (persistLayout is debounced).
+  panesEl.addEventListener('scroll', () => persistLayout(), true);
   createGroup();
   updateEmptyState();
 }

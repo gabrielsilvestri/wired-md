@@ -53,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is saved or closed clean. Snapshots found at launch come back as unsaved tabs
   with an inline note (a new tab when the file itself is gone). "Don't save" on
   close throws them away, so discarded edits never return.
+- Tool names in `tools`, `disallowedTools` and `allowed-tools` are checked
+  against Claude Code's documented tool list: a wrong case (`bash`) and an
+  unknown name are flagged inline, a scoped permission (`Bash(git status:*)`)
+  is checked by its name and MCP tools (`mcp__server__tool`) pass.
+- A restored session reopens every note where it was scrolled to.
 - A right click menu inside the note. Electron draws none, so a right click in
   the text did nothing; now it offers cut and copy (with a selection), paste,
   select all, sending the selection to the AI CLI, find in note, and on a link
