@@ -18,7 +18,8 @@
   asks save, don't save or cancel (`confirmClosePane`, check 38);
   `Ctrl+Shift+T` reopens the tab closed last (`reopenClosedTab`, check 39);
   a tree row dragged into a note becomes a relative link (`insertFileLink`
-  in `modules/links.js`, check 40).
+  in `modules/links.js`, check 40), also from the tree's right click menu
+  (check 41).
 
 ## Current development (2026-10-02)
 

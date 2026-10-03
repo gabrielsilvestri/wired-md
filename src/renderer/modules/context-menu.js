@@ -1,8 +1,9 @@
 // Custom context menu (HTML, in the app palette). Esc or a click outside closes
 // it. The menus for a file, a folder and a Recents entry are built here.
 
-import { config, saveConfig } from './state.js';
+import { config, saveConfig, activePane } from './state.js';
 import { openPath } from './panes.js';
+import { insertFileLink } from './links.js';
 import { renameItem, trashItem, duplicateItem, exportItem, copyPathToClipboard, createNewMd, createNewFolder, renderRecents } from './tree.js';
 import { newFromTemplate } from './templates.js';
 
@@ -56,9 +57,16 @@ window.addEventListener(
 );
 
 export function showFileContextMenu(e, p) {
+  // The keyboard and mouse twin of dragging the row into the text: a relative
+  // link at the caret of the note in front, when there is one to link from.
+  const here = activePane();
+  const link = here && here.path && here.path !== p
+    ? [{ label: 'insert link in the open note', run: () => insertFileLink(here, p) }]
+    : [];
   showCtxMenu(e.clientX, e.clientY, [
     { label: 'open', run: () => openPath(p, false) },
     { label: 'open beside', run: () => openPath(p, true) },
+    ...link,
     { sep: true },
     { label: 'rename', run: () => renameItem(p) },
     { label: 'duplicate', run: () => duplicateItem(p) },
