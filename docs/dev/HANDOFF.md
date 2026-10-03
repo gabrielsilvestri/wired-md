@@ -19,7 +19,8 @@
   `Ctrl+Shift+T` reopens the tab closed last (`reopenClosedTab`, check 39);
   a tree row dragged into a note becomes a relative link (`insertFileLink`
   in `modules/links.js`, check 40), also from the tree's right click menu
-  (check 41).
+  (check 41); broken note links counted in the status bar
+  (`modules/link-check.js`, check 42).
 
 ## Current development (2026-10-02)
 

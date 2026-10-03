@@ -28,6 +28,7 @@ import './modules/links.js';
 import './modules/outline.js';
 import './modules/statusbar.js';
 import './modules/memory-imports.js';
+import './modules/link-check.js';
 import './modules/editor-menu.js';
 import './modules/close-guard.js';
 import './modules/export-note.js';

@@ -13,3 +13,4 @@
 .status-bar #status-imports { cursor: help; }
 /* A broken import is worth noticing: the same amber the disk sync row uses. */
 .status-bar #status-imports.imports-missing { color: var(--warn-ink, var(--amber)); }
+.status-bar #status-links { color: var(--warn-ink, var(--amber)); cursor: help; }
