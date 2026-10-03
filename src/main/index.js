@@ -81,6 +81,8 @@ function createWindow() {
     minWidth: 420,
     minHeight: 400,
     backgroundColor: '#101216',
+    // The taskbar icon of a dev run; the installed exe carries packaging/wired-md.ico.
+    icon: path.join(__dirname, '..', 'renderer', 'icon.png'),
     frame: false,
     autoHideMenuBar: true,
     webPreferences: {
