@@ -52,6 +52,15 @@ async function run(ctx) {
   const tail = squeeze(lines.slice(Math.max(0, lastIdx - 2), lastIdx + 1).join(''));
   const promptStillOpen = tail.indexOf(noteTail) !== -1;
 
+  // The folder change is a shell cd typed BEFORE the CLI, never Claude Code's
+  // own /cd typed into whichever CLI is configured.
+  const noteDir = String(notePath).replace(/[\\/][^\\/]*$/, '');
+  const cdAt = flat.indexOf(squeeze('cd "' + noteDir + '"'));
+  check(
+    'ai bridge: the shell changes into the note folder before the CLI starts, with no slash command typed into the CLI',
+    cdAt !== -1 && cdAt < flat.indexOf(squeeze(FAKE)) && flat.indexOf('/cd') === -1,
+    JSON.stringify({ cdAt, cliAt: flat.indexOf(squeeze(FAKE)) })
+  );
   check(
     'ai bridge: it types the configured command and leaves the note path on the prompt WITHOUT Enter',
     typedCommand && promptStillOpen,

@@ -1,7 +1,7 @@
 // AI bridge, per note.
 //
-// It opens the terminal, brings up an AI CLI session, runs /cd into the note's
-// folder and types the quoted path with NO trailing Enter, leaving the cursor
+// It opens the terminal, cds the shell into the note's folder, brings up the AI
+// CLI session there and types the quoted path with NO trailing Enter, leaving the cursor
 // there so the owner finishes the prompt. This never sends on its own: spending
 // a token is the owner's call. No API, no key, no background request.
 //
@@ -95,10 +95,13 @@ export async function claudeBridge(notePath, selection) {
     while (!isTerminalRunning() && Date.now() - t0 < 8000) await sleep(200);
     if (!isTerminalRunning()) return;
     await sleep(400);
+    // The CLI starts in the note's folder through a plain shell cd before it,
+    // which works for whichever CLI is configured. A slash command typed
+    // inside the CLI would only ever mean something to one of them.
+    termType('cd "' + dirName(notePath) + '"');
+    await sleep(300);
     termType(aiCliCommand());
     await waitCliReady();
-    termType('/cd ' + dirName(notePath));
-    await sleep(600);
     let text = '"' + notePath + '" ';
     if (selection) text += 'about this snippet: "' + selection + '" ';
     // NEVER with Enter. This is the whole point of the bridge.

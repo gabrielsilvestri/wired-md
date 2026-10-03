@@ -115,8 +115,10 @@ Adding a feature should not mean editing files someone else is also editing.
 
 These cost real debugging time. None of them are optional.
 
-- **The AI bridge NEVER presses Enter.** It opens the terminal, brings up
-  `claude`, runs `/cd`, and types the quoted note path with no trailing Enter.
+- **The AI bridge NEVER presses Enter.** It opens the terminal, cds the shell
+  into the note's folder, brings up the configured CLI there, and types the
+  quoted note path with no trailing Enter. The cd is a shell command typed
+  before the CLI starts, never a slash command inside it: the CLI is a setting.
   Spending a token is the owner's call.
 - **Deleting always goes through `shell.trashItem`** (Recycle Bin), never
   `unlink`. A note the user wrote is never destroyed by this app.

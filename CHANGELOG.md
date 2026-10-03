@@ -93,6 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The AI bridge no longer types Claude Code's `/cd` into whichever CLI is
+  configured. It cds the shell into the note's folder and starts the CLI
+  there, which works the same for claude, codex, gemini or any command.
 - `.claude` (agents, commands, skills) and its siblings for other tools
   (`.github`, `.cursor`, `.codex`, `.gemini`) show in the file tree and are
   searched. Every dot folder used to be hidden, which hid most of what this
