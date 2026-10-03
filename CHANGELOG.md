@@ -63,7 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the background included, and a tab you switch back to is where you left it.
 - Export the note as HTML or PDF from the palette or the right click menu: a standalone page (no
   script, no network) in the active theme's colors and fonts, with the
-  frontmatter left out; the PDF is that page printed edge to edge.
+  frontmatter left out; the PDF is that page printed edge to edge. From a
+  terminal, `wired export <file> [--html] [--out <path>]` does the same through
+  the running editor (and starts it when none is running).
 - A right click menu inside the note. Electron draws none, so a right click in
   the text did nothing; now it offers cut and copy (with a selection), paste,
   select all, sending the selection to the AI CLI, find in note, and on a link

@@ -109,6 +109,7 @@ wired open <file>                                # open a .md (starts the editor
 wired focus <file>                               # bring a file that is already open to the front
 wired list [--json]                              # the files the editor has open
 wired new [--template <name>] [--title <title>]  # create a note from a template and open it
+wired export <file> [--html] [--out <path>]      # render it to PDF (or HTML) through the editor
 ```
 
 There is no daemon, no server and no port: the app is single instance, and a second `wired` invocation hands its argv to the live window and exits. To CHANGE a note, write the file on disk with any tool: every open note follows its file, reloading in place when the human has no unsaved edits there and asking them to choose when they do. The CLI never sends content.

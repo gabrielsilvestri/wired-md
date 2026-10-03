@@ -6,6 +6,30 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
+// Writes a rendered note: the page as is, or printed to PDF by a hidden window
+// with no script. Shared by the palette export and `wired export`.
+async function writeRendered(kind, html, filePath) {
+  if (kind === 'html') {
+    fs.writeFileSync(filePath, String(html), 'utf8');
+    return;
+  }
+  // The page goes through a temp file: a data: URL of a long note is huge,
+  // and relative image paths already became file URLs in the editor.
+  const tmp = path.join(os.tmpdir(), 'wired-export-' + process.pid + '-' + Date.now() + '.html');
+  fs.writeFileSync(tmp, String(html), 'utf8');
+  const win = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
+  try {
+    await win.loadFile(tmp);
+    const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { marginType: 'none' } });
+    fs.writeFileSync(filePath, pdf);
+  } finally {
+    win.destroy();
+    try {
+      fs.rmSync(tmp, { force: true });
+    } catch {}
+  }
+}
+
 function register({ getWindow }) {
   ipcMain.handle('dialog:open', async () => {
     const result = await dialog.showOpenDialog(getWindow(), {
@@ -131,25 +155,7 @@ function register({ getWindow }) {
         if (result.canceled || !result.filePath) return { ok: false, canceled: true };
         filePath = result.filePath;
       }
-      if (kind === 'html') {
-        fs.writeFileSync(filePath, String(html), 'utf8');
-        return { ok: true, path: filePath };
-      }
-      // The page goes through a temp file: a data: URL of a long note is huge,
-      // and relative image paths already became file URLs in the editor.
-      const tmp = path.join(os.tmpdir(), 'wired-export-' + process.pid + '-' + Date.now() + '.html');
-      fs.writeFileSync(tmp, String(html), 'utf8');
-      const win = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
-      try {
-        await win.loadFile(tmp);
-        const pdf = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', margins: { marginType: 'none' } });
-        fs.writeFileSync(filePath, pdf);
-      } finally {
-        win.destroy();
-        try {
-          fs.rmSync(tmp, { force: true });
-        } catch {}
-      }
+      await writeRendered(kind, html, filePath);
       return { ok: true, path: filePath };
     } catch (err) {
       return { ok: false, error: String(err.message || err) };
@@ -173,4 +179,4 @@ function register({ getWindow }) {
   });
 }
 
-module.exports = { register };
+module.exports = { register, writeRendered };

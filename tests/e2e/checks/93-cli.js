@@ -53,6 +53,26 @@ async function run(ctx) {
     JSON.stringify({ code: res.code, stdout: res.stdout.slice(0, 300), stderr: res.stderr.slice(0, 200) })
   );
 
+  // `wired export` renders a note through this window: a PDF next to it by
+  // default, an HTML page with --html --out.
+  const note = path.join(app.getPath('userData'), 'cli-export.md');
+  fs.writeFileSync(note, '---\nname: hidden\n---\n# CLI export\n\nRendered by the editor.\n', 'utf8');
+  const pdf = note.replace(/\.md$/, '.pdf');
+  const htmlOut = path.join(app.getPath('userData'), 'cli-export-page.html');
+  const ex1 = await runCli(['export', note]);
+  const head = fs.existsSync(pdf) ? fs.readFileSync(pdf).subarray(0, 5).toString('latin1') : '';
+  const ex2 = await runCli(['export', note, '--html', '--out', htmlOut]);
+  const page = fs.existsSync(htmlOut) ? fs.readFileSync(htmlOut, 'utf8') : '';
+  check(
+    'cli: `wired export` writes a PDF next to the note, and --html --out a page where asked, frontmatter left out',
+    ex1.code === 0 && ex1.stdout.trim() === pdf && head === '%PDF-' &&
+      ex2.code === 0 && /<h1[^>]*>CLI export<\/h1>/.test(page) && page.indexOf('name: hidden') === -1,
+    JSON.stringify({ ex1: ex1.stdout.trim() || ex1.stderr.slice(0, 160), head, ex2: ex2.stdout.trim() || ex2.stderr.slice(0, 160) })
+  );
+  await ctx.forget(['cli-export.md']);
+  for (const f of [note, pdf, htmlOut]) fs.rmSync(f, { force: true, maxRetries: 10, retryDelay: 200 });
+  await ctx.openPath(demoPath);
+
   // A profile with no instance running: focus and list fail fast instead of
   // starting an editor nobody asked for.
   const empty = path.join(app.getPath('userData'), 'cli-empty-profile');

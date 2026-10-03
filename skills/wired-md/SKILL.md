@@ -24,7 +24,9 @@ rewrite of the whole file. The CLI has no
 content API and will never get one: pushing text through a command line would be
 a worse version of what you already do well.
 
-The CLI is for four things only: open, focus, list, new.
+The CLI is for five things only: open, focus, list, new, export. `export`
+renders the note the way the editor shows it (theme, fonts, no frontmatter),
+so a human can get a PDF of a skill or a proposal without leaving the terminal.
 
 ## Commands
 
@@ -34,6 +36,7 @@ wired focus <file>                               bring a file that is ALREADY op
 wired list                                       the files the editor has open
 wired list --json                                the same, machine readable
 wired new [--template <name>] [--title <title>]  create a note from a template and open it
+wired export <file> [--html] [--out <path>]      render it to PDF (default, next to the note) or HTML
 ```
 
 `wired list --json` answers with an array of `{ path, dirty, active }`. `dirty`

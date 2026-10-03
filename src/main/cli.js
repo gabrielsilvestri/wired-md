@@ -189,6 +189,38 @@ async function run(cmd, deps) {
     return;
   }
 
+  if (cmd.cmd === 'export') {
+    const kind = cmd.kind === 'html' ? 'html' : 'pdf';
+    const file = path.resolve(cmd.cwd || process.cwd(), cmd.file || '');
+    let isFile = false;
+    try { isFile = fs.statSync(file).isFile(); } catch {}
+    if (!isFile) {
+      reply(cmd, { ok: false, error: 'file not found: ' + file });
+      return;
+    }
+    const out = cmd.out ? path.resolve(cmd.cwd || process.cwd(), cmd.out) : file.replace(/\.(md|markdown)$/i, '') + '.' + kind;
+    // The editor renders it: the note opens (or comes to the front), and the
+    // page is asked for once its pane holds the text.
+    win.webContents.send('open-file-path', file);
+    let html = null;
+    for (let i = 0; i < 150 && !html; i++) {
+      html = await win.webContents.executeJavaScript(
+        `(function(){var t=${jsString(file)}.toLowerCase();var p=panes.find(function(x){return x.path&&x.path.toLowerCase()===t&&x.ready;});return p&&window.wiredExport?window.wiredExport.noteHTML(p):null;})()`,
+        true
+      );
+      if (!html) await new Promise((r) => setTimeout(r, 100));
+    }
+    if (!html) {
+      reply(cmd, { ok: false, error: 'the note did not open in time: ' + file });
+      return;
+    }
+    // Required here and not at the top: bin/wired.js loads this module under
+    // plain Node, where the IPC module's electron imports mean nothing.
+    await require('./ipc/fs').writeRendered(kind, html, out);
+    reply(cmd, { ok: true, written: out });
+    return;
+  }
+
   reply(cmd, { ok: false, error: 'unknown command: ' + cmd.cmd });
 }
 

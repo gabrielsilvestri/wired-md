@@ -5,6 +5,7 @@
 //   wired focus <file>                bring a file that is already open to the front
 //   wired list [--json]               the files the editor has open
 //   wired new [--template t] [--title x]   create a note and open it
+//   wired export <file> [--html] [--out p]  render it to PDF (or HTML) through the editor
 //
 // TRANSPORT, and why it looks like this: there is no daemon, no server and no
 // port. Launching the app again is the message. Electron's single instance lock
@@ -59,6 +60,7 @@ function usage(code) {
       '  wired focus <file>                     focus a file already open',
       '  wired list [--json]                    list the open files',
       '  wired new [--template <name>] [--title <title>]',
+      '  wired export <file> [--html] [--out <path>]   PDF by default, next to the note',
       '',
       'The editor watches the folder: to CHANGE a note, write the file on disk.',
       'This CLI never sends content.'
@@ -74,6 +76,9 @@ function parseFlags(args) {
     if (a === '--json') out.json = true;
     else if (a === '--template') out.template = args[++i];
     else if (a === '--title') out.title = args[++i];
+    else if (a === '--out') out.out = args[++i];
+    else if (a === '--html') out.html = true;
+    else if (a === '--pdf') out.html = false;
     else if (a === '-h' || a === '--help') out.help = true;
     else out._.push(a);
   }
@@ -180,6 +185,27 @@ async function main() {
       process.exit(1);
     }
     console.log(abs);
+    return;
+  }
+
+  if (command === 'export') {
+    const file = flags._[0];
+    if (!file) usage(1);
+    const abs = path.resolve(cwd, file);
+    let isFile = false;
+    try { isFile = fs.statSync(abs).isFile(); } catch {}
+    if (!isFile) {
+      console.error('wired: file not found: ' + abs);
+      process.exit(1);
+    }
+    // Like open, it starts the editor when none is running: rendering is its job.
+    await dispatch({ cmd: 'export', kind: flags.html ? 'html' : 'pdf', file: abs, out: flags.out || null, cwd, reply });
+    const res = await waitForReply(reply, running ? 45000 : 60000);
+    if (!res || res.ok === false) {
+      console.error('wired: ' + ((res && res.error) || 'no answer from the editor'));
+      process.exit(1);
+    }
+    console.log(res.written);
     return;
   }
 
