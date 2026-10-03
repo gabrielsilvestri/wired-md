@@ -44,9 +44,12 @@ async function run(ctx) {
     const readings = await js('window.__gv');
     await js('window.__gvRestore()');
 
+    // Five before the cache; two or three after, depending on whether a caret
+    // class change lands between two listeners. Four or more means a listener
+    // went back to calling getValue() on its own.
     check(
-      'large note: one keystroke costs at most two full Markdown readings once the listeners settle',
-      readings <= 2,
+      'large note: one keystroke costs at most three full Markdown readings once the listeners settle (five before the shared cache)',
+      readings <= 3,
       JSON.stringify({ readings })
     );
     check(

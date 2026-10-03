@@ -207,7 +207,7 @@ These cost real debugging time. None of them are optional.
   converts the whole editor DOM (about 300ms on a 4,000 line note), and the
   cache shares one reading per change. It takes the pending mutation records
   synchronously, so a read right after `setValue` is never stale. Check 33
-  fails when a keystroke costs more than two readings.
+  fails when a keystroke costs more than three readings.
 - **Recovery snapshots must be settled before the window closes.** The close
   guard calls `settleRecovery`: "don't save" drops every snapshot, otherwise a
   last pass keeps only the unsaved ones. Skipping it brings discarded or saved
