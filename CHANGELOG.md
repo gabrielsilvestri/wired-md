@@ -93,6 +93,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Errors no longer come as `alert()` boxes that block the window: a failed
+  save, open, rename, delete, export or template write, and the AI bridge with
+  nothing to send, show a note in the bottom right corner in the warning ink,
+  gone after a few seconds or on a click. Decisions (close an unsaved tab,
+  send to the Recycle Bin) still ask.
 - The AI bridge no longer types Claude Code's `/cd` into whichever CLI is
   configured. It cds the shell into the note's folder and starts the CLI
   there, which works the same for claude, codex, gemini or any command.

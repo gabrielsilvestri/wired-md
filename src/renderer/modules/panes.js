@@ -25,6 +25,7 @@ import { sendPaneToClaude } from './ai-bridge.js';
 import { gitBadge, gitStateFor, openDiff, scheduleGitRefresh } from './git.js';
 import { diskOpened, diskSaved, diskSaveGuard, syncWatches } from './disk-sync.js';
 import { applyLinkBase } from './links.js';
+import { notify } from './toast.js';
 
 // lucide git-compare, for the "view file diff" button in the pane header.
 const ICON_DIFF = ['M16 3h5v5', 'M8 3H3v5', 'M12 22v-8', 'M3 8a9 9 0 0 0 9 6', 'M21 8a9 9 0 0 1-9 6'];
@@ -987,7 +988,7 @@ export async function openInPane(pane, p, preloaded) {
   if (content === undefined) {
     const res = await window.wired.readFile(p);
     if (!res.ok) {
-      alert('Could not open the file: ' + res.error);
+      notify('Could not open the file: ' + res.error);
       // An empty tab that failed to open is litter, not a state.
       if (!pane.path) closePane(pane);
       return;
@@ -1023,7 +1024,7 @@ export async function save() {
   if (!(await diskSaveGuard(pane, content))) return;
   const res = await window.wired.writeFile(pane.path, content);
   if (!res.ok) {
-    alert('Save failed: ' + res.error);
+    notify('Save failed: ' + res.error);
     return;
   }
   diskSaved(pane, content);
@@ -1039,7 +1040,7 @@ export async function saveAs() {
   const content = pane.vditor.getValue();
   const res = await window.wired.writeFile(p, content);
   if (!res.ok) {
-    alert('Save failed: ' + res.error);
+    notify('Save failed: ' + res.error);
     return;
   }
   pane.path = p;

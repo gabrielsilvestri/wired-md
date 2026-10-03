@@ -15,6 +15,7 @@ import { toggleTerminal, termType, termTypeRaw, getTermBuffer, isTerminalRunning
 import { setActivePane } from './panes.js';
 
 import { onThemeApplied } from './theme.js';
+import { notify } from './toast.js';
 
 registerConfigDefaults({ aiCliCommand: 'claude' });
 
@@ -84,7 +85,7 @@ let bridgeBusy = false;
 
 export async function claudeBridge(notePath, selection) {
   if (!notePath) {
-    alert('No file open to send to ' + aiCliCommand() + '.');
+    notify('No file open to send to ' + aiCliCommand() + '.');
     return;
   }
   if (bridgeBusy) return;
@@ -138,7 +139,7 @@ function currentSelectionText() {
 export function sendSelectionToClaude() {
   const text = currentSelectionText();
   if (!text) {
-    alert('No text selected to send to ' + aiCliCommand() + '.');
+    notify('No text selected to send to ' + aiCliCommand() + '.');
     return;
   }
   const compact = text.replace(/\s+/g, ' ').slice(0, 2000);

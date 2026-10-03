@@ -16,6 +16,7 @@ import { openPath, newFile, setPaneDirty } from './panes.js';
 import { getSelectedDir, getTreeRoot } from './tree.js';
 import { refreshFmPanel } from './frontmatter.js';
 import { registerPaletteAction } from './palette.js';
+import { notify } from './toast.js';
 
 const templateOverlay = document.getElementById('template-overlay');
 const templateListEl = document.getElementById('template-list');
@@ -277,7 +278,7 @@ async function newTemplate() {
   const file = templateFileName(name);
   const res = await window.wired.createTemplate(file, STARTER_TEMPLATE);
   if (!res.ok) {
-    alert('Could not create the template: ' + res.error);
+    notify('Could not create the template: ' + res.error);
     return;
   }
   await renderTemplateList(file);
@@ -292,7 +293,7 @@ async function renameTemplate() {
   if (file === item.file) return;
   const res = await window.wired.renameTemplate(item.file, file);
   if (!res.ok) {
-    alert('Could not rename the template: ' + res.error);
+    notify('Could not rename the template: ' + res.error);
     return;
   }
   await renderTemplateList(file);
@@ -306,7 +307,7 @@ async function deleteTemplate() {
   if (!confirm('Move the template "' + item.file + '" to the Recycle Bin?')) return;
   const res = await window.wired.trashTemplate(item.file);
   if (!res.ok) {
-    alert('Could not move the template to the Recycle Bin: ' + res.error);
+    notify('Could not move the template to the Recycle Bin: ' + res.error);
     return;
   }
   await renderTemplateList(null);
@@ -319,7 +320,7 @@ async function editTemplate(item) {
   if (!target) return;
   const res = await window.wired.templatePath(target.file);
   if (!res.ok) {
-    alert('Could not locate the template: ' + res.error);
+    notify('Could not locate the template: ' + res.error);
     return;
   }
   closeTemplatePicker(null);
@@ -398,7 +399,7 @@ export async function newFromTemplate(targetDir) {
   if (!tpl) return;
   const read = await window.wired.readTemplate(tpl.file);
   if (!read.ok) {
-    alert('Could not read the template: ' + read.error);
+    notify('Could not read the template: ' + read.error);
     return;
   }
   const suggestion = TEMPLATE_SUGGESTION[tpl.file.toLowerCase()] || 'untitled.md';
@@ -433,12 +434,12 @@ export async function newFromTemplate(targetDir) {
   const target = dir + '\\' + name;
   const created = await window.wired.createFile(target);
   if (!created.ok) {
-    alert('Could not create the file: ' + created.error);
+    notify('Could not create the file: ' + created.error);
     return;
   }
   const written = await window.wired.writeFile(target, clean);
   if (!written.ok) {
-    alert('Could not write the template into the file: ' + written.error);
+    notify('Could not write the template into the file: ' + written.error);
     return;
   }
   await openPath(target, false);

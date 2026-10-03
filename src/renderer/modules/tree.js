@@ -14,6 +14,7 @@ import { syncWatches } from './disk-sync.js';
 import { updateChrome } from './titlebar.js';
 import { newFromTemplate } from './templates.js';
 import { gitSlot, scheduleGitRefresh } from './git.js';
+import { notify } from './toast.js';
 
 registerConfigDefaults({ sidebarWidth: 240, sidebarVisible: true, treeSort: 'az', recentFiles: [] });
 
@@ -342,7 +343,7 @@ export async function createNewMd(targetDir) {
   if (!/\.(md|markdown)$/i.test(name)) name += '.md';
   const res = await window.wired.createFile(dir + '\\' + name);
   if (!res.ok) {
-    alert('Could not create the file: ' + res.error);
+    notify('Could not create the file: ' + res.error);
     return;
   }
   await openPath(res.path, false);
@@ -355,7 +356,7 @@ export async function createNewFolder(targetDir) {
   if (!name) return;
   const res = await window.wired.createDir(dir + '\\' + name);
   if (!res.ok) {
-    alert('Could not create the folder: ' + res.error);
+    notify('Could not create the folder: ' + res.error);
     return;
   }
   expandedDirs.add(res.path);
@@ -370,7 +371,7 @@ export async function renameItem(p) {
   const to = dirName(p) + '\\' + name;
   const res = await window.wired.renamePath(p, to);
   if (!res.ok) {
-    alert('Could not rename: ' + res.error);
+    notify('Could not rename: ' + res.error);
     return;
   }
   if (expandedDirs.has(p)) {
@@ -385,7 +386,7 @@ export async function trashItem(p) {
   if (!confirm('Send "' + baseName(p) + '" to the recycle bin' + (isDir ? ' (the whole folder)' : '') + '?')) return;
   const res = await window.wired.trashPath(p);
   if (!res.ok) {
-    alert('Could not delete: ' + res.error);
+    notify('Could not delete: ' + res.error);
     return;
   }
   forgetPath(p);
@@ -394,7 +395,7 @@ export async function trashItem(p) {
 export async function duplicateItem(p) {
   const res = await window.wired.duplicateFile(p);
   if (!res.ok) {
-    alert('Could not duplicate: ' + res.error);
+    notify('Could not duplicate: ' + res.error);
     return;
   }
   refreshSidebar();
@@ -406,7 +407,7 @@ export function copyPathToClipboard(p) {
 
 export async function exportItem(p) {
   const res = await window.wired.exportFile(p);
-  if (!res.ok && !res.canceled) alert('Could not export: ' + res.error);
+  if (!res.ok && !res.canceled) notify('Could not export: ' + res.error);
 }
 
 // --- tree toolbar ---
