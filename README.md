@@ -1,4 +1,8 @@
-# wired-md
+<p align="center"><img src="docs/branding/icones/wired-md-icon.png" alt="wired-md icon: a cable drawn as a hash sign" width="112"></p>
+
+<h1 align="center">wired-md</h1>
+
+<p align="center"><a href="https://gabrielsilvestri.github.io/wired-md/">Website</a> &middot; <a href="#installation">Install</a> &middot; <a href="CHANGELOG.md">Changelog</a></p>
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-4fc7bb.svg)](LICENSE)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2011-0078d4.svg)](#installation)
@@ -10,7 +14,7 @@ A desktop markdown editor for people who write markdown *for AI*: `CLAUDE.md` fi
 
 > The product name is not final yet. Until it is decided, the project uses its repository and package name, `wired-md`.
 
-![Screenshot of wired-md editing a markdown file in three editor groups, each with its own tab bar, beside the file tree](docs/screenshot.png)
+![Screenshot of wired-md with two editor groups: a rendered note, and a SKILL.md whose frontmatter is an editable properties panel, beside the file tree and the outline](site/assets/app.png)
 
 ## Why
 
