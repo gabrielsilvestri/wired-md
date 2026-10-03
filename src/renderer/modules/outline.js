@@ -136,6 +136,20 @@ export function renderOutline() {
     li.textContent = h.text;
     li.title = 'H' + h.level + ': ' + h.text + '\n' + formatTokens(estimateTokens(h.chars)) + ' in this section';
     li.addEventListener('click', () => jumpTo(i));
+    // Reachable from the keyboard too: Tab to it, Enter or Space to jump,
+    // arrows to walk the list.
+    li.tabIndex = 0;
+    li.setAttribute('role', 'link');
+    li.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        jumpTo(i);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const next = items[i + (e.key === 'ArrowDown' ? 1 : -1)];
+        if (next) next.focus();
+      }
+    });
     list.append(li);
     items.push(li);
   });

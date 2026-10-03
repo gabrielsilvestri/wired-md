@@ -97,6 +97,12 @@ async function run(ctx) {
       await until(`(function(){var c=document.querySelector('#outline-list .outline-item.current');return !!c && c.textContent==='Third';})()`),
       await js(`(document.querySelector('#outline-list .outline-item.current')||{}).textContent`));
 
+    // The keyboard reaches the outline: Enter on a focused entry jumps there.
+    await js(`(function(){var it=document.querySelectorAll('#outline-list .outline-item')[3];it.focus();it.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));})()`);
+    check('outline: an entry is focusable and Enter jumps to its heading',
+      await js(`document.querySelectorAll('#outline-list .outline-item')[3].tabIndex===0`) &&
+      await until(`(function(){var h=[...activePane().el.querySelectorAll('.vditor-ir .vditor-reset > h4')][0];var s=getSelection();return !!h&&!!s.anchorNode&&h.contains(s.anchorNode);})()`));
+
     // The fake heading is not a heading: it must not shift the jump either.
     await js(`document.querySelectorAll('#outline-list .outline-item')[1].click()`);
     check('outline: jumping to the heading before a code fence lands on it, not on the fake one',
