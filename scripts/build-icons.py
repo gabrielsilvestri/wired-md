@@ -38,7 +38,7 @@ def fit(sym, box):
     return sym.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
 
 
-def app_icon(size=1024):
+def app_icon(size=1024, scale=0.66):
     # Drawn at 4x and reduced, so the rounded edge is antialiased.
     big = size * 4
     im = Image.new('RGBA', (big, big), (0, 0, 0, 0))
@@ -48,7 +48,7 @@ def app_icon(size=1024):
     inset = max(4, big // 128)
     d.rounded_rectangle((inset, inset, big - 1 - inset, big - 1 - inset), rad - inset, fill=TILE)
     im = im.resize((size, size), Image.LANCZOS)
-    sym = fit(symbol(), round(size * 0.66))
+    sym = fit(symbol(), round(size * scale))
     # Optical center: the plug hangs bottom right, so the mark sits a hair up and left.
     x = (size - sym.width) // 2 - round(size * 0.01)
     y = (size - sym.height) // 2 - round(size * 0.005)
@@ -56,7 +56,7 @@ def app_icon(size=1024):
     return im
 
 
-def doc_icon(size=1024):
+def doc_icon(size=1024, scale=0.52):
     big = size * 4
     im = Image.new('RGBA', (big, big), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
@@ -74,13 +74,21 @@ def doc_icon(size=1024):
     d.polygon(inner, fill=PAGE)
     d.polygon([(right - fold, top), (right - fold, top + fold), (right, top + fold)], fill=FOLD)
     im = im.resize((size, size), Image.LANCZOS)
-    sym = fit(symbol(), round(size * 0.52))
+    sym = fit(symbol(), round(size * scale))
     im.alpha_composite(sym, ((size - sym.width) // 2, round(size * 0.56) - sym.height // 2))
     return im
 
 
-def save_ico(im, path):
-    im.save(path, format='ICO', sizes=[(s, s) for s in ICO_SIZES])
+# At 32px and below the mark at its normal size is a blur of strokes, so the
+# small frames are drawn on their own with the symbol filling more of the tile.
+SMALL = [16, 20, 24, 32]
+
+
+def save_ico(make, path, small_scale):
+    # Pillow writes only the frames it is handed, so every size gets one.
+    big = make(1024)
+    frames = [make(s, small_scale) if s in SMALL else big.resize((s, s), Image.LANCZOS) for s in ICO_SIZES]
+    frames[-1].save(path, format='ICO', sizes=[(s, s) for s in ICO_SIZES], append_images=frames[:-1])
 
 
 def main():
@@ -88,8 +96,8 @@ def main():
     doc = doc_icon(1024)
     app.save(ROOT / 'docs' / 'branding' / 'icones' / 'wired-md-icon.png')
     doc.save(ROOT / 'docs' / 'branding' / 'icones' / 'wired-md-doc-icon.png')
-    save_ico(app, ROOT / 'packaging' / 'wired-md.ico')
-    save_ico(doc, ROOT / 'packaging' / 'wired-md-doc.ico')
+    save_ico(app_icon, ROOT / 'packaging' / 'wired-md.ico', 0.84)
+    save_ico(doc_icon, ROOT / 'packaging' / 'wired-md-doc.ico', 0.66)
     # The window icon (dev runs; the installed exe takes the .ico).
     app.resize((256, 256), Image.LANCZOS).save(ROOT / 'src' / 'renderer' / 'icon.png')
     site = ROOT / 'site' / 'assets'
@@ -97,7 +105,7 @@ def main():
     app.resize((512, 512), Image.LANCZOS).save(site / 'icon-512.png')
     app.resize((180, 180), Image.LANCZOS).save(site / 'apple-touch-icon.png')
     app.resize((64, 64), Image.LANCZOS).save(site / 'favicon-64.png')
-    app.resize((32, 32), Image.LANCZOS).save(site / 'favicon-32.png')
+    app_icon(32, 0.84).save(site / 'favicon-32.png')
     print('icons written')
 
 
