@@ -42,6 +42,17 @@ Then, in the main session:
 - The landing page (`site/`) and the README tell the new features and are
   honest that no release is published yet.
 
+A third round, after the owner said to keep going:
+
+- Tool names in frontmatter checked against the documented Claude Code list
+  (check 16); the session keeps each tab's scroll (check 35).
+- The AI bridge cds the shell before starting the CLI instead of typing
+  Claude Code's `/cd` into any CLI (check 92).
+- Errors are toasts, never `alert()` (`modules/toast.js`, check 36).
+- Export as HTML or PDF (`modules/export-note.js`, check 37).
+- Outline reachable from the keyboard, settings headings spaced, the gallery
+  marks Appearance when opened from the palette, `.claude/worktrees` hidden.
+
 Also on main: the owner's braille Lain portrait in the empty state
 (`modules/portrait.js`), polling instead of fixed sleeps in the search, find
 and diff checks, and `GIT_OPTIONAL_LOCKS=0` on every read only git call.

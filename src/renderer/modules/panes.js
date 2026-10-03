@@ -277,8 +277,21 @@ function renderTabs(group) {
     p.tabEl.classList.toggle('active', current);
     p.tabEl.setAttribute('aria-selected', current ? 'true' : 'false');
     p.tabEl.tabIndex = current ? 0 : -1;
+    const shown = current && !p.el.classList.contains('current');
     p.el.classList.toggle('current', current);
+    // A tab that was hidden (display: none) lost its scroll offset with its
+    // layout box: put the reader back where they were once it has a height.
+    if (shown && p.lastScroll > 0) restoreScrollSoon(p);
   }
+}
+
+function restoreScrollSoon(pane) {
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      const sc = paneScroller(pane);
+      if (sc && pane.lastScroll > 0 && sc.scrollTop === 0) sc.scrollTop = pane.lastScroll;
+    })
+  );
 }
 
 function createTab(pane) {
@@ -872,10 +885,14 @@ function paneScroller(pane) {
 }
 
 export function sessionSnapshot() {
+  // A hidden tab has no layout and reads 0: its last known offset stands in.
   const scroll = {};
   for (const p of panes) {
-    const sc = p.path && p.ready ? paneScroller(p) : null;
-    if (sc && sc.scrollTop > 0) scroll[p.path] = Math.round(sc.scrollTop);
+    if (!p.path || !p.ready) continue;
+    const visible = p.el.classList.contains('current');
+    const sc = visible ? paneScroller(p) : null;
+    const top = sc ? sc.scrollTop : p.lastScroll || 0;
+    if (top > 0) scroll[p.path] = Math.round(top);
   }
   return {
     groups: groups.map((g) => ({
@@ -928,7 +945,10 @@ export async function restoreSession() {
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   for (const p of panes) {
     const top = scroll[p.path];
-    const sc = top > 0 ? paneScroller(p) : null;
+    if (!(top > 0)) continue;
+    // Hidden tabs keep it for the moment they are shown (renderTabs).
+    p.lastScroll = top;
+    const sc = p.el.classList.contains('current') ? paneScroller(p) : null;
     if (sc) sc.scrollTop = top;
   }
   return opened > 0;
@@ -1079,7 +1099,18 @@ export async function openViaDialog(side) {
 export function initPanes() {
   // Scroll does not bubble: listened in the capture phase, saved once it stops
   // (persistLayout is debounced).
-  panesEl.addEventListener('scroll', () => persistLayout(), true);
+  panesEl.addEventListener(
+    'scroll',
+    (e) => {
+      const el = e.target.nodeType === 1 ? e.target.closest('.pane') : null;
+      const pane = el ? panes.find((x) => x.el === el) : null;
+      // Only the note's own scroller counts: a code block scrolled sideways is
+      // a scroll event too, with a scrollTop of 0.
+      if (pane && el.classList.contains('current') && e.target === paneScroller(pane)) pane.lastScroll = e.target.scrollTop;
+      persistLayout();
+    },
+    true
+  );
   createGroup();
   updateEmptyState();
 }

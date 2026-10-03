@@ -108,14 +108,19 @@ async function run(ctx) {
   );
   // Tool names: a scoped permission and an MCP tool pass, a wrong case and an
   // unknown name are flagged.
-  await js(`(function(){var p=activePane();p.vditor.setValue(${JSON.stringify('---\ndescription: tools\nallowed-tools: Read, bash, Bash(git status:*), mcp__db__query, Telepathy\n---\nbody\n')});refreshFmPanel(p);})()`);
+  await js(`(function(){var p=activePane();p.vditor.setValue(${JSON.stringify('---\ndescription: tools\nallowed-tools: Read, bash, Bash(git add:*, git commit:*), mcp__db__query, Telepathy, Task\n---\nbody\n')});refreshFmPanel(p);})()`);
   const toolWarns = await until(`(function(){var w=[...document.querySelectorAll('#panes .pane.active .fm-panel .fm-warn')].map(function(x){return x.textContent;});return w.some(function(t){return /Telepathy/.test(t);})?w:null;})()`, { ceiling: 3000 });
   check(
     'properties: tool names are checked against the documented list (case, unknown names), scoped and MCP tools pass',
     !!toolWarns && toolWarns.some((t) => /the docs write "bash" as "Bash"/.test(t)) && toolWarns.some((t) => /"Telepathy" is not in the Claude Code tool list/.test(t)) &&
-      !toolWarns.some((t) => /git status|mcp__db__query|"Read"/.test(t)),
+      !toolWarns.some((t) => /git |mcp__db__query|"Read"|"Task"/.test(t)),
     JSON.stringify(toolWarns)
   );
+  // The Agent Skills spec writes the list with spaces: three names, no warning.
+  await js(`(function(){var p=activePane();p.vditor.setValue(${JSON.stringify('---\ndescription: tools\nallowed-tools: Read Grep Glob\n---\nbody\n')});refreshFmPanel(p);})()`);
+  await sleep(400);
+  const spaced = await js(`[...document.querySelectorAll('#panes .pane.active .fm-panel .fm-warn')].map(function(x){return x.textContent;})`);
+  check('properties: a space separated tools list reads as separate names', !spaced.some((t) => /allowed-tools/.test(t)), JSON.stringify(spaced));
   await js('(function(){var p=activePane();setPaneDirty(p,false);})()');
   await forget(['review-e2e']);
   // The folder watcher of the closed tab lets go a moment after the close.

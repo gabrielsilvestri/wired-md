@@ -11,7 +11,7 @@
 // never presses Enter on the final prompt line.
 
 import { config, registerConfigDefaults, activePane, dirName, sleep } from './state.js';
-import { toggleTerminal, termType, termTypeRaw, getTermBuffer, isTerminalRunning, focusTerminal } from './terminal.js';
+import { toggleTerminal, termType, termTypeRaw, getTermBuffer, isTerminalRunning, focusTerminal, shellCd } from './terminal.js';
 import { setActivePane } from './panes.js';
 
 import { onThemeApplied } from './theme.js';
@@ -99,7 +99,7 @@ export async function claudeBridge(notePath, selection) {
     // The CLI starts in the note's folder through a plain shell cd before it,
     // which works for whichever CLI is configured. A slash command typed
     // inside the CLI would only ever mean something to one of them.
-    termType('cd "' + dirName(notePath) + '"');
+    termType(shellCd(dirName(notePath)));
     await sleep(300);
     termType(aiCliCommand());
     await waitCliReady();

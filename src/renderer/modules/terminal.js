@@ -210,11 +210,19 @@ export function focusTerminal() {
 
 // Sends the open shell to the folder of the current note (cd), without
 // restarting the terminal.
+// The shell is PowerShell, where a double quoted path expands `$name` and a
+// bare path treats `[` and `]` as wildcards: a folder named `$drafts` or
+// `old [2]` would land somewhere else, in silence. A single quoted
+// -LiteralPath takes every character as written (a quote is doubled).
+export function shellCd(dir) {
+  return "Set-Location -LiteralPath '" + String(dir).replace(/'/g, "''") + "'";
+}
+
 export function cdTerminalToNote() {
   const pane = activePane();
   if (!pane || !pane.path || !termRunning) return;
   const dir = dirName(pane.path);
-  termType('cd "' + dir + '"');
+  termType(shellCd(dir));
   terminalCwd.textContent = dir;
   xterm.focus();
 }

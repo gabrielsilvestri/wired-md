@@ -26,6 +26,24 @@ async function run(ctx) {
     await js('restoreSession().then(function(){return true;})');
     const back = await until(`(function(){var s=${scroller};return s&&s.scrollTop>0?Math.round(s.scrollTop):null;})()`, { ceiling: 5000 });
     check('session: restoring it reopens the note where the reading stopped', back !== null && Math.abs(back - (kept || 900)) <= 40, JSON.stringify({ back, kept }));
+
+    // A tab in the background (display: none) has no layout: its offset is
+    // remembered, kept in the snapshot, and given back when it is shown.
+    const other = userDir('scroll-other.md');
+    fs.writeFileSync(other, '# Other\n\nshort\n', 'utf8');
+    await openPath(other);
+    await sleep(300);
+    const hiddenSnap = await js('sessionSnapshot()');
+    const hiddenKept = hiddenSnap && hiddenSnap.scroll ? hiddenSnap.scroll[fixture] : null;
+    await openPath(fixture);
+    const shownBack = await until(`(function(){var s=${scroller};return s&&s.scrollTop>0?Math.round(s.scrollTop):null;})()`, { ceiling: 3000 });
+    check(
+      'session: a background tab keeps its scroll in the snapshot and gets it back when shown',
+      hiddenKept !== null && Math.abs(hiddenKept - 900) <= 40 && shownBack !== null && Math.abs(shownBack - 900) <= 40,
+      JSON.stringify({ hiddenKept, shownBack })
+    );
+    await js(`[...panes].filter(function(x){return x.path===${JSON.stringify(other)};}).forEach(function(x){setPaneDirty(x,false);closePane(x);})`);
+    fs.rmSync(other, { force: true, maxRetries: 10, retryDelay: 200 });
   } finally {
     await js(`[...panes].filter(function(x){return x.path===${P};}).forEach(function(x){setPaneDirty(x,false);closePane(x);})`);
     await openPath(demoPath);

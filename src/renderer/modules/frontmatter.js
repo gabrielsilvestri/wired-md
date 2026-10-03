@@ -44,7 +44,9 @@ const KNOWN_TOOLS = new Set([
   'Read', 'ReadMcpResourceTool', 'RemoteTrigger', 'ReportFindings', 'ScheduleWakeup', 'SendFeedback',
   'SendMessage', 'SendUserFile', 'ShareOnboardingGuide', 'Skill', 'SubagentHandback', 'TaskCreate', 'TaskGet',
   'TaskList', 'TaskOutput', 'TaskStop', 'TaskUpdate', 'TodoWrite', 'ToolSearch', 'WaitForMcpServers',
-  'WebFetch', 'WebSearch', 'Workflow', 'Write'
+  'WebFetch', 'WebSearch', 'Workflow', 'Write',
+  // Task is the Agent tool's earlier name, still in countless agent files.
+  'Task'
 ]);
 // A full model ID (claude-sonnet-5-5 and the like) is as valid as an alias.
 const MODEL_ID = /^claude-[a-z0-9.-]+$/i;
@@ -124,8 +126,27 @@ function modelWarning(entries, warnings) {
 // string. A scoped permission (`Bash(git status:*)`) is checked by its name.
 function toolNames(entry) {
   if (!entry) return [];
-  const raw = Array.isArray(entry.value) ? entry.value : typeof entry.value === 'string' ? entry.value.split(',') : [];
+  const raw = Array.isArray(entry.value) ? entry.value : typeof entry.value === 'string' ? splitTools(entry.value) : [];
   return raw.map((t) => String(t).trim()).filter(Boolean).map((t) => t.replace(/\(.*$/s, '').trim());
+}
+
+// A tools string is separated by commas or by spaces (the Agent Skills spec
+// writes `allowed-tools: Read Grep Glob`), but never inside the parentheses of
+// a scoped rule such as `Bash(git add:*, git commit:*)`.
+function splitTools(text) {
+  const out = [];
+  let cur = '';
+  let depth = 0;
+  for (const ch of text) {
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (depth === 0 && (ch === ',' || /\s/.test(ch))) {
+      if (cur.trim()) out.push(cur);
+      cur = '';
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
 }
 
 // A tool name Claude Code does not know is a tool the agent silently goes

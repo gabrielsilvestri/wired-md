@@ -55,7 +55,7 @@ async function run(ctx) {
   // The folder change is a shell cd typed BEFORE the CLI, never Claude Code's
   // own /cd typed into whichever CLI is configured.
   const noteDir = String(notePath).replace(/[\\/][^\\/]*$/, '');
-  const cdAt = flat.indexOf(squeeze('cd "' + noteDir + '"'));
+  const cdAt = flat.indexOf(squeeze("Set-Location -LiteralPath '" + noteDir.replace(/'/g, "''") + "'"));
   check(
     'ai bridge: the shell changes into the note folder before the CLI starts, with no slash command typed into the CLI',
     cdAt !== -1 && cdAt < flat.indexOf(squeeze(FAKE)) && flat.indexOf('/cd') === -1,
