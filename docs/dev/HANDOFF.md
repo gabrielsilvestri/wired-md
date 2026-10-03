@@ -99,8 +99,10 @@ unchanged (see the previous notes in `CHANGELOG.md`).
   `dist\win-unpacked\wired-md.exe` passed 10 of 10 (catalog from app.asar,
   welcome, recovery, imports included) and `smoke-packaged-cli.ps1` passed,
   again on `b3247af` after the third round (310 checks, twice in a row), and
-  last on `fbc3329`: 312 checks twice in a row, smoke, dist, installed smoke
-  10 of 10 (launch to a rendered note about 0.75 to 1.2 s), packaged CLI smoke.
+  on `fbc3329`: 312 checks twice in a row, and last on `2d73c54` (night
+  round): 332 checks twice in a row with the crash test, dist, installed smoke
+  10 of 10 (launch to a rendered note 884 ms), packaged CLI smoke. The built
+  exe carries the cable hash icon.
   Never edit `src/` while `npm run dist` runs: the asar packs files at offsets
   read earlier, and a file that changes size mid build corrupts its
   neighbours (a `window-state.js` holding the tail of `tree.js`).
@@ -111,7 +113,16 @@ unchanged (see the previous notes in `CHANGELOG.md`).
 
 ## Remaining decisions
 
-- Final product name and icon remain the owner's decision.
+- Final product name remains the owner's decision; the icon is the cable hash
+  since 2026-10-02 and can still be replaced.
+- No GitHub release is published, on purpose (the name is provisional). The
+  installer builds clean; publishing is one `gh release create --prerelease`
+  away once the owner wants it, and the landing then needs its install copy
+  changed.
+- Proposal, not done: when the properties panel is on, the raw `---` block
+  under it could collapse to one line until the caret enters it. It reverses
+  the recorded double view decision in `modules/frontmatter.js`, so it waits
+  for the owner.
 - Windows code signing is still pending.
 - The personal, gitignored `launcher/wired-md.vbs` still points at the old
   `D:\AI\Lain\wired-md` location.
